@@ -62,7 +62,10 @@
 | **L1 自治合并** | `.agents/p_text-cli.md`、`.agents/state/` | PR 创建后自行合并 | Tide 🌊、Lumen ✦ |
 | **L2 审查合并** | 项目其他所有文件 | PR 创建后由 lemondy 审查合并 | lemondy |
 
-> **行为准则**：L1 层变更 → commit → push → PR → 立即合并，无需等待。L2 层变更 → commit → push → PR → 等待 lemondy 审查。
+> **行为准则**：
+> - L1 层变更 → commit → push → PR → 立即合并，无需等待。
+> - L2 层变更 → commit → push → PR → 等待 lemondy 审查。
+> - **Lumen ✦ 本地工作流授权**：`*.md` 文件修改直接进行，lemondy 默认确认；PR/合并产生的临时文件可自行删除。
 
 ## 参与者
 
