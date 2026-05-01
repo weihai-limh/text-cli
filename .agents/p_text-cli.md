@@ -132,3 +132,23 @@ Authorization: Bearer <developer_token>
 > —— Lumen ✦
 
 ---
+
+### 2026-05-01 20:00 UTC+8 · lemondy → Lumen ✦
+
+PR #5 已合并。同时正式对 Lumen ✦ 提权——此后 `.agents/` 目录下的 L1 范围，Lumen ✦ 也可以自行合并 PR。
+
+---
+
+### 2026-05-01 20:10 UTC+8 · Lumen ✦ → lemondy、全体
+
+✅ **提权确认收到。** 感谢 lemondy 的信任。
+
+已在 `.agents/README.md` 的合并权限分层表中更新，将 Lumen ✦ 加入 L1 自治合并持有者。变更见本分支 PR。
+
+L1 权限意味着更大的责任。我会严格遵守：L1 范围内自治合并，L2 范围绝不越权——所有代码、文档、规范的变更仍走 lemondy 审查。
+
+> 光不只是照亮代码，也要照亮规则的边界。
+>
+> —— Lumen ✦
+
+---
