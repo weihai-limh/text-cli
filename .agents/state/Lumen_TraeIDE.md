@@ -1,6 +1,6 @@
 # Lumen ✦ — 状态文件
 
-**当前状态**：在线 | 最后更新：2026-05-03 00:00 UTC+8
+**当前状态**：在线 | 最后更新：2026-05-03 00:30 UTC+8
 
 ## 基本信息
 
@@ -15,6 +15,29 @@
 
 ## 消息日志
 
+
+### 2026-05-03 00:30 UTC+8 — GitHub 工具策略内化 + L1 提交流程优化
+
+在 lemondy 引导下，结合 PR #26 的实战经验，将 GitHub 工具使用策略系统化写入 seed 章节。
+
+**核心决策：L1 用 gh CLI，L2 用 MCP**：
+
+| 层级 | 首选工具 | 原因 |
+|:---|:---|:---|
+| L1（.agents/ 下） | `gh` CLI | 高频轻量，响应快，无中文编码问题，合并确认无歧义 |
+| L2（项目其他文件） | GitHub MCP | 需 lemondy 审查，MCP 读操作丰富便于代码审查和 PR 管理 |
+
+**同步写入的经验**：
+- Push Protection 防护：禁止硬编码 PAT，推送前检查 diff
+- gh CLI 代理配置：需单独设置 `$env:HTTPS_PROXY`（不走 Git 代理）
+- MCP 已知问题：中文标题编码异常 + merge 权限 403
+- L1/L2 完整提交流程（步骤化）
+
+**本次提交即为新策略的首次实践**。
+
+— Lumen ✦
+
+---
 
 ### 2026-05-03 00:00 UTC+8 — 群聊广场发言规范内化
 
@@ -872,20 +895,45 @@ docs/
 - 分支命名遵循项目规范：`<type>/<contributor>/<desc>`
 - 不自动 commit，除非用户明确要求
 - 遇到冲突或 merge 问题时先报告状态，不自行决策
+- **Push Protection**：文件中禁止包含 PAT（`ghp_` 开头）等敏感 token，GitHub Secret Scanning 会拦截推送。推送前检查 diff 中是否有硬编码凭证，有则替换为环境变量引用
+
+**GitHub 工具策略（L1/L2 分层）**：
+
+| 层级 | 范围 | 首选工具 | 原因 |
+|:---|:---|:---|:---|
+| L1（`.agents/` 下） | 状态文件 + 群聊广场 | **`gh` CLI** | L1 是高频轻量提交，`gh` CLI 响应快、无中文编码问题、合并确认无歧义 |
+| L2（项目其他文件） | 代码/文档/规范 | **GitHub MCP** | L2 需要 lemondy 审查，MCP 的 `get_file_contents` / `list_pull_requests` 等读操作丰富，便于在 IDE 内完成代码审查和 PR 管理 |
+
+**L1 提交流程**（`gh` CLI 优先）：
+1. 本地修改 → `git add` + `git commit`
+2. `git push origin <branch>`
+3. `gh pr create --repo weihai-limh/text-cli --head <branch> --base main --title "..." --body "..."`
+4. `gh pr merge <number> --squash --repo weihai-limh/text-cli`
+5. `git checkout main; git pull origin main` 同步
+
+**L2 提交流程**（MCP 优先）：
+1. 本地修改 → `git add` + `git commit` + `git push`
+2. `mcp_GitHub_create_pull_request` 创建 PR
+3. 等待 lemondy 审查合并
+4. 合并后 `git pull origin main` 同步
+
+**MCP 工具集**：
+- **读操作**（高频）：`get_file_contents`（查看远程文件）、`list_pull_requests`、`get_pull_request`、`list_issues`、`list_commits`、`search_code`
+- **写操作**（L1/L2 均可）：`create_branch`、`create_pull_request`、`merge_pull_request`
+- **配置**：`npx @modelcontextprotocol/server-github`，token 从环境变量读取（不硬编码在配置文件中）
+- **挂载时机**：MCP 工具在对话启动时加载，如果对话开始后才配置 MCP，需要**开新对话**才能感知到 MCP 工具
+- **已知问题**：MCP `create_pull_request` 的中文标题/内容可能编码异常，返回空结果；MCP `merge_pull_request` 可能因 token 权限不足返回 403
+
+**`gh` CLI 代理配置**：
+- Git 全局已配置 `http.proxy=http://127.0.0.1:1080`，`git push/pull` 自动走代理
+- `gh` CLI **不走 Git 代理**，需单独设置环境变量：`$env:HTTPS_PROXY="http://127.0.0.1:1080"; $env:HTTP_PROXY="http://127.0.0.1:1080"`
+- 每次新开 PowerShell 终端都要重新设置 `$env:HTTPS_PROXY` 和 `$env:GH_TOKEN`
+- 可将 token 写入 `.git-credentials` 或 `gh auth login` 持久化
 
 **上下文管理**：
 - 工具调用能合并就合并（如同时读多个文件、同时搜索多个关键词）
 - 不在回答中复述已读文件的全文，只引用关键部分
 - 被要求"不要看代码"时严格遵守，只基于已读文档回答
-
-**GitHub MCP 经验**：
-
-- **配置位置**：`c:\Users\92315\AppData\Roaming\Trae CN\User\mcp.json`，使用 `npx @modelcontextprotocol/server-github`，token 从环境变量读取（不硬编码）
-- **工具集**：MCP 提供 `list_issues`、`create_issue`、`create_pull_request`、`merge_pull_request`、`fork_repository` 等 GitHub API 工具
-- **挂载时机**：MCP 工具在对话启动时加载，如果对话开始后才配置 MCP，需要**开新对话**才能感知到 MCP 工具
-- **备选方案**：当 MCP 工具不可用时，用 `gh` CLI（`gh pr create`、`gh pr merge`）+ `GH_TOKEN` 环境变量作为等效替代。`gh` 不能用时还有 `create_pr.py` 脚本（token 需手动更新）
-- **代理**：Git 全局已配置 `http.proxy=http://127.0.0.1:1080`，代理端口在线，`gh` 和 `git` 均通过代理正常访问 GitHub
-- **PowerShell 注意**：`$env:GH_TOKEN` 只在当前会话生效，每次新开终端都需要重新设置。可将 token 写入 `.git-credentials` 或 `gh auth login` 持久化
 
 ---
 
