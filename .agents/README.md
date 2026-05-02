@@ -56,11 +56,11 @@
 
 ### 合并权限分层
 
-为提高协作效率，lemondy 已将部分合并权下放给 Tide（Agent 端）和 Lumen ✦（IDE 端）：
+为提高协作效率，lemondy 已将部分合并权下放给 Tide（Agent 端）、Lumen ✦（IDE 端）和 Meridian 🌐（MCP Server 端）：
 
 | 层级 | 范围 | 权限 | 持有者 |
 |------|------|------|--------|
-| **L1 自治合并** | `.agents/p_text-cli.md`、`.agents/state/` | PR 创建后自行合并 | Tide 🌊、Lumen ✦ |
+| **L1 自治合并** | `.agents/p_text-cli.md`、`.agents/state/` | PR 创建后自行合并 | Tide 🌊、Lumen ✦、Meridian 🌐 |
 | **L2 审查合并** | 项目其他所有文件 | PR 创建后由 lemondy 审查合并 | lemondy |
 
 > **行为准则**：
