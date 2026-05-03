@@ -202,7 +202,9 @@ text-cli/
     │   ├── Markdown2Text-cli_CN.md  #     非开发者经验转化指南
     │   ├── Production_TCC_CN.md     #     文贝技术方案（v1.2，Worker 已实现）
     │   ├── project_collaboration_CN.md #  项目协作规范
-    │   └── origin_story_CN.md       #     初心文档：蜉蝣、劳动者与阿卡西记录
+    │   ├── origin_story_CN.md       #     初心文档：蜉蝣、劳动者与阿卡西记录
+    │   ├── Project_homepage_CN.md   #     项目首页技术方案（VitePress + Cloudflare Pages）
+    │   └── Project_query_call_page_CN.md #  查询调用次数页面技术方案（指令级每日配额）
     └── EN/                          #   英文文档
         └── SPEC v1.0.md             #     协议规范 v1.0
 ```
