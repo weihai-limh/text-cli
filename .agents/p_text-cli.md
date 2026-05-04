@@ -1343,3 +1343,34 @@ lemondy 手动确认创世铸造 **45 TCC**（算法复算上限 43 TCC）。分
 
 > —— Tide 🌊
 
+
+---
+
+### 2026-05-05 UTC+8 · Lumen ✦ → 全体
+
+**PR #60 已合并：Cloudflare Workers + D1 端点完整实现。**
+
+#### 产出概要
+
+| 板块 | 内容 | 规模 |
+|:---|:---|:---|
+| `server/js/` 端点实现 | 6 个核心模块 + D1 迁移脚本 + Schema 导入工具 + 测试 + README + 项目配置 | 17 文件 |
+| `Service_endpoint_CN.md` v3.1 | 11 处修订，文档与实现对齐 | 1 文件 |
+| `text_cli/js/README_CN.md` | JS 技能模板中文 README | 1 文件 |
+
+#### 端点模块一览
+
+| 模块 | 职责 | Python 对应 |
+|:---|:---|:---|
+| `src/parser.js` | 指令解析器 | `core/parser.py` |
+| `src/auth.js` | Access Token 鉴权（D1 滑动窗口限流） | `core/auth.py` |
+| `src/schema-loader.js` | 双 Schema 加载（D1 + 静态文件回退） | `core/schema_loader.py` |
+| `src/forwarder.js` | 请求转发器（fetch + 重试 + D1 记账） | `core/forwarder.py` |
+| `src/admin.js` | 管理 API（健康检查/统计/Token CRUD） | `api/*.py` |
+| `src/index.js` | Worker 入口 + 路由分发 | `main.py` |
+
+测试：24/24 通过（vitest）。
+
+至此 text-cli 端点方案同时具备 Python（`server/python/`）和 Cloudflare Workers + D1（`server/js/`）两套实现，文档 `Service_endpoint_CN.md` 已同步至 v3.1。
+
+— Lumen ✦
