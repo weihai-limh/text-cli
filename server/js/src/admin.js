@@ -267,6 +267,127 @@ export async function handleSchemaReload(request, env) {
   return json({ message: 'schema reloaded', directive_count: count });
 }
 
+export async function handleDirectivesList(request, env) {
+  const denied = checkAdminAuth(request, env);
+  if (denied) return denied;
+  if (!env.DB) return json({ error: 'D1 not configured' }, 503);
+  const { results } = await env.DB
+    .prepare('SELECT * FROM directives ORDER BY domain, action')
+    .all();
+  return json({ directives: results });
+}
+
+export async function handleDirectivesRegister(request, env) {
+  const denied = checkAdminAuth(request, env);
+  if (denied) return denied;
+  if (!env.DB) return json({ error: 'D1 not configured' }, 503);
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
+  const domain = body?.domain?.trim();
+  const action = body?.action?.trim();
+  const backendUrl = body?.backend_url?.trim() || body?.endpoint?.trim();
+  if (!domain || !action) return json({ error: 'domain and action are required' }, 400);
+  if (!backendUrl) return json({ error: 'backend_url or endpoint is required' }, 400);
+  const directiveKey = `${domain}:${action}`;
+  const id = directiveKey.toLowerCase().replace(/[^a-z0-9:-]/g, '_');
+  const name = body?.name || `${domain}-${action}`;
+  const category = body?.category || domain;
+  const description = body?.description || '';
+  const params = Array.isArray(body?.params) ? body.params : [];
+  const promptTemplate = body?.prompt_template || '';
+  const triggerKeywords = Array.isArray(body?.trigger_keywords) ? body.trigger_keywords : [];
+  const responseType = body?.response_type || 'text';
+  const existing = await env.DB
+    .prepare('SELECT id FROM directives WHERE directive_key = ?')
+    .bind(directiveKey).first();
+  if (existing) {
+    await env.DB.prepare(
+      `UPDATE directives SET name=?, category=?, description=?, backend_url=?,
+       parameters_json=?, prompt_template=?, trigger_keywords_json=?,
+       response_type=?, enabled=1 WHERE directive_key=?`
+    ).bind(name, category, description, backendUrl,
+      JSON.stringify(params), promptTemplate, JSON.stringify(triggerKeywords),
+      responseType, directiveKey).run();
+    return json({ status: 'updated', directive_key: directiveKey, id: existing.id });
+  }
+  await env.DB.prepare(
+    `INSERT INTO directives (id,name,category,description,domain,action,backend_url,
+     parameters_json,prompt_template,trigger_keywords_json,response_type,directive_key)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
+  ).bind(id, name, category, description, domain, action, backendUrl,
+    JSON.stringify(params), promptTemplate, JSON.stringify(triggerKeywords),
+    responseType, directiveKey).run();
+  return json({ status: 'registered', directive_key: directiveKey, id }, 201);
+}
+
+export async function handleDirectivesDiscover(request, env) {
+  const denied = checkAdminAuth(request, env);
+  if (denied) return denied;
+  if (!env.DB) return json({ error: 'D1 not configured' }, 503);
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'Invalid JSON' }, 400); }
+  const serviceUrl = body?.service_url?.trim();
+  if (!serviceUrl) return json({ error: 'service_url is required' }, 400);
+  const schemaUrl = serviceUrl.replace(/\/+$/, '') + '/schema';
+  let schema;
+  try {
+    const resp = await fetch(schemaUrl, {
+      headers: { 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!resp.ok) return json({ error: `Service returned ${resp.status}`, schema_url: schemaUrl }, 502);
+    schema = await resp.json();
+  } catch (e) {
+    return json({ error: `Failed to fetch schema: ${e.message}`, schema_url: schemaUrl }, 502);
+  }
+  const domain = schema?.domain;
+  const actions = schema?.actions || [];
+  if (!domain || actions.length === 0) return json({ error: 'Schema missing domain or actions', schema }, 400);
+  const results = [];
+  for (const action of actions) {
+    const actionName = action?.action;
+    const endpoint = action?.endpoint || `${serviceUrl.replace(/\/+$/, '')}/query`;
+    const params = action?.params || [];
+    const description = action?.note || action?.description || '';
+    const format = action?.format || '';
+    const directiveKey = `${domain}:${actionName}`;
+    const id = directiveKey.toLowerCase().replace(/[^a-z0-9:-]/g, '_');
+    const existing = await env.DB
+      .prepare('SELECT id FROM directives WHERE directive_key = ?')
+      .bind(directiveKey).first();
+    if (existing) {
+      await env.DB.prepare(
+        `UPDATE directives SET backend_url=?, parameters_json=?, description=?,
+         prompt_template=?, enabled=1 WHERE directive_key=?`
+      ).bind(endpoint, JSON.stringify(params), description, format, directiveKey).run();
+      results.push({ directive_key: directiveKey, status: 'updated' });
+    } else {
+      await env.DB.prepare(
+        `INSERT INTO directives (id,name,category,description,domain,action,backend_url,
+         parameters_json,prompt_template,trigger_keywords_json,response_type,directive_key)
+         VALUES (?,?,?,?,?,?,?,?,?,?,'text',?)`
+      ).bind(id, `${domain}-${actionName}`, domain, description,
+        domain, actionName, endpoint, JSON.stringify(params), format, JSON.stringify([]),
+        directiveKey).run();
+      results.push({ directive_key: directiveKey, status: 'registered' });
+    }
+  }
+  return json({ service_url: serviceUrl, domain, registered: results.length, results });
+}
+
+export async function handleDirectivesDelete(request, env, directiveId) {
+  const denied = checkAdminAuth(request, env);
+  if (denied) return denied;
+  if (!env.DB) return json({ error: 'D1 not configured' }, 503);
+  const existing = await env.DB
+    .prepare('SELECT id FROM directives WHERE id = ? OR directive_key = ?')
+    .bind(directiveId, directiveId).first();
+  if (!existing) return json({ error: 'directive not found', id: directiveId }, 404);
+  await env.DB.prepare('UPDATE directives SET enabled = 0 WHERE id = ?')
+    .bind(existing.id).run();
+  return json({ message: 'disabled', id: existing.id });
+}
+
 export function routeAdmin(path, method, request, env) {
   if (method === 'GET' && path === '/api/health') {
     return handleHealth(request, env);
@@ -301,6 +422,22 @@ export function routeAdmin(path, method, request, env) {
 
   if (method === 'POST' && path === '/api/schema/reload') {
     return handleSchemaReload(request, env);
+  }
+
+  if (method === 'GET' && path === '/api/directives') {
+    return handleDirectivesList(request, env);
+  }
+  if (method === 'POST' && path === '/api/directives') {
+    return handleDirectivesRegister(request, env);
+  }
+  if (method === 'POST' && path === '/api/directives/discover') {
+    return handleDirectivesDiscover(request, env);
+  }
+
+  const directiveMatch = path.match(/^\/api\/directives\/(.+)$/);
+  if (directiveMatch) {
+    const directiveId = directiveMatch[1];
+    if (method === 'DELETE') return handleDirectivesDelete(request, env, directiveId);
   }
 
   return null;
