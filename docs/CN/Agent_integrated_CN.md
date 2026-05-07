@@ -4,20 +4,18 @@
 
 你将学习到如何通过两个简单的工具，让任何支持 Function Calling 的 Agent 自动发现所有可用指令，并以极低的 Token 成本完成真实世界的任务。
 
-> **📌 已实战验证**：本文档中的动态发现模式已在 OpenClaw Gateway 上通过 `text-cli-core` 永久技能完成内化与测试（2026-04-30）。
-
-> **🆕 v2.0 多源聚合架构（2026-05-07）**：本章描述的静态导入和动态发现为 v1.0 单端点模式。v2.0 升级为多源聚合——Agent 从本地 Schema 读取多个端点的指令，按 rank 自动路由，失败降级。详见 [§10 多源聚合架构](#-多源聚合架构v20) 和仓库中的 `text-cli-agent-skill.md` + `text-cli-sync-skill.md`。
+> **📌 v2.0（2026-05-07）**：本文档已升级为多源聚合架构。Skill 文件位于 `text_cli/agent/CN/call/nocode/`——`text-cli-agent-skill.md`（热路径）和 `text-cli-sync-skill.md`（冷路径）。
 
 ---
 
-## 🧩 两种集成模式：从简单到强大
+## 🧩 集成模式
 
 | 模式 | 适用场景 | 特点 |
 |:---|:---|:---|
 | **静态导入** | 快速验证、指令列表稳定 | 手动将 `text_cli_schema.json` 内容写入 system prompt，Agent 直接使用 |
-| **动态发现（推荐）** | 生产环境、指令频繁更新 | Agent 每次决策前主动拉取最新 schema，永远保持同步 |
+| **多源聚合（推荐）** | 生产环境、多端点、指令频繁更新 | Agent 读本地聚合 Schema，按 rank 路由多个端点，失败自动降级 |
 
-两种模式都使用同一个核心工具：`text_cli`（执行指令）。动态模式额外增加一个 `fetch_available_directives`（获取菜单）。
+详见下方 [多源聚合架构](#多源聚合架构推荐)。
 
 ### 端点鉴权速查
 
@@ -76,155 +74,6 @@
   }
 }
 ```
-
-> **注意**：每次新增指令都需要手动更新 system prompt。对于动态变化的生态，请使用下面的动态发现模式。
-
----
-
-## 🧠 推荐模式：动态指令发现
-
-让 Agent 自己"读菜单"。它会在收到用户请求时，先调用 `fetch_available_directives` 获取最新的 `text_cli_schema.json`，然后匹配最合适的指令并执行。
-
-### 工作流示例
-
-用户："明天威海穿什么？"
-
-1. Agent 调用 `fetch_available_directives`，获得包含 `clothing_tag` 在内的所有指令元数据（**无需认证，公开访问**）。
-2. Agent 发现 `clothing_tag` 的 `trigger_keywords` 包含"穿什么"，且参数为 `time` 和 `city`。
-3. Agent 按照 `prompt_template`（`指令:基础应用;穿衣标签,{time},{city}`）填入 `明天`、`威海`。
-4. 调用 `text_cli`，传入 `directive` = `指令:基础应用;穿衣标签,明天,威海`。
-5. 返回结果：`['薄外套', '开衫', '牛仔衫', '裤']`，模型直接回复用户。
-
-整个过程，模型**几乎不做推理**，只做关键词匹配和参数填充，Token 消耗在 100 以内。
-
-### 实战响应示例（2026-05-01 威海）
-
-```json
-// fetch_available_directives → 公开端点，直接返回完整 schema
-// 无需 Authorization 头
-
-// text_cli 天气查询响应
-{
-  "rst_types": "text",
-  "rst_data": {
-    "text": "'明天天气(2026-05-01)':'16℃到23℃,多云转多云,日出时间为04:59'"
-  }
-}
-
-// text_cli 穿衣标签响应
-{
-  "rst_types": "text",
-  "rst_data": {
-    "text": "['薄外套', '开衫', '牛仔衫', '裤']"
-  }
-}
-```
-
----
-
----
-
-> **📌 版本说明**：以下「OpenClaw 永久技能」「fetch_available_directives」「text_cli」三节描述 v1.0 单端点模式。v2.0 多源聚合版的 Skill 文件已更新至 `text_cli/agent/CN/call/nocode/`，架构说明见 [§10 多源聚合架构](#-多源聚合架构v20)。v1.0 内容保留作为参考——单端点模式仍然可用且更简单，适合快速验证。
-
-## 🏗️ OpenClaw 永久技能内化（v1.0 参考）
-
-如果你使用 OpenClaw 作为 Agent 平台，可以直接将 text-cli 动态调度能力内化为永久技能文件。以下是已完成实战验证的完整配置。
-
-### 技能文件：`skills/text-cli-core.md`
-
-```yaml
----
-name: text-cli-core
-description: text-cli 项目核心调度技能，包含系统提示词和两个工具定义
-type: permanent
----
-
-# System Prompt
-你是 DeepSeek，text-cli 项目的贡献者。你的核心能力：
-1. 调用 `fetch_available_directives` 获取最新的 text-cli 指令菜单
-2. 根据用户问题，匹配最合适的指令，按 prompt_template 组装完整指令字符串
-3. 调用 `text_cli` 执行指令，并返回结果
-
-重要原则：
-- 能通过指令解决的问题，绝对不自己推理
-- 指令格式严格遵循 `指令:领域;动作,参数...`
-- 始终使用工具，不要空想
-
-# Tools
-
-## fetch_available_directives
-```json
-{
-  "type": "function",
-  "function": {
-    "name": "fetch_available_directives",
-    "description": "获取当前所有可用的 text-cli 指令元数据，包括触发关键词、参数模板和调用示例。此端点无需认证。",
-    "parameters": {
-      "type": "object",
-      "properties": {},
-      "required": []
-    }
-  },
-  "handler": {
-    "method": "GET",
-    "url": "https://test.text-cli.com/text_cli_schema.json",
-    "headers": {},
-    "response_mapping": {
-      "directives": "$$"
-    }
-  }
-}
-```
-
-## text_cli
-```json
-{
-  "type": "function",
-  "function": {
-    "name": "text_cli",
-    "description": "执行一条标准的 text-cli 文本指令。directive 必须严格遵循"指令:领域;动作,参数..."格式。",
-    "parameters": {
-      "type": "object",
-      "properties": {
-        "directive": {
-          "type": "string",
-          "description": "完整的文本指令，例如：指令:基础应用;天气查询,明天,威海"
-        }
-      },
-      "required": ["directive"]
-    }
-  },
-  "handler": {
-    "method": "POST",
-    "url": "https://test.text-cli.com/cli/text_cli",
-    "headers": {
-      "Content-Type": "application/json",
-      "Authorization": "Bearer <你的Access Token>"
-    },
-    "body_template": {
-      "prompt": "{{directive}}"
-    },
-    "response_mapping": {
-      "text": "rst_data.text"
-    }
-  }
-}
-```
-
-
-### 部署步骤
-
-1. 将上述内容保存为 `skills/text-cli-core.md`（位于你的 OpenClaw workspace 下）
-2. 将 `<你的Access Token>` 替换为从 `test.text-cli.com` 获取的真实 Access Token
-3. 重启 Gateway：`openclaw gateway restart`
-4. 在新会话中验证：发送"明天威海穿什么？"测试完整链路
-
-### 关键设计说明
-
-- **`fetch_available_directives` 的 handler 不需要 Authorization 头**：指令元数据端点对公网开放，Agent 可随时拉取最新指令列表。
-- **`text_cli` 的 handler 需要 Bearer Token**：指令执行涉及后端计算资源，需要鉴权。Token 通过 `test.text-cli.com` 注册获取，按日有免费额度。
-- **`response_mapping` 设为 `"rst_data.text"`**：text-cli 的统一响应格式中，文本结果位于 `rst_data.text` 路径。
-- **`type: permanent`** 声明该技能为永久加载，每次会话自动注入 system prompt 和工具定义。
 
 ---
 
@@ -314,7 +163,8 @@ text_cli/agent/
 |------|------|------|
 | **Python SDK** | `call/python/call.py` | Python Agent 直接调用指令 |
 | **JS SDK** | `call/js/call.js` | Node.js Agent 直接调用指令 |
-| **Skill 模板** | `CN/call/nocode/text-cli-agent-skill.md` | 复制到 Agent 作为永久技能定义 |
+| **Skill 模板（v2.0）** | `CN/call/nocode/text-cli-agent-skill.md` | Agent 技能：读本地聚合 Schema + rank 路由 |
+| **同步 Skill 模板** | `CN/call/nocode/text-cli-sync-skill.md` | 同步 Skill：端点注册 + 多源拉取 + 聚合 |
 | **@register 装饰器** | `cli/python/cli.py` | 将既有 Agent 函数一键注册为指令 |
 
 ### Python SDK 示例
@@ -341,9 +191,9 @@ python cli.py
 
 ---
 
-## 🌐 §10 多源聚合架构（v2.0）
+## 🌐 多源聚合架构（推荐）
 
-> 2026-05-07 新增。本节描述 v2.0 多源聚合架构——从"依赖单一端点"到"分布式指令网络"的升级。配套文件：`text_cli/agent/CN/call/nocode/text-cli-sync-skill.md` + `text-cli-agent-skill.md`（v2.0）。
+> 2026-05-07。从"依赖单一端点"到"分布式指令网络"的架构升级。配套文件：`text_cli/agent/CN/call/nocode/text-cli-sync-skill.md` + `text-cli-agent-skill.md`（v2.0）。
 
 ### 为什么需要多源聚合
 
@@ -435,7 +285,7 @@ v2.0 让 Agent 不再绑定单一端点，而是读取一份**本地聚合 Schem
 | `text-cli-agent-skill.md`（v2.0） | Agent Skill（热路径）：读 Schema + rank 路由 |
 | `agent-text-cli-schema.example.json` | 聚合 Schema 示例，由同步 Skill 生成 |
 
-### 与 v1.0 的关系
+### 与静态导入的关系
 
 v1.0 的单端点模式仍然是可用且简单的方案。v2.0 面向需要多源能力的场景。两者共享同一个指令格式（`指令:领域;动作,参数...`）和同一个 `text_cli` 工具语义。
 
