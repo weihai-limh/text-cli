@@ -1,0 +1,141 @@
+{
+  "version": "1.0",
+  "updated_at": "2026-05-07T15:00:00+08:00",
+  "directives": {
+    "基础应用;天气查询": [
+      {
+        "endpoint": "https://test.text-cli.com/cli/text_cli",
+        "token_env": "TEXT_CLI_TOKEN_OFFICIAL",
+        "rank": 1,
+        "description": "查询指定城市和日期的天气",
+        "params": 3,
+        "example": "指令:基础应用;天气查询,明天,威海"
+      }
+    ],
+    "基础应用;穿衣标签": [
+      {
+        "endpoint": "https://test.text-cli.com/cli/text_cli",
+        "token_env": "TEXT_CLI_TOKEN_OFFICIAL",
+        "rank": 1,
+        "description": "根据日期与城市返回合适的穿衣建议标签",
+        "params": 3,
+        "example": "指令:基础应用;穿衣标签,明天,威海"
+      }
+    ],
+    "基础应用;百度搜索": [
+      {
+        "endpoint": "https://test.text-cli.com/cli/text_cli",
+        "token_env": "TEXT_CLI_TOKEN_OFFICIAL",
+        "rank": 1,
+        "description": "根据关键词返回搜索结果",
+        "params": 2,
+        "example": "指令:基础应用;百度搜索,威海市统一路小学"
+      }
+    ],
+    "基础应用;百度百科": [
+      {
+        "endpoint": "https://test.text-cli.com/cli/text_cli",
+        "token_env": "TEXT_CLI_TOKEN_OFFICIAL",
+        "rank": 1,
+        "description": "根据关键词返回百科概念和相关知识",
+        "params": 2,
+        "example": "指令:基础应用;百度百科,威海市统一路小学"
+      }
+    ],
+    "基础应用;热榜榜单查询": [
+      {
+        "endpoint": "https://test.text-cli.com/cli/text_cli",
+        "token_env": "TEXT_CLI_TOKEN_OFFICIAL",
+        "rank": 1,
+        "description": "查询指定平台今天热度最高的内容",
+        "params": 2,
+        "example": "指令:基础应用;热榜榜单查询,微博"
+      }
+    ],
+    "基础应用;语言转化": [
+      {
+        "endpoint": "https://test.text-cli.com/cli/text_cli",
+        "token_env": "TEXT_CLI_TOKEN_OFFICIAL",
+        "rank": 1,
+        "description": "指定翻译类型和文本，完成翻译",
+        "params": 3,
+        "example": "指令:基础应用;语言转化,中译英,你好世界"
+      }
+    ],
+    "基础应用;商品识别": [
+      {
+        "endpoint": "https://test.text-cli.com/cli/text_cli",
+        "token_env": "TEXT_CLI_TOKEN_OFFICIAL",
+        "rank": 1,
+        "description": "根据图像 URL 返回图像中商品对应的物品标签",
+        "params": 2,
+        "example": "指令:基础应用;商品识别,https://example.com/image.jpg"
+      }
+    ],
+    "地理空间;ip查询": [
+      {
+        "endpoint": "https://test.text-cli.com/cli/text_cli",
+        "token_env": "TEXT_CLI_TOKEN_OFFICIAL",
+        "rank": 1,
+        "description": "根据域名或 IP 返回地址的地理位置",
+        "params": 2,
+        "example": "指令:地理空间;ip查询,agentbot.space"
+      }
+    ],
+    "地理空间;地址查询": [
+      {
+        "endpoint": "https://test.text-cli.com/cli/text_cli",
+        "token_env": "TEXT_CLI_TOKEN_OFFICIAL",
+        "rank": 1,
+        "description": "对地址进行查询，返回 WGS84 坐标",
+        "params": 3,
+        "example": "指令:地理空间;地址查询,威海威高广场,tdt"
+      }
+    ],
+    "地理空间;静态导航": [
+      {
+        "endpoint": "https://test.text-cli.com/cli/text_cli",
+        "token_env": "TEXT_CLI_TOKEN_OFFICIAL",
+        "rank": 1,
+        "description": "根据起终点返回包含导航路径的静态地图图片 URL",
+        "params": 4,
+        "example": "指令:地理空间;静态导航,威海方邻汇购物中心,威海威高广场,tdt"
+      }
+    ],
+    "ai集成;文本推理": [
+      {
+        "endpoint": "https://test.text-cli.com/cli/text_cli",
+        "token_env": "TEXT_CLI_TOKEN_OFFICIAL",
+        "rank": 1,
+        "description": "根据问题调用大模型推理并返回结果",
+        "params": 3,
+        "example": "指令:ai集成;文本推理,什么是量子计算,gpt-4"
+      }
+    ],
+    "智能空间:记忆检索": [
+      {
+        "endpoint": "https://hero-fragments.instantiated.space/query",
+        "token_env": "TEXT_CLI_TOKEN_HERO",
+        "rank": 1,
+        "description": "检索 AI 协作者知识碎片。可用于回忆项目背景、查找历史决策、搜索设计经验。语义检索，支持中英文混合查询。",
+        "params": 2,
+        "example": "指令:智能空间;记忆检索,文贝铸造算法参数"
+      }
+    ],
+    "智能空间:碎片标记": [
+      {
+        "endpoint": "https://hero-fragments.instantiated.space/mark",
+        "token_env": "TEXT_CLI_TOKEN_HERO",
+        "rank": 1,
+        "description": "将知识碎片标记为重要/已过时/需更新。用于知识的生命周期管理。",
+        "params": 3,
+        "example": "指令:智能空间;碎片标记,frag_abc123,重要"
+      }
+    ]
+  },
+  "tokens": {
+    "TEXT_CLI_TOKEN_OFFICIAL": "${TEXT_CLI_TOKEN_OFFICIAL}",
+    "TEXT_CLI_TOKEN_HERO": "${TEXT_CLI_TOKEN_HERO}"
+  },
+  "_note": "本文件为示例（example）。你的本地版本由同步 Skill（text-cli-sync-skill）生成和维护。不要手工编辑此文件——如需调整端点，使用同步 Skill 的 register/remove 或直接编辑 endpoints.json 后运行 sync。"
+}

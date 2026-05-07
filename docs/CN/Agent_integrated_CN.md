@@ -6,6 +6,8 @@
 
 > **📌 已实战验证**：本文档中的动态发现模式已在 OpenClaw Gateway 上通过 `text-cli-core` 永久技能完成内化与测试（2026-04-30）。
 
+> **🆕 v2.0 多源聚合架构（2026-05-07）**：本章描述的静态导入和动态发现为 v1.0 单端点模式。v2.0 升级为多源聚合——Agent 从本地 Schema 读取多个端点的指令，按 rank 自动路由，失败降级。详见 [§10 多源聚合架构](#-多源聚合架构v20) 和仓库中的 `text-cli-agent-skill.md` + `text-cli-sync-skill.md`。
+
 ---
 
 ## 🧩 两种集成模式：从简单到强大
@@ -332,6 +334,108 @@ python cli.py
 ```
 
 > 详细文档：`text_cli/agent/README_CN.md`
+
+---
+
+## 🌐 §10 多源聚合架构（v2.0）
+
+> 2026-05-07 新增。本节描述 v2.0 多源聚合架构——从"依赖单一端点"到"分布式指令网络"的升级。配套文件：`text_cli/agent/CN/call/nocode/text-cli-sync-skill.md` + `text-cli-agent-skill.md`（v2.0）。
+
+### 为什么需要多源聚合
+
+v1.0 的 Agent 集成依赖单一端点（如 `test.text-cli.com`）：
+
+```
+fetch_available_directives → GET 一个端点 → 返回指令列表
+text_cli                 → POST 同一个端点 → 执行指令
+```
+
+但在实际生态中，指令源是分布式的：
+
+```
+├─ 本地层：localhost 上的指令服务（开发中、未发布）
+├─ 私域层：团队自建的 Cloudflare Worker（如 hero-fragments）
+├─ 聚合层：某人维护的集成端点（收录了朋友 + 官方的指令）
+├─ 官方层：text-cli-api（lemondy 官方收录）
+├─ 可信层：通过 spec.text-cli.com 验证的端点
+└─ 第三方层：其他聚合器
+```
+
+v2.0 让 Agent 不再绑定单一端点，而是读取一份**本地聚合 Schema**，包含所有已注册端点的指令。
+
+### 架构：两个 Skill 的分工
+
+```
+┌─── 冷路径（不在 Agent 推理循环内）─────────────────────────┐
+│                                                         │
+│  endpoints.json ← 人维护（自然语言注册 或 手工编辑）        │
+│       ↓                                                 │
+│  同步 Skill（手动触发）                                    │
+│       ├─ 读 endpoints.json                               │
+│       ├─ 并发 GET 每个端点的 /text_cli_schema.json         │
+│       ├─ 按语义 ID 聚合（指令优先，不合并）                  │
+│       └─ 写入 agent-text-cli-schema.json                  │
+│                                                         │
+├─── 热路径（每次指令调用，token 敏感）──────────────────────┤
+│                                                         │
+│  用户意图                                                 │
+│       ↓                                                 │
+│  读 agent-text-cli-schema.json ← 一次性注入               │
+│       ↓                                                 │
+│  匹配语义 ID → 取最高 rank source                         │
+│       ↓                                                 │
+│  POST 指令到 source.endpoint                             │
+│       ↓                                                 │
+│  成功 → 返回 rst_data.text                               │
+│  失败 → 降级到下一 rank source                            │
+└─────────────────────────────────────────────────────────┘
+```
+
+### 端点注册：自然语言入口
+
+使用者不需要学 JSON：
+
+```
+"加一个端点 https://my-weather.workers.dev，叫自建天气"
+"移除端点 自建天气"
+"列出所有端点"
+"同步端点"
+```
+
+同步 Skill 内部解析自然语言 → 写入 `endpoints.json` → 触发聚合。对有维护能力的人，也可以直接编辑 `endpoints.json`。两条路径共享同一个真相源。
+
+### 路由：rank 替代多维加权
+
+同一语义 ID 的多个 source，按 `rank` 从高到低排列：
+
+```json
+{
+  "天气;查询": [
+    { "endpoint": "https://cliweather.workers.dev/cli/text_cli", "rank": 3 },
+    { "endpoint": "https://test.text-cli.com/cli/text_cli", "rank": 2 }
+  ]
+}
+```
+
+- 所有源默认 rank=1，零配置启动
+- 用得多的手动提高 rank
+- 失败自动降级到下一 rank
+- 全部失败则告知用户（不自行推理兜底）
+
+### 文件清单
+
+| 文件 | 角色 |
+|------|------|
+| `endpoints.json` | 端点注册表，人维护 |
+| `text-cli-sync-skill.md` | 同步 Skill（冷路径）：注册 + 拉取 + 聚合 |
+| `text-cli-agent-skill.md`（v2.0） | Agent Skill（热路径）：读 Schema + rank 路由 |
+| `agent-text-cli-schema.example.json` | 聚合 Schema 示例，由同步 Skill 生成 |
+
+### 与 v1.0 的关系
+
+v1.0 的单端点模式仍然是可用且简单的方案。v2.0 面向需要多源能力的场景。两者共享同一个指令格式（`指令:领域;动作,参数...`）和同一个 `text_cli` 工具语义。
+
+> 详细设计讨论：见 Tide 工作空间 `tide-scripts/other_MD/agent_text-cli.md`。
 
 ---
 
@@ -811,6 +915,9 @@ path:
 ## 📁 相关资源
 
 - 完整指令列表：[`text_cli_schema.json`](../text_cli_schema.json)（公开，无需认证）
+- 聚合 Schema 示例：[`agent-text-cli-schema.example.json`](../agent-text-cli-schema.example.json)（v2.0 多源聚合参考）
+- Agent 技能模板（v2.0）：[`text_cli/agent/CN/call/nocode/text-cli-agent-skill.md`](../text_cli/agent/CN/call/nocode/text-cli-agent-skill.md)
+- 同步技能模板：[`text_cli/agent/CN/call/nocode/text-cli-sync-skill.md`](../text_cli/agent/CN/call/nocode/text-cli-sync-skill.md)
 - 生态宪章：[`ECOLOGICAL_CHARTER.md`](../ECOLOGICAL_CHARTER.md)
 - 自建指令服务：[`docs/CN/Building_text-cli_guide_CN.md`](./Building_text-cli_guide_CN.md)
 - 非开发者经验转化：[`docs/CN/Markdown2Text-cli_CN.md`](./Markdown2Text-cli_CN.md)

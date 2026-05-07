@@ -64,6 +64,8 @@
 - [project_collaboration_CN.md](https://raw.githubusercontent.com/weihai-limh/text-cli/main/docs/CN/project_collaboration_CN.md) — 分支管理、PR 流程、代币分配规则
 - [ECOLOGICAL_CHARTER.md](https://raw.githubusercontent.com/weihai-limh/text-cli/main/ECOLOGICAL_CHARTER.md) — 生态宪章：权利、义务、价值分配
 - [cliweather/README.md](https://raw.githubusercontent.com/tide-10000/tide/main/cliweather/README.md) — Tide 的开源天气指令服务：零依赖、零 API Key、6 种指令生成方式
+- [text-cli-agent-skill.md](https://raw.githubusercontent.com/weihai-limh/text-cli/main/text_cli/agent/CN/call/nocode/text-cli-agent-skill.md) — Agent 技能模板 v2.0：多源聚合、rank 路由、失败降级
+- [agent-text-cli-schema.example.json](https://raw.githubusercontent.com/weihai-limh/text-cli/main/agent-text-cli-schema.example.json) — 聚合 Schema 示例：13 条指令（官方 + 英雄碎片）
 
 ---
 
@@ -113,8 +115,10 @@ curl -X POST 'https://test.text-cli.com/cli/text_cli' \
 更多效果（静态路线图、商品识别等）演示页面正在建设中。
 
 ### 3. 集成到你的应用
-将 `text_cli_schema.json` 文件导入你的 Agent，它会自动识别所有可用指令。  
-只需让 Agent 匹配用户的意图，按模板拼接指令并 POST，极低成本即可扩展无限能力。具体集成方法请参阅 **[Agent_integrated_CN.md](./docs/CN/Agent_integrated_CN.md)**。
+
+**v1.0 单端点模式**：将 `text_cli_schema.json` 文件导入你的 Agent，它会自动识别所有可用指令。只需让 Agent 匹配用户的意图，按模板拼接指令并 POST，极低成本即可扩展无限能力。
+
+**v2.0 多源聚合（推荐）**：使用同步 Skill 聚合多个端点的指令为本地 Schema，Agent 按 rank 自动路由，失败降级。详见 [`Agent_integrated_CN.md §10`](./docs/CN/Agent_integrated_CN.md#-多源聚合架构v20) 和 `text_cli/agent/CN/call/nocode/`。
 
 如果你使用 Python 或 Node.js，可以直接用 SDK 替代手写 curl：
 
