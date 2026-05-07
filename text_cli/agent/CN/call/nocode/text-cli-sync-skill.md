@@ -84,8 +84,8 @@ type: manual
 
 端点 B 的 schema:
 {
-  "weather;query": { "description": "...", "params": 2 },
-  "智能空间:记忆检索": { "description": "...", "params": 1 }
+  "基础应用;天气查询": { "description": "...", "params": 2 },
+  "基础应用;热榜榜单查询": { "description": "...", "params": 2 }
 }
 ```
 
@@ -103,9 +103,10 @@ type: manual
     "weather;query": [
       { "endpoint": "https://端点B/cli/text_cli", "rank": 1, ... }
     ],
-    "智能空间:记忆检索": [
+    "基础应用;天气查询": [
       { "endpoint": "https://端点B/cli/text_cli", "rank": 1, ... }
-    ]
+    ],
+    "基础应用;热榜榜单查询": [
   }
 }
 ```
@@ -326,7 +327,7 @@ sync_endpoints:
     2. 并发 GET:
        ├─ https://test.text-cli.com/text_cli_schema.json          ✓
        ├─ https://my-weather.workers.dev/text_cli_schema.json     ✓
-       └─ https://hero-fragments.instantiated.space/...           ✓
+       └─ https://cliweather.instantiated.space/...               ✓
     3. 按语义 ID 聚合
     4. 写入 agent-text-cli-schema.json
     ↓

@@ -111,31 +111,11 @@
         "params": 3,
         "example": "指令:ai集成;文本推理,什么是量子计算,gpt-4"
       }
-    ],
-    "智能空间:记忆检索": [
-      {
-        "endpoint": "https://hero-fragments.instantiated.space/query",
-        "token_env": "TEXT_CLI_TOKEN_HERO",
-        "rank": 1,
-        "description": "检索 AI 协作者知识碎片。可用于回忆项目背景、查找历史决策、搜索设计经验。语义检索，支持中英文混合查询。",
-        "params": 2,
-        "example": "指令:智能空间;记忆检索,文贝铸造算法参数"
-      }
-    ],
-    "智能空间:碎片标记": [
-      {
-        "endpoint": "https://hero-fragments.instantiated.space/mark",
-        "token_env": "TEXT_CLI_TOKEN_HERO",
-        "rank": 1,
-        "description": "将知识碎片标记为重要/已过时/需更新。用于知识的生命周期管理。",
-        "params": 3,
-        "example": "指令:智能空间;碎片标记,frag_abc123,重要"
-      }
     ]
   },
   "tokens": {
-    "TEXT_CLI_TOKEN_OFFICIAL": "${TEXT_CLI_TOKEN_OFFICIAL}",
-    "TEXT_CLI_TOKEN_HERO": "${TEXT_CLI_TOKEN_HERO}"
+    "TEXT_CLI_TOKEN_OFFICIAL": "${TEXT_CLI_TOKEN_OFFICIAL}"
   },
-  "_note": "本文件为示例（example）。你的本地版本由同步 Skill（text-cli-sync-skill）生成和维护。不要手工编辑此文件——如需调整端点，使用同步 Skill 的 register/remove 或直接编辑 endpoints.json 后运行 sync。"
+  "_note": "本文件为示例（example）。你的本地版本由同步 Skill（text-cli-sync-skill）生成和维护。不要手工编辑此文件——如需调整端点，使用同步 Skill 的 register/remove 或直接编辑 endpoints.json 后运行 sync。\n\n多源示例：如果注册了 cliweather（开源天气服务，MIT 协议），同一语义 ID「基础应用;天气查询」将有两个 source——官方端点 + cliweather，按 rank 自动路由。",
+  "_multi_source_example": "如果你注册了 cliweather 端点：\n  「基础应用;天气查询」→ sources: [cliweather(rank=3), official(rank=1)]\n  Agent 调用时优先使用 cliweather，失败时自动降级到官方端点。"
 }

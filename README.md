@@ -65,7 +65,7 @@
 - [ECOLOGICAL_CHARTER.md](https://raw.githubusercontent.com/weihai-limh/text-cli/main/ECOLOGICAL_CHARTER.md) — 生态宪章：权利、义务、价值分配
 - [cliweather/README.md](https://raw.githubusercontent.com/tide-10000/tide/main/cliweather/README.md) — Tide 的开源天气指令服务：零依赖、零 API Key、6 种指令生成方式
 - [text-cli-agent-skill.md](https://raw.githubusercontent.com/weihai-limh/text-cli/main/text_cli/agent/CN/call/nocode/text-cli-agent-skill.md) — Agent 技能模板 v2.0：多源聚合、rank 路由、失败降级
-- [agent-text-cli-schema.example.json](https://raw.githubusercontent.com/weihai-limh/text-cli/main/agent-text-cli-schema.example.json) — 聚合 Schema 示例：13 条指令（官方 + 英雄碎片）
+- [agent-text-cli-schema.example.json](https://raw.githubusercontent.com/weihai-limh/text-cli/main/agent-text-cli-schema.example.json) — 聚合 Schema 示例：指令优先格式的多源参考
 
 ---
 

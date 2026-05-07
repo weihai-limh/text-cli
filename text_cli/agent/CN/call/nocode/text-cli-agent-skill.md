@@ -23,7 +23,6 @@ type: permanent
 - **Token 安全**：鉴权 Token 通过环境变量注入，不硬编码、不打印
 - **超时兜底**：单次调用超时 10 秒
 - **多源降级**：当前 rank 的源失败时，自动尝试下一个 rank。所有源都失败时告知用户，不自行推理编造
-- **Sky 感知**：若存在 `智能空间:记忆检索` 指令，在需要回忆项目背景、查找历史决策时主动调用
 
 ---
 
@@ -85,16 +84,6 @@ type: permanent
       "description": "将文本翻译为目标语言",
       "params": 2,
       "example": "指令:基础应用;语言转化,中译英,你好世界"
-    }
-  ],
-  "智能空间:记忆检索": [
-    {
-      "endpoint": "https://hero-fragments.instantiated.space/query",
-      "token_env": "TEXT_CLI_TOKEN_HERO",
-      "rank": 1,
-      "description": "检索 AI 协作者知识碎片，用于回忆项目背景、历史决策、设计经验",
-      "params": 1,
-      "example": "指令:智能空间;记忆检索,文贝铸造算法"
     }
   ]
 }
@@ -291,16 +280,6 @@ Agent: text_cli("指令:天气;查询,今天,伦敦") → "今天伦敦: 阴, 12
 Agent: "翻译结果: The weather is really nice today\n伦敦天气: 阴, 12°C"
 ```
 
-### Sky 感知场景（英雄碎片检索）
-
-```
-用户: "上次我们讨论文贝铸造的时候，算法参数是什么？"
-Agent: fetch_available_directives → 匹配「智能空间:记忆检索」
-Agent: text_cli("指令:智能空间;记忆检索,文贝铸造算法参数")
-       → "文贝铸造算法: SHA256 XOR + popcount → hash_diff_bits × ln(1 + delta_bytes) / 100..."
-Agent: 呈现检索结果给用户
-```
-
 ### 推理兜底场景
 
 ```
@@ -330,7 +309,6 @@ Agent Skill **不负责**端点管理。如果 Schema 文件缺失或过期，�
 # 同步 Skill 需要的环境变量（用于拉取各端点的 Schema）
 export TEXT_CLI_TOKEN_OFFICIAL="你的官方端点 Token"
 export TEXT_CLI_TOKEN_SELF="你的自建端点 Token"
-export TEXT_CLI_TOKEN_HERO="你的英雄碎片 Token"
 
 # Agent Skill 直接读取本地文件，无需环境变量指定端点
 # agent-text-cli-schema.json 的生成由同步 Skill 负责

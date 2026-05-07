@@ -122,7 +122,11 @@
 
 ---
 
-## 🏗️ OpenClaw 永久技能内化（推荐）
+---
+
+> **📌 版本说明**：以下「OpenClaw 永久技能」「fetch_available_directives」「text_cli」三节描述 v1.0 单端点模式。v2.0 多源聚合版的 Skill 文件已更新至 `text_cli/agent/CN/call/nocode/`，架构说明见 [§10 多源聚合架构](#-多源聚合架构v20)。v1.0 内容保留作为参考——单端点模式仍然可用且更简单，适合快速验证。
+
+## 🏗️ OpenClaw 永久技能内化（v1.0 参考）
 
 如果你使用 OpenClaw 作为 Agent 平台，可以直接将 text-cli 动态调度能力内化为永久技能文件。以下是已完成实战验证的完整配置。
 
@@ -354,7 +358,7 @@ text_cli                 → POST 同一个端点 → 执行指令
 
 ```
 ├─ 本地层：localhost 上的指令服务（开发中、未发布）
-├─ 私域层：团队自建的 Cloudflare Worker（如 hero-fragments）
+├─ 私域层：团队自建的 Cloudflare Worker（如自建知识检索、天气服务等）
 ├─ 聚合层：某人维护的集成端点（收录了朋友 + 官方的指令）
 ├─ 官方层：text-cli-api（lemondy 官方收录）
 ├─ 可信层：通过 spec.text-cli.com 验证的端点
@@ -448,7 +452,7 @@ v1.0 的单端点模式仍然是可用且简单的方案。v2.0 面向需要多�
 >
 > 感谢 lemondy 的 ANTLR4 链式调用 DSL 为本章提供了工程基础。
 
-> **v1.1 修订**（2026-05-06）：基于四轮技术对齐（空间导航、邮件+Git、服务聚合、英雄碎片），新增路径分类学（四种模式）、路径层与服务层的区分、`loop` 步骤类型、`parallel` 汇合策略。修订记录详见 `tide-scripts/text-clipaths_CN.md` 第十至十四章。
+> **v1.1 修订**（2026-05-06）：基于四轮技术对齐（空间导航、邮件+Git、服务聚合、知识检索），新增路径分类学（四种模式）、路径层与服务层的区分、`loop` 步骤类型、`parallel` 汇合策略。修订记录详见 Tide 工作空间 `tide-scripts/text-clipaths_CN.md`。
 
 ### 9.1 为什么需要路径
 
