@@ -1,0 +1,31 @@
+{
+  "version": "1.0",
+  "updated_at": "2026-05-07T15:00:00+08:00",
+  "directives": {
+    "基础应用;天气查询": [
+      {
+        "endpoint": "https://test.text-cli.com/cli/text_cli",
+        "token_env": "TEXT_CLI_TOKEN_OFFICIAL",
+        "rank": 1,
+        "description": "查询指定城市和日期的天气",
+        "params": 3,
+        "example": "指令:基础应用;天气查询,明天,威海"
+      }
+    ],
+    "基础应用;穿衣标签": [
+      {
+        "endpoint": "https://test.text-cli.com/cli/text_cli",
+        "token_env": "TEXT_CLI_TOKEN_OFFICIAL",
+        "rank": 1,
+        "description": "根据日期与城市返回穿衣建议标签",
+        "params": 3,
+        "example": "指令:基础应用;穿衣标签,明天,威海"
+      }
+    ]
+  },
+  "tokens": {
+    "TEXT_CLI_TOKEN_OFFICIAL": "${TEXT_CLI_TOKEN_OFFICIAL}"
+  },
+  "_note": "本文件为示例（example）。你的本地版本由同步 Skill（text-cli-sync-skill）生成和维护。不要手工编辑——如需调整端点，使用同步 Skill 的 register/remove 或直接编辑 endpoints.json 后运行 sync。",
+  "_multi_source_example": "多源效果：如果注册了 cliweather（开源天气服务，MIT 协议），「基础应用;天气查询」将有两个 source，按 rank 路由。Agent 优先尝试 rank 高的端点，失败自动降级。"
+}
