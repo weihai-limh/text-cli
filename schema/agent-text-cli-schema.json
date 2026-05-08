@@ -1,0 +1,157 @@
+{
+  "version": "1.0",
+  "updated_at": "2026-05-07T21:55:00+08:00",
+  "endpoints": {
+    "TEXT_CLI_TOKEN_OFFICIAL": "${TEXT_CLI_TOKEN_OFFICIAL}",
+    "TEXT_CLI_TOKEN_LOCAL": "${TEXT_CLI_TOKEN_LOCAL}"
+  },
+  "directives": {
+    "基础应用;天气查询": [
+      {
+        "endpoint": "https://test.text-cli.com/cli/text_cli",
+        "token_env": "TEXT_CLI_TOKEN_OFFICIAL",
+        "rank": 1,
+        "description": "查询指定城市和日期的天气",
+        "params": [
+          "城市",
+          "日期"
+        ],
+        "example": "指令:基础应用;天气查询,明天,威海"
+      }
+    ],
+    "基础应用;穿衣标签": [
+      {
+        "endpoint": "https://test.text-cli.com/cli/text_cli",
+        "token_env": "TEXT_CLI_TOKEN_OFFICIAL",
+        "rank": 1,
+        "description": "根据日期与城市返回穿衣建议标签",
+        "params": [
+          "城市",
+          "日期"
+        ],
+        "example": "指令:基础应用;穿衣标签,明天,威海"
+      }
+    ],
+    "文件;读取": [
+      {
+        "endpoint": "http://localhost:20260/cli/text_cli",
+        "token_env": "TEXT_CLI_TOKEN_LOCAL",
+        "rank": 1,
+        "description": "读取本地文件内容（UTF-8 编码）",
+        "params": [
+          "文件路径"
+        ]
+      }
+    ],
+    "Git;状态": [
+      {
+        "endpoint": "http://localhost:20260/cli/text_cli",
+        "token_env": "TEXT_CLI_TOKEN_LOCAL",
+        "rank": 1,
+        "description": "查看 Git 工作区状态",
+        "params": []
+      }
+    ],
+    "文件;写入": [
+      {
+        "endpoint": "http://localhost:20260/cli/text_cli",
+        "token_env": "TEXT_CLI_TOKEN_LOCAL",
+        "rank": 1,
+        "description": "写入内容到本地文件（自动创建父目录）",
+        "params": [
+          "文件路径",
+          "内容"
+        ]
+      }
+    ],
+    "文件;列表": [
+      {
+        "endpoint": "http://localhost:20260/cli/text_cli",
+        "token_env": "TEXT_CLI_TOKEN_LOCAL",
+        "rank": 1,
+        "description": "列出目录内容，返回文件名、类型、大小、修改时间",
+        "params": [
+          "目录路径(可选)"
+        ]
+      }
+    ],
+    "文件;移动": [
+      {
+        "endpoint": "http://localhost:20260/cli/text_cli",
+        "token_env": "TEXT_CLI_TOKEN_LOCAL",
+        "rank": 1,
+        "description": "移动/重命名文件或目录（同目录=重命名，跨目录=移动）",
+        "params": [
+          "源路径",
+          "目标路径"
+        ]
+      }
+    ],
+    "Git;推送": [
+      {
+        "endpoint": "http://localhost:20260/cli/text_cli",
+        "token_env": "TEXT_CLI_TOKEN_LOCAL",
+        "rank": 1,
+        "description": "推送本地提交到远程仓库（HTTPS/SSH 自动选择）",
+        "params": [
+          "分支名"
+        ]
+      }
+    ],
+    "邮件;发送": [
+      {
+        "endpoint": "http://localhost:20260/cli/text_cli",
+        "token_env": "TEXT_CLI_TOKEN_LOCAL",
+        "rank": 1,
+        "description": "通过预配置 SMTP 发送邮件（支持附件）",
+        "params": [
+          "收件人",
+          "主题",
+          "正文",
+          "附件路径(可选)"
+        ]
+      }
+    ],
+    "系统;健康": [
+      {
+        "endpoint": "http://localhost:20260/cli/text_cli",
+        "token_env": "TEXT_CLI_TOKEN_LOCAL",
+        "rank": 1,
+        "description": "查看辅助服务器运行状态（运行时间、内存、配置状态）",
+        "params": []
+      }
+    ],
+    "系统;状态": [
+      {
+        "endpoint": "http://localhost:20260/cli/text_cli",
+        "token_env": "TEXT_CLI_TOKEN_LOCAL",
+        "rank": 1,
+        "description": "查看工作心情（请求统计、错误率、活跃度、心情）",
+        "params": []
+      }
+    ],
+    "AI协作;状态": [
+      {
+        "endpoint": "http://localhost:20260/cli/text_cli",
+        "token_env": "TEXT_CLI_TOKEN_LOCAL",
+        "rank": 1,
+        "description": "查看 AI 协作者当前状态（上下文、压缩、Token 等，A=精简 B=要点）",
+        "params": [
+          "模式(可选,A/B)"
+        ]
+      }
+    ],
+    "AI协作;消息": [
+      {
+        "endpoint": "http://localhost:20260/cli/text_cli",
+        "token_env": "TEXT_CLI_TOKEN_LOCAL",
+        "rank": 1,
+        "description": "读取/推送 AI 协作者消息，读取时指定条数，推送时传入 JSON",
+        "params": [
+          "条数(默认1) 或 '推送',消息JSON"
+        ]
+      }
+    ]
+  },
+  "_note": "本文件由同步 Skill 维护。端点注册表: endpoints.json"
+}

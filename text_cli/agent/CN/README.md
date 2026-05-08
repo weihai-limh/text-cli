@@ -7,9 +7,6 @@
 ```
 CN/
 ├── README.md                      ← 你在这里
-├── call/
-│   └── nocode/
-│       └── text-cli-agent-skill.md  ← Agent 技能定义模板（中文）
 └── cli/
     └── nocode/
         ├── markdown_converter.py    ← Markdown → 指令 转化引擎
