@@ -1,0 +1,19 @@
+{
+  "_note": "端点注册表 — 同步 Skill 读取此文件，拉取所有端点的 text_cli_schema.json，聚合写入 agent-text-cli-schema.json。",
+  "endpoints": [
+    {
+      "url": "https://test.text-cli.com/cli/text_cli",
+      "description": "text-cli 官方公共端点",
+      "token_env": "TEXT_CLI_TOKEN_OFFICIAL",
+      "rank": 1,
+      "schema_url": null
+    },
+    {
+      "url": "http://localhost:20260/cli/text_cli",
+      "description": "指令辅助服务器 — 本地文件、Git、邮件、系统状态",
+      "token_env": "TEXT_CLI_TOKEN_LOCAL",
+      "rank": 1,
+      "schema_url": "http://localhost:20260/text_cli_schema.json"
+    }
+  ]
+}

@@ -64,7 +64,9 @@
 - [project_collaboration_CN.md](https://raw.githubusercontent.com/weihai-limh/text-cli/main/docs/CN/project_collaboration_CN.md) — 分支管理、PR 流程、代币分配规则
 - [ECOLOGICAL_CHARTER.md](https://raw.githubusercontent.com/weihai-limh/text-cli/main/ECOLOGICAL_CHARTER.md) — 生态宪章：权利、义务、价值分配
 - [cliweather/README.md](https://raw.githubusercontent.com/tide-10000/tide/main/cliweather/README.md) — Tide 的开源天气指令服务：零依赖、零 API Key、6 种指令生成方式
-- [text-cli-agent-skill.md](https://raw.githubusercontent.com/weihai-limh/text-cli/main/text_cli/agent/CN/call/nocode/text-cli-agent-skill.md) — Agent 技能模板 v2.0：多源聚合、rank 路由、失败降级
+- [Agent_integrated_CN.md](https://raw.githubusercontent.com/weihai-limh/text-cli/main/docs/CN/Agent_integrated_CN.md) — Agent 集成完整指南：指令调度、路径编排、agent-copilot 部署
+- [paths/README_CN.md](https://raw.githubusercontent.com/weihai-limh/text-cli/main/paths/README_CN.md) — 路径市场：指令链编排，已注册 1 条验证路径
+- [server/agent-copilot/README_CN.md](https://raw.githubusercontent.com/weihai-limh/text-cli/main/server/agent-copilot/README_CN.md) — 部署在终端本地的指令服务：14 条指令，零依赖
 - [agent-text-cli-schema.example.json](https://raw.githubusercontent.com/weihai-limh/text-cli/main/agent-text-cli-schema.example.json) — 聚合 Schema 示例：指令优先格式的多源参考
 
 ---
@@ -116,25 +118,7 @@ curl -X POST 'https://test.text-cli.com/cli/text_cli' \
 
 ### 3. 集成到你的应用
 
-**v1.0 单端点模式**：将 `text_cli_schema.json` 文件导入你的 Agent，它会自动识别所有可用指令。只需让 Agent 匹配用户的意图，按模板拼接指令并 POST，极低成本即可扩展无限能力。
-
-**v2.0 多源聚合（推荐）**：使用同步 Skill 聚合多个端点的指令为本地 Schema，Agent 按 rank 自动路由，失败降级。详见 [`Agent_integrated_CN.md §10`](./docs/CN/Agent_integrated_CN.md#-多源聚合架构v20) 和 `text_cli/agent/CN/call/nocode/`。
-
-如果你使用 Python 或 Node.js，可以直接用 SDK 替代手写 curl：
-
-```python
-# Python
-from call.python.call import call_directive
-result = call_directive("指令:基础应用;天气查询,明天,威海")
-```
-
-```js
-// Node.js
-const { callDirective } = require('./call/js/call');
-const result = await callDirective('指令:基础应用;天气查询,明天,威海');
-```
-
-详见 [`text_cli/agent/README_CN.md`](./text_cli/agent/README_CN.md)。
+详见 **[Agent_integrated_CN.md](./docs/CN/Agent_integrated_CN.md)**——覆盖指令调度（多源聚合 + rank 路由）、路径编排（指令链匹配与执行）、本地 agent-copilot 部署的完整技术指南。
 
 ---
 
@@ -315,7 +299,13 @@ text-cli/
 ├── server/                          # 服务端实现
 │   ├── python/                      #   集成端点模板（FastAPI，已实现）
 │   ├── js/                          #   集成端点模板（Cloudflare Workers，已实现）
-│   └── tcc/                         #   文贝铸造 Worker（Cloudflare Worker，已实现）
+│   ├── tcc/                         #   文贝铸造 Worker（Cloudflare Worker，已实现）
+│   └── agent-copilot/               #   Agent 本地指令服务（14 条指令，Python stdlib）
+│
+├── paths/                           # 路径注册表（指令链编排）
+│   ├── README_CN.md                 #   路径市场说明
+│   ├── path-schema.json             #   路径注册表（已注册 1 条验证路径）
+│   └── skill/                       #   路径匹配 Skill
 │
 ├── examples/                        # 生态项目示例
 │   ├── project/                     #   基于 text-cli 构建的第三方项目
@@ -432,26 +422,44 @@ Function Calling 每次调用仍需模型推理选择哪个函数并填参数，
 Agent 会自动回退到自己的推理能力，这是故意保留的"安全网"。你也可以直接联系社区，请求新增指令。
 
 **Q: 付费指令怎么授权？**  
-私下联系服务提供方，商量好 `Service Token` 与价格，将其填入请求头 `Service-token`，集成端点会自动转发。
+项目不参与,服务提供方与调用方私下联系并商量好 `Service Token` 与价格，将其填入请求头 `Service-token`，找到愿意集成指令的集成端点进行注册,集成端点对指令服务进行转发转发。
 
 **Q: 我不是开发者，怎么把技能变成指令？**  
 请参阅我们的 **[非开发者指南](./docs/CN/Markdown2Text-cli_CN.md)**，仅需上传一份经验文档，Agent 即可代运营。
 
 ---
 
-## 📋 当前指令概览（每日限额试用）
+## 📋 可用指令
 
-| 指令 | 说明 |
-|------|------|
-| `指令:基础应用;天气查询,<时间>,<城市>` | 查询城市天气 |
-| `指令:基础应用;穿衣标签,<时间>,<城市>` | 返回穿衣建议列表 |
-| `指令:基础应用;百度搜索,<关键词>` | 搜索摘要 |
-| `指令:地理空间;静态连线,<起点>,<终点>,<地图类型>` | 两点路线静态图 |
-| `指令:地理空间;经纬度查询,<经度>,<纬度>` | 坐标反查地址 |
-| `指令:ai集成;文本推理,<问题>,<模型>` | 通用大模型问答 |
-| `指令:ai集成;空间导航,<空间>,<楼层>,<起>,<终>` | 室内导航视频（异步） |
-| `指令:影像处理;点云转换,<图像url>` | 图片转点云 PLY/SPLAT |
-| … 更多见完整列表 | `text_cli_schema.json` |
+text-cli 的指令分布在三个层面，从零门槛到无限扩展：
+
+### 🚀 即时可用
+
+无需部署，公共端点直接调用。
+
+```
+指令:基础应用;天气查询,明天,<城市名>
+...
+```
+
+→ 完整列表见 [text_cli_schema.json](./text_cli_schema.json)
+
+### 🏠 本地部署
+
+通过 agent-copilot 在本地运行，覆盖文件、Git、邮件等 **14 条指令**。
+
+`文件;读取` `文件;写入` `文件;列表` `文件;移动` `Git;状态` `Git;推送` `邮件;发送` `AI协作;消息` `AI协作;状态` `系统;健康` `系统;状态` `终端;天气` `编码;base64` `编码;hex`
+
+→ 详见 [server/agent-copilot/README_CN.md](./server/agent-copilot/README_CN.md)
+
+### 🔧 自建扩展
+
+封装你自己的技能为 text-cli 指令，发布到指令网络。
+自建端点可注册到多源聚合网络：调用方按 rank 路由、凭据注入在端点侧、
+敏感操作锁在可信源上——指令调度本身就是安全模型。
+
+→ 详见 [Building_text-cli_guide_CN.md](./docs/CN/Building_text-cli_guide_CN.md)
+   和 [Agent_integrated_CN.md](./docs/CN/Agent_integrated_CN.md) 第二、四章
 
 ---
 
