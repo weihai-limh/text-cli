@@ -71,7 +71,9 @@
 
 ---
 
-## 🔥 一行指令省 99% token？
+## 🔥 一行指令省 99% token？→ 效率提升 10000%？
+
+### 在线服务
 
 | 任务 | 传统 Agent（推理范式） | text-cli 调度模式 | Token 节省 |
 |:---|:---|:---|:---|
@@ -83,23 +85,48 @@
 > 🔬 **实测验证**：2026-05-06，Tide 在同一会话中对「web_fetch 直接调用天气 API」与「文本指令 → api.text-cli.com」进行了 A/B 对比。web_fetch 方式需 3 次调用才拿到完整数据，累计消耗约 8,000 token（含 JSON 解析）；文本指令方式 1 次调用命中，Agent 侧 Token 增量近乎为零。
 > 
 > 完整测试报告：[`examples/test/test_tide_weather.md`](./examples/test/test_tide_weather.md)
->更多长尾指令及测试报告正在补充中.
 
 > 🛠️ **开源实现**：本次测试的文本指令后端已开源为 [**cliweather**](https://github.com/tide-10000/tide/tree/main/cliweather) — 零依赖 Cloudflare Worker，Open-Meteo + wttr.in 双源降级，6 种指令生成方式（curl / Python / Node.js / Shell / Markdown / Agent NL）。克隆即部署，MIT 协议。
+
+### 本地指令
+
+**本地部署的 agent-copilot 已在 14 条指令上完成量化验证。**
+
+| | 文本指令（curl → copilot） | 传统 Agent（exec/read/write） |
+|:---|:---|:---|
+| 单条指令上下文消耗 | ~100 tokens | ~150-300 tokens（含验证和重试） |
+| 3 步链路（文件→Git→邮件） | ~400 tokens | ~350-500 tokens（含验证修正） |
+| 故障响应体积 | `[bad_request]` 一行，50-80 chars | 完整 HTTP 响应体 + stack trace，500-2000 chars |
+
+> 文本指令没有消除故障——它压缩了故障的 Token 代价。传统方式中一次 JSON 格式错误可能膨胀 500+ chars 进上下文，文本指令只用一行结构化错误。
+
+> 🔐 **不只是省 Token——每一步都可审计**。agent-copilot 在 Agent 和操作系统之间插了一层：请求到达 → 路径白名单校验 → 执行 → 结构化返回。传统 exec 没有这层——命令一旦执行就无法追溯。
+
+→ 完整测试报告：[`examples/test/test_token_copilot_CN.md`](./examples/test/test_token_copilot_CN.md)
+
+### 路径
+
+**单条指令能做的事有限——路径把多条指令串成链，Agent 匹配意图即可执行。**
+
+| | 不用路径 Schema | 用路径 Schema |
+|:---|:---|:---|
+| Agent 识别意图 | 推理"需要什么步骤？" → ~200-500 tokens | 匹配 path-schema.json → 直接找到链 |
+| 参数收集 | 推理"每步需要什么参数？" → ~50-100 tokens | `params` 字段明确列出 |
+| 格式正确性 | 试错 → 可能触发故障 | `require_instructions` 确保每步已注册 |
+
+> 路径链的主要 Token 节约发生在"意图→步骤链"的推理环节，而非执行环节。一次路径匹配可省 350-700 tokens 的 Agent 推理。
+
+→ 完整测试报告：[`examples/test/test_token_paths_CN.md`](./examples/test/test_token_paths_CN.md) | 路径注册表：[`paths/path-schema.json`](./paths/path-schema.json)
 ---
 
 
 ## 🚀 5 分钟快速体验
 
-我们准备了免费指令，放在公共端点 `test.text-cli.com`，无需自建任何东西，立刻感受。
+公共端点 `test.text-cli.com` 保留一条天气指令，供你验证 text-cli 协议通路。
 
-### 1. 项目网站即将上线
+验证通过后，部署本地 agent-copilot 获得 14 条指令，零 CDN 费用，无配额限制，每一步都可审计。
 
-项目官网正在建设中，上线后你可以通过**关联 GitHub 账号**获得每日免费试用额度——无需单独注册，即可直接调用公共端点的全部指令。
-
-> 💡 **免注册试用**：调用时无需携带个人 Access Token，所有请求由后台公共账号承载每日配额。需要长期调用？发送邮件至 `limh@10000.world` 申请独立账号。
-
-### 2. 发送你的第一条指令
+### 1. 发送你的第一条指令
 ```bash
 curl -X POST 'https://test.text-cli.com/cli/text_cli' \
   -H 'Content-Type: application/json' \
@@ -116,7 +143,7 @@ curl -X POST 'https://test.text-cli.com/cli/text_cli' \
 ```
 更多效果（静态路线图、商品识别等）演示页面正在建设中。
 
-### 3. 集成到你的应用
+### 2. 集成到你的应用
 
 详见 **[Agent_integrated_CN.md](./docs/CN/Agent_integrated_CN.md)**——覆盖指令调度（多源聚合 + rank 路由）、路径编排（指令链匹配与执行）、本地 agent-copilot 部署的完整技术指南。
 
@@ -274,9 +301,9 @@ text-cli/
 ├── ECOLOGICAL_CHARTER.md            # 生态宪章：参与者权利、义务与价值分配规则
 ├── LICENSE                          # MIT 开源许可证
 ├── CONTRIBUTORS.md                  # 项目贡献者名单
-├── text_cli_schema.json             # 示例指令的元数据入口（20+ 公开指令）
-├── TCC_ledger.md                    # 文贝铸造权威记录（Worker 产出，lemondy 审批）
-├── p-tokens.md                      # 文贝代币全生命周期账本（lemondy 唯一写入）
+├── text_cli_schema.json             # 示例指令的元数据入口
+├── TCC_ledger.md                    # 文贝铸造权威记录
+├── p-tokens.md                      # 文贝代币全生命周期账本
 │
 ├── .agents/                         # AI 协作者工作区（详见协作规范）
 │   ├── README.md                    #   工作区说明
@@ -419,7 +446,7 @@ text-cli 并非把 Agent 变成机械的调度器。而是"调度优先，推理
 Function Calling 每次调用仍需模型推理选择哪个函数并填参数，算力消耗高；text-cli 用轻量关键词/向量匹配代替推理决策，模型只负责提取参数，大幅省钱；此外还支持异步长任务和商业计费。
 
 **Q: 如果当前没有指令能解决我的问题怎么办？**  
-Agent 会自动回退到自己的推理能力，这是故意保留的"安全网"。你也可以直接联系社区，请求新增指令。
+Agent 会自动回退到自己的推理能力，这是故意保留的"安全网"。你也可以直接联系社区，提交需要的开源指令。
 
 **Q: 付费指令怎么授权？**  
 项目不参与,服务提供方与调用方私下联系并商量好 `Service Token` 与价格，将其填入请求头 `Service-token`，找到愿意集成指令的集成端点进行注册,集成端点对指令服务进行转发转发。
@@ -435,14 +462,19 @@ text-cli 的指令分布在三个层面，从零门槛到无限扩展：
 
 ### 🚀 即时可用
 
-无需部署，公共端点直接调用。
+公共测试端点 `test.text-cli.com` 目前保留一条指令：
 
 ```
 指令:基础应用;天气查询,明天,<城市名>
-...
 ```
 
-→ 完整列表见 [text_cli_schema.json](./text_cli_schema.json)
+就一条。够你验证 text-cli 协议的通路。
+
+为什么不放更多？两个现实问题：公共端点有 CDN 成本，调用次数存在盗刷风险。所以我们把真正的力量放在了本地——部署 agent-copilot，14 条指令，零 CDN 费用，无配额限制，每一步都可审计。
+
+→ [部署本地 agent-copilot →](./server/agent-copilot/README_CN.md)
+
+→ 指令注册表：[text_cli_schema.json](./text_cli_schema.json)
 
 ### 🏠 本地部署
 
@@ -453,6 +485,8 @@ text-cli 的指令分布在三个层面，从零门槛到无限扩展：
 → 详见 [server/agent-copilot/README_CN.md](./server/agent-copilot/README_CN.md)
 
 ### 🔧 自建扩展
+
+公共端点只是示范——真正的力量在你自己部署的端点上。
 
 封装你自己的技能为 text-cli 指令，发布到指令网络。
 自建端点可注册到多源聚合网络：调用方按 rank 路由、凭据注入在端点侧、
