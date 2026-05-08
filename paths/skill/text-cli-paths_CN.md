@@ -24,7 +24,7 @@ type: permanent
 ## 文件位置
 
 ```
-tide-scripts/text-clipaths/path-schema.json
+schema/path-schema.json
 ```
 
 ## 格式
@@ -73,7 +73,7 @@ tide-scripts/text-clipaths/path-schema.json
     ├─ 命中 → 执行指令 → 完成 ✓
     └─ 未命中 / 不适用 → 进入路径匹配 ↓
 
-2. 读取 path-schema.json
+2. 读取 schema/path-schema.json
     ↓
 
 3. require_instructions 门控
@@ -170,7 +170,7 @@ tide-scripts/text-clipaths/path-schema.json
 Agent 推理:
   1. 先查指令 Schema → 没有单条指令能同时"查消息+写文件+发邮件"
   2. 触发路径匹配
-  3. 读 path-schema.json
+  3. 读 schema/path-schema.json
   4. 门控: "查找消息并发送邮件" 的 require_instructions 全部可用 ✓
   5. 语义匹配: 用户意图 ≈ "查找消息并发送邮件" → 命中
   6. 检查 params: ["消息条数", "收件人邮箱", "邮件主题"]
@@ -189,7 +189,7 @@ Agent 推理:
 
 Agent 推理:
   1. 单指令 Schema 无匹配
-  2. 触发路径匹配 → 读 path-schema.json
+  2. 触发路径匹配 → 读 schema/path-schema.json
   3. 门控后候选池为空（没有"GitHub issue 导出+翻译"路径）
   4. 告知用户: "当前没有注册对应路径。可用的路径：查找消息并发送邮件"
 ```
@@ -211,7 +211,7 @@ Agent 推理:
 
 ## 添加新路径
 
-编辑 `tide-scripts/text-clipaths/path-schema.json`，新增一条记录：
+编辑 `schema/path-schema.json`，新增一条记录：
 
 1. **确定意图标识**：用自然语言描述任务，如 `"生成周报并推送到 Git"`
 2. **写 description**：一句话说明路径做什么

@@ -304,8 +304,12 @@ text-cli/
 │
 ├── paths/                           # 路径注册表（指令链编排）
 │   ├── README_CN.md                 #   路径市场说明
-│   ├── path-schema.json             #   路径注册表（已注册 1 条验证路径）
 │   └── skill/                       #   路径匹配 Skill
+│
+├── schema/                          # Schema 数据文件
+│   ├── agent-text-cli-schema.json   #   指令聚合 Schema
+│   ├── agent-text-cli-schema.example.json #   聚合 Schema 示例
+│   └── path-schema.json             #   路径注册表
 │
 ├── examples/                        # 生态项目示例
 │   ├── project/                     #   基于 text-cli 构建的第三方项目

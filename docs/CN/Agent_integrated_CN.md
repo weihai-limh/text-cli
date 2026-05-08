@@ -89,7 +89,7 @@ Agent（text-cli-core_CN Skill 加载）
 
 ### path-schema.json
 
-路径注册表位于 `paths/path-schema.json`，与指令 Schema 并列。
+路径注册表位于 `schema/path-schema.json`，与指令 Schema 并列。
 
 ```json
 "查找消息并发送邮件": {
@@ -111,7 +111,7 @@ Agent（text-cli-core_CN Skill 加载）
 | `description` | 意图说明，语义匹配源 |
 | `params` | 路径级参数，Agent 匹配后第一步收集 |
 | `instruction_chain` | 指令 ID 有序列表，空数组 = 非工具链模式，需读 `path_doc` |
-| `path_doc` | 路径文档引用（相对于 `text-cli/paths/`），空 = 链即全部 |
+| `path_doc` | 路径文档引用（相对于 `text-cli/schema/`），空 = 链即全部 |
 | `require_instructions` | 前置门控——所有指令必须在指令 Schema 中存在 |
 | `rank` | 路由优先级 |
 | `tags` | 辅助分类 |
@@ -185,7 +185,7 @@ agent-copilot 是部署在 Agent 同机的本地指令源，将文件操作、Gi
 |------|------|------|
 | `agent-text-cli-schema.json` | `text-cli/` 根 | 指令聚合 Schema——所有端点的指令在此汇集 |
 | `endpoints.json` | `text-cli/` 根 | 端点注册表——同步 Skill 的入口数据 |
-| `paths/path-schema.json` | `text-cli/paths/` | 路径注册表——路径发现和匹配的入口 |
+| `schema/path-schema.json` | `text-cli/schema/` | 路径注册表——路径发现和匹配的入口 |
 | `server/agent-copilot/` | `text-cli/server/` | 本地指令服务——14 条指令的完整源码 |
 
 ---
@@ -382,7 +382,7 @@ path:
 
 | 层 | 格式 | 用途 | 文件 |
 |:---|:---|:---|:---|
-| 注册层 | `path-schema.json` | Agent 发现和匹配路径 | `paths/path-schema.json` |
+| 注册层 | `path-schema.json` | Agent 发现和匹配路径 | `schema/path-schema.json` |
 | 规范层 | 路径 Markdown（本章） | 路径作者编写完整规范 | `paths/<路径名>.md` |
 | 执行层 | 指令链 / Agent 编排 | 逐步调用 `text_cli` | 由 `text-cli-paths_CN` Skill 驱动 |
 
@@ -392,7 +392,7 @@ path:
 
 | 问题 | 状态 | 结论 |
 |------|------|------|
-| 路径存储位置 | ✅ 已定 | `text-cli/paths/` |
+| 路径存储位置 | ✅ 已定 | `text-cli/schema/` |
 | 路径发现 | ✅ 已定 | `path-schema.json` 注册表 + 语义匹配 |
 | 路径 Schema 字段 | ✅ 已定 | 8 字段：description, params, instruction_chain, path_doc, require_instructions, rank, tags, remarks |
 
@@ -416,7 +416,7 @@ path:
 
 - 指令聚合 Schema：[`agent-text-cli-schema.json`](../agent-text-cli-schema.json)
 - 端点注册表：[`endpoints.json`](../endpoints.json)
-- 路径注册表：[`paths/path-schema.json`](../paths/path-schema.json)
+- 路径注册表：[`schema/path-schema.json`](../schema/path-schema.json)
 - 路径市场说明：[`paths/README_CN.md`](../paths/README_CN.md)
 - agent-copilot 文档：[`server/agent-copilot/README_CN.md`](../server/agent-copilot/README_CN.md)
 - 路径匹配 Skill：[`paths/skill/text-cli-paths_CN.md`](../paths/skill/text-cli-paths_CN.md)
