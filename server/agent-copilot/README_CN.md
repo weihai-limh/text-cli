@@ -162,7 +162,7 @@ Git Token 和 SMTP 密码通过**环境变量注入**，不写入配置文件：
 | text-cli 官方端点 | `test.text-cli.com` | 提供公共指令 |
 | `agent-text-cli-schema.json` | text-cli 项目根 | 聚合所有指令源 |
 | `endpoints.json` | text-cli 项目根 | 端点注册表 |
-| `paths/path-schema.json` | text-cli 项目根 | 路径注册表（指令链编排） |
+| `schema/path-schema.json` | text-cli 项目根 | 路径注册表（指令链编排） |
 
 ---
 

@@ -18,7 +18,7 @@ lemondy 的已实现服务落在四种路径模式上：
 
 ## 路径 Schema
 
-`path-schema.json` 是路径注册表。Agent 匹配路径时读取此文件：
+`schema/path-schema.json` 是路径注册表。Agent 匹配路径时读取此文件：
 
 | 字段 | 说明 |
 |------|------|
@@ -39,7 +39,6 @@ lemondy 的已实现服务落在四种路径模式上：
 ```
 paths/
 ├── README_CN.md             ← 本文件
-├── path-schema.json         ← 路径注册表（已注册 1 条路径）
 └── skill/
     └── text-cli-paths_CN.md ← 路径匹配 Skill 规范版
 ```
@@ -49,13 +48,13 @@ paths/
 ### 对于路径使用者（Agent / 人类）
 
 1. Agent 在单指令无法匹配时自动回退到路径匹配
-2. 读取 `path-schema.json` → 门控过滤 → 语义匹配 → 收集参数 → 执行指令链
+2. 读取 `schema/path-schema.json` → 门控过滤 → 语义匹配 → 收集参数 → 执行指令链
 3. 匹配成功时向用户展示路径描述，确认后执行
 
 ### 对于路径作者
 
 1. 确定你的路径属于哪种模式
-2. 编辑 `path-schema.json` 注册新路径（意图标识、描述、参数、指令链、门控）
+2. 编辑 `schema/path-schema.json` 注册新路径（意图标识、描述、参数、指令链、门控）
 3. 如路径复杂（编排/交互式/注入式），编写路径文档指向 `path_doc` 字段
 4. 验证 `require_instructions` 全部在 `agent-text-cli-schema.json` 中存在
 
@@ -63,7 +62,7 @@ paths/
 
 | 文件 | 位置 | 角色 |
 |------|------|------|
-| `path-schema.json` | `text-cli/paths/` | 路径注册表 |
+| `schema/path-schema.json` | `text-cli/schema/` | 路径注册表 |
 | `agent-text-cli-schema.json` | `text-cli/` | 指令聚合 Schema |
 | `server/agent-copilot/` | `text-cli/server/` | 本地指令执行服务 |
 
