@@ -20,7 +20,16 @@ class MailHandlers:
         to_addr = params[0]
         subject = params[1]
         body = params[2]
-        attachment_path = params[3] if len(params) > 3 else None
+        attachment_path = None
+        if len(params) > 3:
+            # 末位参数可能是真正的附件路径，也可能是正文被逗号误拆的残余
+            # 只有以 / 或 ./ 开头的才视为附件路径
+            extra = params[3].strip()
+            if extra and (extra.startswith('/') or extra.startswith('./')):
+                attachment_path = extra
+            elif extra:
+                # 不是路径 → 合并回正文
+                body += ', ' + extra
 
         creds = self.config.get('credentials', {})
         mail_cfg = creds.get('邮件;发送', {})

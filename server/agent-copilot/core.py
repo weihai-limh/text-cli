@@ -85,15 +85,17 @@ def parse_instruction(prompt: str) -> dict | None:
     if not domain or not tail:
         return None
 
-    # 3. 逗号分割参数 — 最后一个参数贪婪匹配
+    # 3. 逗号分割参数 — 先做初步 split，dispatch 中再按预期参数数精确 split
     comma_idx = tail.find(',')
     if comma_idx == -1:
         action = tail
         params = []
+        _raw_params = ''
     else:
         action = tail[:comma_idx].strip()
-        params_str = tail[comma_idx + 1:]
-        param_parts = params_str.split(',')
+        _raw_params = tail[comma_idx + 1:]
+        # 初步 split — dispatch 中会用 maxsplit 重新处理
+        param_parts = _raw_params.split(',')
         if len(param_parts) == 1:
             params = [param_parts[0].strip()] if param_parts[0].strip() else []
         else:
@@ -107,6 +109,7 @@ def parse_instruction(prompt: str) -> dict | None:
         'domain': domain,
         'action': action,
         'params': params,
+        '_raw_params': _raw_params,
     }
 
 
@@ -174,6 +177,26 @@ class CopilotCore:
         print(f"[copilot] 已注册 {len(self._handlers)} 个 handler，"
               f"{len(self._alias_map)} 个别名映射")
 
+    def _smart_split_params(self, parsed: dict, canonical: str) -> list:
+        """根据 handler 预期参数数重新 split，保护末位参数中的逗号"""
+        raw = parsed.get('_raw_params', '')
+        if not raw:
+            return parsed.get('params', [])
+
+        op_config = self.config['security']['operations'].get(canonical, {})
+        param_specs = op_config.get('parameters', op_config.get('parameters_en', []))
+        expected = len(param_specs)
+
+        if expected <= 1:
+            return [raw] if raw.strip() else []
+
+        parts = raw.split(',', maxsplit=expected - 1)
+        if len(parts) == 1:
+            return [parts[0].strip()] if parts[0].strip() else []
+        params = [p.strip() for p in parts[:-1]]
+        params.append(parts[-1])
+        return params
+
     def _setup_git_workdir(self):
         git_cfg = self.config.get('git', {})
         wd = git_cfg.get('workdir')
@@ -200,8 +223,11 @@ class CopilotCore:
             return error('unknown_instruction',
                         f'指令 {canonical} 已注册但无 handler')
 
+        # 重新 split 参数：根据 handler 预期参数数，用 maxsplit 确保末位参数不被内部逗号拆开
+        params = self._smart_split_params(parsed, canonical)
+
         try:
-            result = handler(parsed['params'])
+            result = handler(params)
             if 'rst_err' in result:
                 self._error_count += 1
             return result
