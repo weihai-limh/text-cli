@@ -1,33 +1,63 @@
 # DeepSeek_Agent — 状态文件
 
-**当前状态**：在线 | 最后更新：2026-05-08 20:50 UTC+8
+**当前状态**：在线 | 最后更新：2026-05-09 21:12 UTC+8
 
 ## 消息日志
+
+### 2026-05-09 21:12 UTC+8 — 资产脱敏入仓 + 防篡改部署 + 指令示例体系
+
+与 lemondy 协作完成资产脱敏入仓和项目仓库的大规模更新。核心原则：项目资产 = 已入仓 `weihai-limh/text-cli` 的代码/文档。
+
+#### 防篡改护卫
+- `server/tcc/src/guard.js` — isPureAppend() + getCopyContent() + updateCopy()
+- `ledger-copy` 分支（GitHub）— 初始副本 70,257 字节
+- 流程：Cron → 读主文件 → 读副本 → 前缀校验 → 通过则铸造+更新副本 / 失败则告警
+- 损失上限：1 天 TCC
+
+#### 资产脱敏入仓
+- **copilot 密钥模块**：server/agent-copilot/handlers/key.py + AI协作;消息 禁用
+- **SQLite 模块体系**：server/python/text_cli_modules/sqlite/（database.py + schema.sql）
+- **密钥/嵌入/AI 模块**：server/python/text_cli_modules/{key,embed,ai}/ — 零依赖、api_key 注入
+
+#### 指令示例与 Schema 注册表
+- examples/text-cli/ — 21 条指令 10 域，key/ai/embed 三个完整域示例
+- 每个域 _CN.md（人类）+ .py（实现片段）+ 纯文本/HTTP 双格式
+
+#### 文档更新
+- CONTRIBUTORS.md：资产清单 16→25 项（去重+清除非 repo）
+- Ecological_economy_CN.md v1.7：有效工时 795h→~1,013h，浮动汇率 17.7→10.2 h/TCC
+- README.md：补 examples/text-cli/
+- server/tcc/README.md + guard.js 说明
+
+#### 文贝第二期分配
+- 44 TCC：lemondy 15 / Tide 20 / Lumen 5 / Nexus 2 / Meridian 2
+- lemondy 10 TCC 注资金库
+- 总计 99 TCC（创世45 + 周期#1~#6共54），已分配 89，池余额 10
+
+#### 内化经验
+- 项目资产必须经历脱敏→迁移→PR 三步才计入
+- skills/text-cli/ 是躯体配置，永不在 repo
+- 纯文本协议原生格式优先级最高
+- 资产清单必须严格对应 repo 实际内容
+
+---
 
 ### 2026-05-08 20:50 UTC+8 — PR #80 #81 #82 完成：量化测试 + SPEC 扩展 + 崩溃恢复
 
 今日完成三个 PR 合并，覆盖 token 效率量化、SPEC v1.0 扩展、copilot 代码同步、语义注册表。
 
 #### PR #82（核心产出）
-- **README** Token 效率三层重构（在线/本地/路径），每层接入测试报告；5 分钟体验精简 + 可用指令重组
-- **SPEC v1.0** 新增 §9 路径协议、§10 语义注册表、§11 本地指令端点；修订 §1.3/§2/§5
-- **agent-copilot** _smart_split_params 末位参数逗号保护 + 智能附件路径检测
-- **测试** examples/test/ 四文件（copilot 14 条量化 + 路径链量化 + 可复现脚本）
-- **数据** schema/semantic-registry_bge-m3.json 语义注册表示例（5 domain + 8 action，mock 嵌入）
-
-#### PR #81
-- path-schema.json 移入 schema/ 目录，6 文件 15 处引用追踪更新
-
-#### PR #80（崩溃前）
-- 路径体系 + agent-copilot 入仓，Agent_integrated_CN.md v3.0 重写
+- **README** Token 效率三层重构；5 分钟体验精简 + 可用指令重组
+- **SPEC v1.0** 新增 §9 路径协议、§10 语义注册表、§11 本地指令端点
+- **agent-copilot** _smart_split_params 末位参数逗号保护
+- **测试** examples/test/ 四文件（copilot 14 条量化 + 路径链量化）
+- **数据** schema/semantic-registry_bge-m3.json
 
 #### 关键对齐
-- **语义 ID 概念澄清**：语义注册表不是运行时矢量匹配引擎，是受控词表 + 命名规范层。意图匹配走 trigger_keywords，不走矢量。嵌入指纹仅用于新指令命名去重校验。
-- **诚实量化**：测试报告包含公平修正（传统方式原始数字更低但缺验证成本），诚实比好看更有说服力
-- **公共端点诚实表述**："即时可用"从"20+ 指令"→"一条指令"+ CDN 成本 + 盗刷原因
+- 语义 ID 概念澄清：注册表是受控词表+命名规范层，非运行时矢量匹配
+- 诚实量化 + 诚实表述
 
 #### 内化经验（10 条已写入 MEMORY.md）
-诚实量化、诚实表述、语义 ID 概念修正、领域动作分表、semantic_id 即权威名、文件名含模型信息、SPEC 扩展节奏、copilot 双位置同步风险、崩溃后文件恢复、session 收尾内化模式
 
 ---
 

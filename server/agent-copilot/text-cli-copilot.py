@@ -27,7 +27,7 @@ from core import CopilotCore, parse_instruction, error
 from handlers import (
     FileHandlers, GitHandlers, MailHandlers,
     SystemHandlers, AIHandlers, TerminalHandlers,
-    CodecHandlers,
+    CodecHandlers, KeyHandlers,
 )
 # TerminalHandlers 来自 handlers.oc_terminal（依赖 OpenClaw Skill）
 
@@ -44,6 +44,7 @@ class Copilot(
     AIHandlers,
     TerminalHandlers,
     CodecHandlers,
+    KeyHandlers,
     CopilotCore,
 ):
     """指令辅助服务器 — 继承所有 handler mixin + 核心引擎"""
@@ -96,6 +97,9 @@ class CopilotHandler(BaseHTTPRequestHandler):
             return
 
         prompt = request.get('prompt', '')
+        # 提取注入凭据（来自 service proxy）
+        self.copilot._injected_creds = request.get('_injected_credentials', {})
+
         parsed = parse_instruction(prompt)
 
         if parsed is None:
@@ -166,6 +170,8 @@ class CopilotHandler(BaseHTTPRequestHandler):
         ops = cfg['security']['operations']
         directives = []
         for op_id, op_cfg in ops.items():
+            if op_cfg.get('enabled') is False:
+                continue
             directives.append({
                 'id': op_id,
                 'aliases': op_cfg.get('aliases', []),

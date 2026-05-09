@@ -153,6 +153,7 @@ class CopilotCore:
         self.cache_dir = Path(config_path).parent / '.cache'
         self._handlers: dict[str, callable] = {}
         self._alias_map: dict[str, str] = {}
+        self._injected_creds: dict = {}
         self._register_handlers()
         self._setup_git_workdir()
 
@@ -161,6 +162,10 @@ class CopilotCore:
     def _register_handlers(self):
         operations = self.config['security']['operations']
         for op_id, op_config in operations.items():
+            # 检查 enabled 字段（默认 true）
+            if op_config.get('enabled') is False:
+                print(f"[copilot] ⏸ 已禁用: {op_id}")
+                continue
             # 用首个英文 alias 派生 handler 名；无 alias 时回退 canonical ID
             aliases = op_config.get('aliases', [])
             source_id = aliases[0] if aliases else op_id
@@ -209,6 +214,16 @@ class CopilotCore:
         """根据解析结果路由到对应 handler"""
         self._request_count += 1
         lookup = f"{parsed['domain']};{parsed['action']}"
+
+        # 检查是否被禁用（直接查 config，因为禁用项不在 _alias_map 中）
+        for op_id, op_cfg in self.config['security']['operations'].items():
+            if op_id == lookup or lookup in op_cfg.get('aliases', []):
+                if op_cfg.get('enabled') is False:
+                    self._error_count += 1
+                    return error('disabled',
+                                f'指令 {op_id} 已暂时禁用: {op_cfg.get("_comment", "")}')
+                break
+
         canonical = self._alias_map.get(lookup)
 
         if canonical is None:

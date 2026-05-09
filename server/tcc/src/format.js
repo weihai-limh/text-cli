@@ -128,6 +128,43 @@ export function formatLedgerRecord(result, cycleNum, commitRange) {
   ].join('\n');
 }
 
+export function formatGuardAlert(guardResult, commitRange) {
+  return [
+    `## 🛡️ 防篡改告警 — ${nowStr()}`,
+    '',
+    `**状态**: 铸造已跳过`,
+    `**原因**: p_text-cli.md 中间被删除或修改，不是纯追加`,
+    '',
+    '### 差异定位',
+    '',
+    '| 指标 | 值 |',
+    '|:---|:---|',
+    `| 差异位置 | 字节 ${guardResult.diff_position} |`,
+    `| 副本长度 | ${guardResult.copy_total_bytes} 字节 |`,
+    `| 当前长度 | ${guardResult.new_total_bytes} 字节 |`,
+    '',
+    '### 差异附近内容',
+    '',
+    '```',
+    `副本: ...${guardResult.copy_snippet.slice(0, 160)}...`,
+    `当前: ...${guardResult.new_snippet.slice(0, 160)}...`,
+    '```',
+    '',
+    `**diff 范围**: \`${commitRange}\``,
+    '',
+    '### 恢复方法',
+    '',
+    '1. 人工审查 p_text-cli.md 的改动',
+    '2. 确认无误后，手动更新 ledger-copy 分支的 p_text-cli_copy.md',
+    '3. 或: `git checkout ledger-copy -- .agents/p_text-cli_copy.md` 恢复到上次正确版本',
+    '',
+    '> 损失上限：1 天 TCC。副本未更新，下次铸造将继续校验。',
+    '',
+    '---',
+    '由 tcc-mint-worker 自动发出',
+  ].join('\n');
+}
+
 export function formatPRBody(result, cycleNum, commitRange, oldHash, newHash) {
   const date = todayDate();
 

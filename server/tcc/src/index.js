@@ -22,7 +22,8 @@ import {
   findOpenPR,
   fromBase64,
 } from './github.js';
-import { formatLedgerRecord, formatPRBody, formatAlert } from './format.js';
+import { formatLedgerRecord, formatPRBody, formatAlert, formatGuardAlert } from './format.js';
+import { getCopyContent, isPureAppend, updateCopy } from './guard.js';
 
 const ZERO_SHA = '0000000000000000000000000000000000000000';
 const LEDGER_FILE = 'TCC_ledger.md';
@@ -82,6 +83,17 @@ async function computeAndCreatePR(owner, repo, beforeSha, afterSha, env, config)
     : await getFileContent(owner, repo, anchorFile, beforeSha, env);
 
   const newContent = await getFileContent(owner, repo, anchorFile, afterSha, env);
+
+  // 🛡️ 防篡改检查：验证 p_text-cli.md 是纯追加
+  const copyResult = await getCopyContent(owner, repo, env);
+  const guardCheck = isPureAppend(copyResult.content, newContent);
+  if (!guardCheck.ok) {
+    const issueNumber = await findOrCreateIssue(owner, repo, 'TCC 每日铸造日志', env);
+    await postIssueComment(owner, repo, issueNumber,
+      formatGuardAlert(guardCheck, `${beforeSha.slice(0, 7)}..${afterSha.slice(0, 7)}`), env);
+    return { type: 'guard_blocked', reason: guardCheck.reason };
+  }
+
   const result = await calculateMint(oldContent, newContent, config);
 
   const commitRange = beforeSha === ZERO_SHA
@@ -176,6 +188,14 @@ async function computeAndCreatePR(owner, repo, beforeSha, afterSha, env, config)
     formatPRBody(result, cycleNum, commitRange, result.old_hash, result.new_hash),
     env,
   );
+
+  // 🛡️ 铸造成功 → 更新 ledger-copy 副本
+  if (result.mint_ceiling > 0) {
+    const updateResult = await updateCopy(owner, repo, newContent, env);
+    if (!updateResult.ok) {
+      console.warn('guard: 副本更新失败（下次铸造将使用旧副本校验）:', updateResult.error);
+    }
+  }
 
   return {
     type: 'daily',

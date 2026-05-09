@@ -135,12 +135,45 @@
       },
       "AI协作;消息": {
         "level": "read",
+        "enabled": false,
+        "_comment": "2026-05-09 暂时禁用 — push 模式可写任意 JSON，会话中密钥有泄露风险",
         "aliases": ["ai;messages"],
-        "description": "读取/推送 AI 协作者消息。读取=条数(默认1)，推送=推送,消息JSON",
-        "description_en": "Read/push AI collaborator messages. Read=count(default 1), Push=推送,message_json",
+        "description": "读取/推送 AI 协作者消息。读取=条数(默认1)，推送=推送,消息JSON (已禁用)",
+        "description_en": "Read/push AI collaborator messages. DISABLED.",
         "parameters": ["条数(默认1) 或 '推送',消息JSON"],
         "parameters_en": ["count(default 1) or '推送',message_json"],
         "returns": "rst_data.text = 消息内容列表"
+      },
+      "密钥;注册": {
+        "level": "write",
+        "sensitive": true,
+        "log_policy": "no_body",
+        "aliases": ["key;register"],
+        "description": "注册服务密钥（XOR 传输加密 + 本地加密存储）",
+        "description_en": "Register service key (XOR transport encrypt + local encrypt storage)",
+        "parameters": ["服务名", "密文(hex)", "密钥类型"],
+        "parameters_en": ["service_name", "cipher_hex", "key_type"],
+        "returns": "rst_data.text = 注册确认, rst_data.service, rst_data.key_type"
+      },
+      "密钥;撤销": {
+        "level": "write",
+        "sensitive": true,
+        "aliases": ["key;revoke"],
+        "description": "撤销已注册的服务密钥",
+        "description_en": "Revoke a registered service key",
+        "parameters": ["服务名"],
+        "parameters_en": ["service_name"],
+        "returns": "rst_data.text = 撤销确认"
+      },
+      "密钥;列表": {
+        "level": "read",
+        "sensitive": true,
+        "aliases": ["key;list"],
+        "description": "列出已注册密钥（不返回密钥值）",
+        "description_en": "List registered keys (values not returned)",
+        "parameters": [],
+        "parameters_en": [],
+        "returns": "rst_data.text = 密钥列表, rst_data.count, rst_data.keys"
       }
     }
   },

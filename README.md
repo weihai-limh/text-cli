@@ -340,7 +340,8 @@ text-cli/
 │
 ├── examples/                        # 生态项目示例
 │   ├── project/                     #   基于 text-cli 构建的第三方项目
-│   └── test/                        #   测试报告（如 Token 消耗对比）
+│   ├── test/                        #   测试报告（如 Token 消耗对比）
+│   └── text-cli/                    #   指令示例与 Schema 注册表（21 条指令 10 域）
 │
 ├── docs/                            # 文档
 │   ├── AI_COLLABORATOR_GUIDE.md     #   AI 协作者入门指南

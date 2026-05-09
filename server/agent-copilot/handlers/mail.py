@@ -37,12 +37,32 @@ class MailHandlers:
         smtp_host = mail_cfg.get('smtp_host', 'smtp.mxhichina.com')
         smtp_port = mail_cfg.get('smtp_port', 465)
         smtp_user = mail_cfg.get('smtp_user', '')
-        smtp_password = mail_cfg.get('value', '')
         from_email = mail_cfg.get('from_email', smtp_user)
+
+        # 三层优先级: 注入凭据 → key_registry → config
+        smtp_password = None
+
+        # 1. 注入凭据（来自 service proxy）
+        if self._injected_creds:
+            smtp_password = self._injected_creds.get('smtp-tide')
+
+        # 2. key_registry
+        if not smtp_password:
+            try:
+                kr = getattr(self, 'key_registry', None)
+                if kr:
+                    smtp_password = kr.get('smtp-tide')
+            except Exception:
+                pass
+
+        # 3. config 兜底
+        if not smtp_password:
+            smtp_password = mail_cfg.get('value', '')
 
         if not smtp_password:
             return error('missing_credential',
-                        'SMTP 密码未配置。请设置环境变量 SMTP_PASSWORD')
+                        'SMTP 密码未配置。请通过 指令:密钥;注册,smtp-tide,<密文>,smtp_password 注册，'
+                        '或设置环境变量 SMTP_PASSWORD')
 
         # 构建 MIME 邮件
         msg = email.mime.multipart.MIMEMultipart()
