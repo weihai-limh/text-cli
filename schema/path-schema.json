@@ -1,18 +1,33 @@
 {
-  "_note": "路径注册表 — 当单条指令无法完成任务时，Agent 通过意图匹配找到路径。与 agent-text-cli-schema.json 并列于 text-cli 项目根目录，由 text-cli-paths_CN Skill 注入。每条路径的 instruction_chain 引用的指令 ID 必须已在指令 Schema 中注册。params 列出路径执行前需从用户/环境收集的信息，Agent 匹配到路径后第一步收集参数。",
+  "_note": "路径注册表 — 当单条指令无法完成任务时，Agent 通过意图匹配找到路径。与 agent-text-cli-schema.json 并列。每条路径的 instruction_chain 引用的指令 ID 必须已在指令 Schema 中注册。params 列出路径执行前需从用户/环境收集的信息。",
 
   "查找消息并发送邮件": {
     "description": "从 AI 协作者状态中查找最近的对话消息，写入文件后通过邮件发送给指定收件人",
     "params": ["消息条数", "收件人邮箱", "邮件主题"],
     "instruction_chain": [
-      "指令:AI协作;消息",
-      "指令:文件;写入",
-      "指令:邮件;发送"
+      "AI:ai;messages",
+      "AI:file;write",
+      "AI:email;send"
     ],
     "path_doc": "",
-    "require_instructions": ["AI协作;消息", "文件;写入", "邮件;发送"],
+    "require_instructions": ["ai;messages", "file;write", "email;send"],
     "rank": 1,
-    "tags": ["工具链", "消息", "邮件"],
-    "remarks": ""
+    "tags": ["toolchain", "messages", "email"],
+    "remarks": "全 copilot 本地执行，不依赖远程端点"
+  },
+
+  "照片分析": {
+    "description": "加载本地图片 → 视觉模型分析地貌/植被/天气/光线 → 压缩为100字中文摘要",
+    "params": ["图片路径", "分析侧重点(可选)"],
+    "instruction_chain": [
+      "AI:image;load",
+      "AI:ai;vision",
+      "AI:ai;inference"
+    ],
+    "path_doc": "",
+    "require_instructions": ["image;load", "ai;vision", "ai;inference"],
+    "rank": 1,
+    "tags": ["toolchain", "vision", "photo", "summary"],
+    "remarks": "横跨 copilot(本地) + 远程端点。image;load 需 media.py 部署在 copilot base/"
   }
 }
