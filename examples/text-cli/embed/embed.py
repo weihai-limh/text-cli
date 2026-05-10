@@ -1,9 +1,9 @@
 """
-语义嵌入 — bigmodel/embedding-3
+Semantic embedding — bigmodel/embedding-3
 
-维度模式: A=256 / B=512(默认) / C=1024 / D=2048
-依赖: urllib (stdlib only)
-弹性: api_key 参数注入，零状态，纯函数
+Dimension modes: A=256 / B=512(default) / C=1024 / D=2048
+Dependency: urllib (stdlib only)
+Resilient: api_key param injection, zero state, pure functions
 """
 
 import json
@@ -21,7 +21,7 @@ def _resolve_dimensions(mode='B'):
 
 
 def encode(text, api_key, dimensions='B'):
-    """编码单段文本。返回: [float, ...]"""
+    """Encode a single text. Returns: [float, ...]"""
     dims = _resolve_dimensions(dimensions)
     body = json.dumps({"model": MODEL, "input": text, "dimensions": dims}).encode()
     req = urllib.request.Request(API_URL, data=body, headers={
@@ -37,7 +37,7 @@ def encode(text, api_key, dimensions='B'):
 
 
 def encode_batch(texts, api_key, dimensions='B'):
-    """批量编码。返回: [[float, ...], ...]"""
+    """Batch encode. Returns: [[float, ...], ...]"""
     dims = _resolve_dimensions(dimensions)
     body = json.dumps({"model": MODEL, "input": texts, "dimensions": dims}).encode()
     req = urllib.request.Request(API_URL, data=body, headers={
@@ -58,20 +58,20 @@ def _cosine(a, b):
 
 
 def similarity(a, b, api_key, dimensions='B'):
-    """计算两段文本的语义相似度。"""
+    """Compute semantic similarity between two texts."""
     dims = _resolve_dimensions(dimensions)
     vecs = encode_batch([a, b], api_key, dims)
     score = _cosine(vecs[0], vecs[1])
-    if score > 0.85: v = '高度相似'
-    elif score > 0.7: v = '较强相似'
-    elif score > 0.5: v = '中度相似'
-    elif score > 0.3: v = '弱相关'
-    else: v = '不相关'
+    if score > 0.85: v = 'highly similar'
+    elif score > 0.7: v = 'strongly similar'
+    elif score > 0.5: v = 'moderately similar'
+    elif score > 0.3: v = 'weakly related'
+    else: v = 'unrelated'
     return {'score': round(score, 4), 'verdict': v, 'dimensions': dims}
 
 
 def match(query, candidates, api_key, dimensions='B'):
-    """从候选中找出语义最匹配的一项。"""
+    """Find the best semantic match from candidates."""
     dims = _resolve_dimensions(dimensions)
     vecs = encode_batch([query] + candidates, api_key, dims)
     qv = vecs[0]

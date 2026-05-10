@@ -1,11 +1,11 @@
 """
-服务聚合 handler（基础版）— 多源指令服务分发
+Service proxy handler (base edition) — multi-source directive service dispatch
 
-指令:
+Directive:
   聚合;分发,<service_name>,<prompt>
 
-配置:
-  endpoints.json — 定义目标服务列表和路由规则
+Config:
+  endpoints.json — defines target service list and routing rules
 """
 
 import json
@@ -30,11 +30,11 @@ def proxy_dispatch(params: list) -> dict:
     """
     聚合;分发,<service_rank>,<prompt>
 
-    service_rank: 数字 rank 或 "auto"（自动选第一个可用）
-    prompt: 完整 text-cli 指令文本
+    service_rank: numeric rank or "auto" (first available)
+    prompt: full text-cli directive text
     """
     if len(params) < 2:
-        return error('missing_param', '需要 service_rank 和 prompt')
+        return error('missing_param', 'Need service_rank and prompt')
 
     rank = params[0]
     prompt = params[1]
@@ -46,9 +46,9 @@ def proxy_dispatch(params: list) -> dict:
 
     endpoints = _load_endpoints()
     if not endpoints:
-        return error('no_endpoints', '未配置任何端点')
+        return error('no_endpoints', 'No endpoints configured')
 
-    # 按 rank 排序，选匹配的端点
+    # Sort by rank, select matching endpoint
     sorted_ep = sorted(endpoints, key=lambda e: int(e.get('rank', 99)))
 
     for ep in sorted_ep:
@@ -70,4 +70,4 @@ def proxy_dispatch(params: list) -> dict:
         except Exception as e:
             print(f"[proxy] {ep.get('name')} failed: {e}")
 
-    return error('all_failed', '所有端点均不可用')
+    return error('all_failed', 'All endpoints unavailable')

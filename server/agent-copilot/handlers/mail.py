@@ -1,5 +1,5 @@
 """
-邮件 handler mixin。
+Mail handler mixin.
 """
 
 import email.mime.multipart
@@ -16,19 +16,19 @@ class MailHandlers:
     def _handle_email_send(self, params: list) -> dict:
         if len(params) < 3:
             return error('missing_param',
-                        '缺少参数: 收件人, 主题, 正文 (可选: 附件路径)')
+                        'Missing parameter: to, subject, body (optional: attachment_path)')
         to_addr = params[0]
         subject = params[1]
         body = params[2]
         attachment_path = None
         if len(params) > 3:
-            # 末位参数可能是真正的附件路径，也可能是正文被逗号误拆的残余
-            # 只有以 / 或 ./ 开头的才视为附件路径
+            # Last param might be an actual attachment path, or body text split by comma
+            # Only treat as attachment path if it starts with / or ./
             extra = params[3].strip()
             if extra and (extra.startswith('/') or extra.startswith('./')):
                 attachment_path = extra
             elif extra:
-                # 不是路径 → 合并回正文
+                # Not a path → merge back into body
                 body += ', ' + extra
 
         creds = self.config.get('credentials', {})
@@ -39,10 +39,10 @@ class MailHandlers:
         smtp_user = mail_cfg.get('smtp_user', '')
         from_email = mail_cfg.get('from_email', smtp_user)
 
-        # 三层优先级: 注入凭据 → key_registry → config
+        # Three-tier priority: injected creds → key_registry → config
         smtp_password = None
 
-        # 1. 注入凭据（来自 service proxy）
+        # 1. Injected creds (from service proxy)
         if self._injected_creds:
             smtp_password = self._injected_creds.get('smtp-tide')
 
@@ -55,31 +55,31 @@ class MailHandlers:
             except Exception:
                 pass
 
-        # 3. config 兜底
+        # 3. Config fallback
         if not smtp_password:
             smtp_password = mail_cfg.get('value', '')
 
         if not smtp_password:
             return error('missing_credential',
-                        'SMTP 密码未配置。请通过 指令:密钥;注册,smtp-tide,<密文>,smtp_password 注册，'
-                        '或设置环境变量 SMTP_PASSWORD')
+                        'SMTP password not configured. Register via 指令:密钥;注册,smtp-tide,<cipher>,smtp_password'
+                        ' or set SMTP_PASSWORD env var')
 
-        # 构建 MIME 邮件
+        # Build MIME message
         msg = email.mime.multipart.MIMEMultipart()
         msg['From'] = from_email
         msg['To'] = to_addr
         msg['Subject'] = subject
         msg.attach(email.mime.text.MIMEText(body, 'plain', 'utf-8'))
 
-        # 附件
+        # Attachment
         if attachment_path:
             p = self.check_path(attachment_path)
             if p is None:
                 return error('path_denied',
-                            f'附件路径不在白名单内: {attachment_path}')
+                            f'Attachment path not in whitelist: {attachment_path}')
             if not p.is_file():
                 return error('file_not_found',
-                            f'附件文件不存在: {attachment_path}')
+                            f'Attachment file not found: {attachment_path}')
             try:
                 with open(p, 'rb') as f:
                     part = email.mime.base.MIMEBase('application', 'octet-stream')
@@ -91,9 +91,9 @@ class MailHandlers:
                 )
                 msg.attach(part)
             except Exception as e:
-                return error('attachment_error', f'附件读取失败: {e}')
+                return error('attachment_error', f'Attachment read failed: {e}')
 
-        # SMTP 发送
+        # SMTP send
         try:
             if smtp_port == 465:
                 server = smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=30)
@@ -105,15 +105,15 @@ class MailHandlers:
             server.sendmail(from_email, [to_addr], msg.as_string())
             server.quit()
 
-            return ok(f'邮件已发送至 {to_addr}',
+            return ok(f'Mail sent to {to_addr}',
                      subject=subject, from_addr=from_email)
         except smtplib.SMTPAuthenticationError:
             return error('smtp_auth_failed',
-                        f'SMTP 认证失败: {smtp_user}@{smtp_host}')
+                        f'SMTP auth failed: {smtp_user}@{smtp_host}')
         except smtplib.SMTPConnectError:
             return error('smtp_connect_failed',
-                        f'无法连接到 SMTP 服务器: {smtp_host}:{smtp_port}')
+                        f'Cannot connect to SMTP server: {smtp_host}:{smtp_port}')
         except smtplib.SMTPException as e:
-            return error('smtp_error', f'SMTP 错误: {e}')
+            return error('smtp_error', f'SMTP error: {e}')
         except Exception as e:
-            return error('internal_error', f'邮件发送异常: {e}')
+            return error('internal_error', f'Mail send error: {e}')

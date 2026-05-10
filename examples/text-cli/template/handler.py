@@ -1,7 +1,7 @@
 """
-模板 handler。
-模板;列表 — 列出所有可用模板
-模板;使用,<id>[,键1=值1,键2=值2,...] — 使用模板并填充占位符，输出到缓存
+Template handler.
+模板;列表 — list all available templates
+模板;使用,<id>[,key1=val1,key2=val2,...] — use template with placeholders filled, output to cache
 """
 
 import json
@@ -18,7 +18,7 @@ def _load_templates() -> dict:
 
 @directive("模板", "列表")
 def template_list(params: list[str]) -> str:
-    """列出所有可用模板"""
+    """List all available templates"""
     tmpl = _load_templates()
     lines = []
     for tid, entry in tmpl.items():
@@ -28,35 +28,35 @@ def template_list(params: list[str]) -> str:
 
 @directive("模板", "使用")
 def template_use(params: list[str]) -> str:
-    """模板;使用,<id>[,键1=值1,键2=值2,...] → 填充后文本 → cache"""
+    """模板;使用,<id>[,key1=val1,key2=val2,...] → filled text → cache"""
     if not params:
-        return "缺少参数: 模板ID"
+        return "Missing parameter: template_id"
 
     tid = params[0]
     tmpl = _load_templates()
 
     if tid not in tmpl:
         avail = ", ".join(tmpl.keys())
-        return f"模板不存在: {tid}。可用: {avail}"
+        return f"Template not found: {tid}. Available: {avail}"
 
     text = tmpl[tid]["text"]
 
-    # 从 params[1:] 解析键值对
+    # Parse key=value pairs from params[1:]
     fill = {}
     for p in params[1:]:
         if "=" in p:
             k, v = p.split("=", 1)
             fill[k] = v
 
-    # 默认填充：没有传的键保持原样（作为空值），不强行替换
+    # Default fill: keys not passed keep placeholder (empty value), no forced replace
     for key, val in fill.items():
         text = text.replace("{" + key + "}", val)
 
-    # 缓存输出
+    # Cache output
     from handlers.image import _cache_put
     key = _cache_put(text)
 
-    # 提示未填充的占位符
+    # Warn about unfilled placeholders
     unfilled = []
     import re
     for m in re.finditer(r"\{(\w+)\}", text):
@@ -66,5 +66,5 @@ def template_use(params: list[str]) -> str:
 
     result = f"cache:{key}\n{text}"
     if unfilled:
-        result += f"\n⚠️ 未填充: {', '.join(unfilled)}"
+        result += f"\n⚠ Unfilled: {', '.join(unfilled)}"
     return result

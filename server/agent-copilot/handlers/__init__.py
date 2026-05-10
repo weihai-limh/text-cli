@@ -1,5 +1,5 @@
 """
-handler mixin 聚合 — 所有 domain 的 handler 在此汇集。
+Handler mixin aggregation — all domain handlers collected here.
 """
 
 from handlers.files import FileHandlers

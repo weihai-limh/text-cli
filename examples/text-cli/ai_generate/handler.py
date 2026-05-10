@@ -1,7 +1,7 @@
 """
-图像/视频生成 handler。
-图像;生成,<prompt>[,尺寸] → CogView-3-Flash → 图片 URL
-视频;生成,<prompt>[,尺寸,品质] → CogVideoX-Flash → 任务ID + 轮询
+Image/video generation handler.
+图像;生成,<prompt>[,size] → CogView-3-Flash → image URL
+视频;生成,<prompt>[,size,quality] → CogVideoX-Flash → task ID + polling
 """
 
 import hashlib
@@ -12,7 +12,7 @@ import urllib.error
 
 from core.registry import directive
 
-# ── 配置（从 model_aliases.json 读取）──
+# ── Config (from model_aliases.json) ──
 import json
 from pathlib import Path as _Path
 
@@ -42,7 +42,7 @@ def _load_gen_config():
 
 _load_gen_config()
 
-# 从 AI handler 获取 zhipu key
+# Get zhipu key from AI handler
 def _get_zhipu_key() -> str | None:
     try:
         from handlers.ai_inference import _get_api_keys
@@ -55,7 +55,7 @@ def _get_zhipu_key() -> str | None:
 def _http_post(url: str, body: dict, timeout: int = 120) -> dict:
     api_key = _get_zhipu_key()
     if not api_key:
-        return {"error": "未配置 zhipu API key"}
+        return {"error": "zhipu API key not configured"}
 
     data = json.dumps(body).encode("utf-8")
     req = urllib.request.Request(url, data=data, method="POST")
@@ -74,9 +74,9 @@ def _http_post(url: str, body: dict, timeout: int = 120) -> dict:
 
 @directive("图像", "生成")
 def image_generate(params: list[str]) -> str:
-    """图像;生成,<prompt>[,尺寸] → URL"""
+    """图像;生成,<prompt>[,size] → URL"""
     if not params:
-        return "缺少参数: 提示词 [,尺寸]"
+        return "Missing parameter: prompt [,size]"
 
     prompt = params[0]
     size = "1280x1280"
@@ -90,24 +90,24 @@ def image_generate(params: list[str]) -> str:
     }, timeout=60)
 
     if "error" in result:
-        return f"图像生成失败: {result['error']}"
+        return f"Image generation failed: {result['error']}"
 
     data_list = result.get("data", [])
     if not data_list:
-        return "图像生成返回空结果"
+        return "Image generation returned empty result"
 
     url = data_list[0].get("url", "")
     if not url:
-        return "图像生成未返回URL"
+        return "Image generation returned no URL"
 
-    return f"生成成功\nURL: {url}\n尺寸: {size}\n提示词: {prompt}"
+    return f"Generation successful\nURL: {url}\nSize: {size}\nPrompt: {prompt}"
 
 
 @directive("视频", "生成")
 def video_generate(params: list[str]) -> str:
-    """视频;生成,<prompt>[,尺寸,品质] → 任务ID（异步）"""
+    """视频;生成,<prompt>[,size,quality] → task ID (async)"""
     if not params:
-        return "缺少参数: 提示词 [,尺寸,品质]"
+        return "Missing parameter: prompt [,size,quality]"
 
     prompt = params[0]
     size = "1920x1080"
@@ -127,38 +127,38 @@ def video_generate(params: list[str]) -> str:
     }, timeout=120)
 
     if "error" in result:
-        return f"视频生成失败: {result['error']}"
+        return f"Video generation failed: {result['error']}"
 
     task_id = result.get("id", "")
     task_status = result.get("task_status", "UNKNOWN")
 
     return (
-        f"视频任务已提交\n"
+        f"Video task submitted\n"
         f"task_id: {task_id}\n"
         f"status: {task_status}\n"
-        f"提示词: {prompt}\n"
-        f"尺寸: {size}"
+        f"Prompt: {prompt}\n"
+        f"Size: {size}"
     )
 
 
 @directive("视频", "状态")
 def video_status(params: list[str]) -> str:
-    """视频;状态,<task_id> → 轮询结果"""
+    """视频;状态,<task_id> → polling result"""
     if not params:
-        return "缺少参数: task_id"
+        return "Missing parameter: task_id"
 
     task_id = params[0]
     url = _GEN_CFG.get("video_status_api", "").format(task_id=task_id)
     result = _http_post(url, {}, timeout=30)
 
     if "error" in result:
-        return f"查询失败: {result['error']}"
+        return f"Query failed: {result['error']}"
 
     status = result.get("task_status", "UNKNOWN")
     if status == "SUCCESS":
         video_url = result.get("video_result", [{}])[0].get("url", "")
         return f"status: SUCCESS\nvideo_url: {video_url}"
     elif status == "FAIL":
-        return f"status: FAIL\n原因: {result.get('error', '未知')}"
+        return f"status: FAIL\nReason: {result.get('error', 'unknown')}"
     else:
         return f"status: {status}\ntask_id: {task_id}"

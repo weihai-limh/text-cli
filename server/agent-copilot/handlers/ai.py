@@ -1,5 +1,5 @@
 """
-AI 协作 handler mixin。
+AI collaboration handler mixin.
 """
 
 import json
@@ -62,25 +62,25 @@ class AIHandlers:
         mode = params[0] if params else ''
         msg_file = self.cache_dir / 'messages.json'
 
-        # ── 写入模式 ──
+        # ── Write mode ──
         if mode == 'push':
             if len(params) < 2:
-                return error('missing_param', '缺少参数: 消息 JSON')
-            # JSON 内含逗号会被指令解析器拆散，重新拼合
+                return error('missing_param', 'Missing parameter: msg_json')
+            # JSON with commas gets split by directive parser, rejoin
             json_str = ','.join(params[1:]) if len(params) > 2 else params[1]
             try:
                 data = json.loads(json_str)
             except json.JSONDecodeError:
-                return error('bad_request', '消息 JSON 格式无效')
+                return error('bad_request', 'msg_json format invalid')
             msg_file.parent.mkdir(parents=True, exist_ok=True)
             msg_file.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
             count = len(data.get('messages', []))
-            return ok(f'消息已推送，共 {count} 条')
+            return ok(f'Messages pushed, {count} total')
 
-        # ── 读取模式 ──
+        # ── Read mode ──
         n = int(mode) if mode else 1
         if not msg_file.exists():
-            return error('no_messages', '暂无消息，请先通过 AI协作;消息,push 写入')
+            return error('no_messages', 'No messages yet. Write via AI协作;消息,push first')
         data = json.loads(msg_file.read_text(encoding='utf-8'))
         messages = data.get('messages', [])
         if not messages:
