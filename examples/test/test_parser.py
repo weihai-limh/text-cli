@@ -15,8 +15,8 @@ import sys
 import os
 
 # Ensure text_cli/python is on the path
-# Add text_cli/python to path (test file is at project_root/tests/test_parser.py)
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'text_cli', 'python'))
+# Add text_cli/python to path (test file is at examples/test/test_parser.py)
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'text_cli', 'python'))
 
 from core.parser import parse_directive, DirectiveParseError, ParsedDirective  # noqa: E402
 

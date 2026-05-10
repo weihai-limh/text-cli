@@ -1,6 +1,6 @@
 # Image Processing
 
-**Directives:** `图片;信息` / `image;info`, `图片;编码` / `image;encode`
+**Directives:** `image;info` (alias: `图片;信息`), `image;encode` (alias: `图片;编码`)
 **Dependencies:** Pillow (`pip install Pillow`)
 **Configuration:** None (no secrets)
 
@@ -18,14 +18,14 @@ pip install Pillow
 ```
 AI:image;info,/path/to/photo.jpg
 AI:image;encode,/path/to/photo.jpg
-AI:ai_inference;vision,Describe the scene,cache:<sha256>
+AI:ai;vision,Describe the scene,cache:<sha256>
 ```
 
 ---
 
 # 图像处理
 
-**指令:** `图片;信息` / `image;info`, `图片;编码` / `image;encode`
+**指令:** `image;info` (别名: `图片;信息`), `image;encode` (别名: `图片;编码`)
 **依赖:** Pillow (`pip install Pillow`)
 **配置:** 无（不含密钥）
 
@@ -41,7 +41,8 @@ pip install Pillow
 ## 使用
 
 ```
-指令:image;info,/path/to/photo.jpg
-指令:image;encode,/path/to/photo.jpg
-指令:AI辅助;视觉,描述这个场景,cache:<sha256>
+AI:image;info,/path/to/photo.jpg
+指令:图片;信息,/path/to/photo.jpg
+AI:image;encode,/path/to/photo.jpg
+AI:ai;vision,描述这个场景,cache:<sha256>
 ```

@@ -95,9 +95,9 @@ Agent（text-cli-core_CN Skill 加载）
 "查找消息并发送邮件": {
   "description": "从 AI 协作者状态中查找对话消息，写入文件后邮件发送",
   "params": ["消息条数", "收件人邮箱", "邮件主题"],
-  "instruction_chain": ["指令:AI协作;消息", "指令:文件;写入", "指令:邮件;发送"],
+  "instruction_chain": ["AI:ai;messages", "AI:file;write", "AI:email;send"],
   "path_doc": "",
-  "require_instructions": ["AI协作;消息", "文件;写入", "邮件;发送"],
+  "require_instructions": ["ai;messages", "file;write", "email;send"],
   "rank": 1,
   "tags": ["工具链", "消息", "邮件"],
   "remarks": ""
@@ -134,7 +134,7 @@ Agent（text-cli-core_CN Skill 加载）
 
 `path-schema.json` 是机器索引——Agent 用它发现和匹配路径。本文档 §9 定义的路径 Markdown 格式（YAML frontmatter + 步骤定义）是完整规范——路径作者用它编写复杂路径（条件分支、检查点、人工决策）。两者互补：Schema 做发现，Markdown 做详细。
 
-> 路径已在真实链路上验证：「查找消息并发送邮件」→ 3 条指令串行执行 → AI协作;消息 → 文件;写入 → 邮件;发送 → postmaster@10000.world。全链路通过。
+> 路径已在真实链路上验证：「查找消息并发送邮件」→ 3 条指令串行执行 → ai;messages → file;write → email;send → postmaster@10000.world。全链路通过。
 
 ---
 

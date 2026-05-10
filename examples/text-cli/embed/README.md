@@ -1,6 +1,6 @@
 # Semantic Embedding
 
-**Directives:** `语义;编码`, `语义;相似`, `语义;匹配`
+**Directives:** `semantic;encode` (alias: `语义;编码`), `semantic;similar` (alias: `语义;相似`), `semantic;match` (alias: `语义;匹配`)
 **Dependencies:** `text_cli_modules/embed/`
 **Configuration:** Model alias in `model_aliases.json` (embedding section)
 
@@ -24,7 +24,7 @@ AI:semantic;match,The weather is great today,Weihai winters are cold;It rained t
 
 # 语义嵌入
 
-**指令:** `语义;编码`, `语义;相似`, `语义;匹配`
+**指令:** `semantic;encode` (别名: `语义;编码`), `semantic;similar` (别名: `语义;相似`), `semantic;match` (别名: `语义;匹配`)
 **依赖:** `text_cli_modules/embed/`
 **配置:** `model_aliases.json` 中的 embedding 段落
 
@@ -39,7 +39,8 @@ cp examples/text-cli/embed/handler.py server/python/handlers/embed.py
 ## 使用
 
 ```
+AI:semantic;encode,威海的冬天海风很大
 指令:语义;编码,威海的冬天海风很大
-指令:语义;相似,威海冬天很冷,威海的冬天海风很大
-指令:语义;匹配,今天天气真好,威海冬天很冷;今天下雨了;现在是春天,3
+AI:semantic;similar,威海冬天很冷,威海的冬天海风很大
+AI:semantic;match,今天天气真好,威海冬天很冷;今天下雨了;现在是春天,3
 ```

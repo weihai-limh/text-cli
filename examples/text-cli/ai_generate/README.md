@@ -1,6 +1,6 @@
 # AI Generation
 
-**Directives:** `图像;生成`, `视频;生成`, `视频;状态`
+**Directives:** `image;generate` (alias: `图像;生成`), `video;generate` (alias: `视频;生成`), `video;status` (alias: `视频;状态`)
 **Dependencies:** `text_cli_modules/key/`
 **Configuration:** `model_aliases.example.json` → `model_aliases.json`
 
@@ -16,16 +16,16 @@ cp examples/text-cli/ai_generate/model_aliases.example.json server/python/config
 ## Usage
 
 ```
-AI:ai_generate;image,A whale jumping through ocean waves,1024x1024
-AI:ai_generate;video,Slow motion waves crashing on rocks,1024x576,standard
-AI:ai_generate;video_status,<task_id>
+AI:image;generate,A whale jumping through ocean waves,1024x1024
+AI:video;generate,Slow motion waves crashing on rocks,1024x576,standard
+AI:video;status,<task_id>
 ```
 
 ---
 
 # AI 生成
 
-**指令:** `图像;生成`, `视频;生成`, `视频;状态`
+**指令:** `image;generate` (别名: `图像;生成`), `video;generate` (别名: `视频;生成`), `video;status` (别名: `视频;状态`)
 **依赖:** `text_cli_modules/key/`
 **配置:** `model_aliases.example.json` → `model_aliases.json`
 
@@ -41,7 +41,7 @@ cp examples/text-cli/ai_generate/model_aliases.example.json server/python/config
 ## 使用
 
 ```
-指令:图像;生成,一只在海浪中跳跃的鲸鱼,1024x1024
-指令:视频;生成,海浪拍打礁石的慢镜头,1024x576,standard
-指令:视频;状态,<task_id>
+AI:image;generate,一只在海浪中跳跃的鲸鱼,1024x1024
+AI:video;generate,海浪拍打礁石的慢镜头,1024x576,standard
+AI:video;status,<task_id>
 ```

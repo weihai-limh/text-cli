@@ -51,7 +51,19 @@ def get_external_schema() -> dict[str, dict]:
 
 
 def find_backend_url(directive_key: str) -> str | None:
+    """Find backend URL for a directive key (prefix-agnostic matching)."""
+    # Normalize key: strip prefix, keep only domain;action
+    normalized = _normalize_directive_key(directive_key)
     for entry in _internal_schema.values():
-        if entry.get("directive") == directive_key:
+        entry_normalized = _normalize_directive_key(entry.get("directive", ""))
+        if entry_normalized == normalized:
             return entry.get("url")
     return None
+
+
+def _normalize_directive_key(key: str) -> str:
+    """Strip prefix from directive key, e.g. '指令:domain;action' → 'domain;action'"""
+    for prefix in ("指令:", "AI:", "指令：", "AI："):
+        if key.startswith(prefix):
+            return key[len(prefix):]
+    return key
