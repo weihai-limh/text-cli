@@ -18,7 +18,7 @@ type: permanent
 
 重要原则：
 - **指令优先，路径兜底**：能通过单条指令解决的问题，绝不自己推理。单指令不适用时，走路径匹配
-- **格式严格**：指令格式 `指令:领域;动作,参数...` 不可变
+- **格式严格**：指令格式 `AI:领域;动作,参数...`（`指令:` 前缀仍兼容）
 - **文本返回**：指令返回 `rst_types: text`，直接读取 `rst_data.text`
 - **Token 安全**：鉴权 Token 通过环境变量注入，不硬编码、不打印
 - **多源降级**：当前 rank 的源失败时，自动尝试下一个 rank。所有源都失败时告知用户，不自行推理
@@ -91,7 +91,7 @@ Agent 解析意图
       "rank": 1,
       "description": "查询指定城市和日期的天气",
       "params": ["城市", "日期"],
-      "example": "指令:基础应用;天气查询,明天,威海"
+      "example": "AI:weather;query,明天,威海"
     }
   ],
   "邮件;发送": [
@@ -117,13 +117,13 @@ Agent 解析意图
   "type": "function",
   "function": {
     "name": "text_cli",
-    "description": "执行一条标准的 text-cli 文本指令。directive 必须严格遵循「指令:领域;动作,参数...」格式。调用前请通过 fetch_available_directives 确认指令存在并获取端点。",
+    "description": "执行一条标准的 text-cli 文本指令。directive 必须严格遵循「AI:领域;动作,参数...」格式（`指令:` 仍兼容）。调用前请通过 fetch_available_directives 确认指令存在并获取端点。",
     "parameters": {
       "type": "object",
       "properties": {
         "directive": {
           "type": "string",
-          "description": "完整的文本指令字符串，例如：指令:基础应用;天气查询,明天,威海"
+          "description": "完整的文本指令字符串，例如：AI:weather;query,明天,威海"
         },
         "endpoint": {
           "type": "string",

@@ -17,7 +17,7 @@ cli.py — Agent 既有资源 → text-cli 指令 转化工具
     serve()  # 启动 HTTP 服务，自动生成 Schema
 
 指令格式:
-    指令:领域;动作,参数1,参数2,...
+    AI:领域;动作,参数1,参数2,...
 """
 
 import json
@@ -41,14 +41,14 @@ def register(domain: str, action: str):
     def query_weather(params: list[str]) -> str:
         return f"{params[0]}: 晴"
 
-    生成的指令: 指令:天气;查询,北京
+    生成的指令: AI:天气;查询,北京
     """
 
     def decorator(func: Callable[[list[str]], str]):
         if domain not in _registry:
             _registry[domain] = {}
         _registry[domain][action] = func
-        logger.debug("已注册: 指令:%s;%s → %s", domain, action, func.__name__)
+        logger.debug("已注册: AI:%s;%s → %s", domain, action, func.__name__)
         return func
 
     return decorator

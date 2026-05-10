@@ -2,7 +2,7 @@
 skill.py — Agent 技能基类：将 text-cli 指令封装为可复用的语义技能
 
 核心理念:
-    指令是原子操作（指令:天气;查询,北京）
+    指令是原子操作（AI:weather;query,北京）
     技能是语义封装（"查询天气" → 选端点 + 发指令 + 格式化结果 + 错误兜底）
 
 技能 = 意图映射 + 指令编排 + 结果加工 + 降级策略
@@ -57,7 +57,7 @@ class Skill:
     def make_directive(self, *params: str) -> str:
         """将参数列表拼为 text-cli 指令"""
         params_str = ",".join(params)
-        return f"指令:{self.domain};{self.action},{params_str}"
+        return f"AI:{self.domain};{self.action},{params_str}"
 
     def call(self, *params: str) -> SkillResult:
         """

@@ -37,7 +37,7 @@ class TranslatorSkill(Skill):
         source_lang = self._detect_language(text)
 
         # 步骤 2: 执行翻译
-        directive = f"指令:翻译;翻译,{text},{target_lang}"
+        directive = f"AI:翻译;翻译,{text},{target_lang}"
         try:
             raw = call_directive(directive, endpoint=self.endpoint, token=self.token)
         except Exception as e:
@@ -69,7 +69,7 @@ class TranslatorSkill(Skill):
         如果指令不可用或失败，静默返回 None，不阻断主流程。
         """
         try:
-            directive = f"指令:翻译;检测,{text}"
+            directive = f"AI:翻译;检测,{text}"
             result = call_directive(directive, endpoint=self.endpoint, token=self.token)
             return result.strip()
         except Exception:

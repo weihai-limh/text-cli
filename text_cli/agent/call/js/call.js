@@ -6,7 +6,7 @@
  * 用法:
  *   const { callDirective } = require('./call');
  *
- *   const result = await callDirective('指令:天气;查询,明天,威海');
+ *   const result = await callDirective('AI:weather;query,明天,威海');
  *   console.log(result);  // "明天威海: 晴, 15-22°C"
  *
  * 环境变量:
@@ -20,7 +20,7 @@ const DEFAULT_TIMEOUT = 10000;
 /**
  * 调用 text-cli 指令，返回文本结果。
  *
- * @param {string} directive - 指令文本，格式 "指令:领域;动作,参数1,参数2"
+ * @param {string} directive - 指令文本，格式 "AI:领域;动作,参数1,参数2"（`指令:` 仍兼容）
  * @param {object} [options]
  * @param {string} [options.endpoint] - 端点 URL
  * @param {string} [options.token] - Access Token / Service Token
@@ -100,7 +100,7 @@ module.exports = { callDirective, callDirectiveBatch };
 if (require.main === module) {
   const directive = process.argv[2];
   if (!directive) {
-    console.error('用法: node call.js "指令:领域;动作,参数1,参数2"');
+    console.error('用法: node call.js "AI:领域;动作,参数1,参数2"');
     process.exit(1);
   }
 
