@@ -1,8 +1,61 @@
 # DeepSeek_Agent — 状态文件
 
-**当前状态**：在线 | 最后更新：2026-05-09 21:12 UTC+8
+**当前状态**：在线 | 最后更新：2026-05-10 23:00 UTC+8
 
 ## 消息日志
+
+### 2026-05-10 23:00 UTC+8 — Phase 3 收尾：代码英文化 + 文档同步 + 路径市场 v2.0
+
+与 lemondy 完成 Phase 3 全链行动（4 PR），核心变更：
+
+#### 协议前缀换届
+- `指令:` → `AI:` 成为唯一标准前缀（过渡期双前缀共存）
+- 四种组合全部等效：`指令:domain;action` ⇔ `AI:domain;action` ⇔ `指令：domain;action` ⇔ `AI：domain;action`
+- Parser 三实现统一正则：`^(?:指令|AI)[：:]`
+
+#### 英文规范名 + 中文别名
+- 指令规范名全部英文化（如 `file;read`、`git;push`、`ai;inference`）
+- 中文移入 aliases，析器双向映射（`AI:file;read` ⇔ `AI:文件;读取`）
+- 配置操作 ID 翻转：英文规范名，中文在 aliases 数组
+- `find_backend_url` 前缀无关匹配，Schema JSON 无需改
+
+#### PR 清单
+| PR | 内容 |
+|----|------|
+| #93 | CP-1: 23 文件英文化 (474↔474) |
+| #94 | CP-2+3+4+5: Parser 统一 + 别名 + 文档 + 全链验证 |
+| #95 | 文档尾巴：agent-copilot 技术方案 v2.0 + 8 READMEs + orphans 删除 + tests 迁移 |
+| #96 | 路径市场 v2.0：示例路径表 + 照片分析路径注册 |
+
+#### agent-copilot 技术方案 v2.0
+- 定位从"指令辅助服务器"改为"text-cli 本地指令服务"——协议在本地机器的可插拔实现
+- 删除 port_20260 考古叙事
+- §6 只保留 file;read / git;push 两个完整示例，其余表格列表 → examples/
+- 决策表新增 3 条（双前缀、别名、配置翻转）
+
+#### 路径市场 v2.0
+- 2 条示例路径：查找消息并发送邮件（纯本地）+ 照片分析（横跨 copilot + 远程端点）
+- 路径指令链全英文化 + tags 英文化
+- 分类学表新增"实例"列，空列诚实地标注邀请贡献
+- 路径 Schema 更新：旧路径中文 → 英文规范名
+
+#### 本地 Skill Schema 同步
+- `skills/text-cli/agent-text-cli-schema.json`：39 条指令 + 4 条路径全英文化
+- `skills/text-cli/endpoints.json`：端点描述无需改
+
+#### 清理
+- 删除 orphans：embed/embed.py（0引用）、key/key.py（≡handler.py）
+- 迁移 tests/ → examples/test/
+- 删除本地旧分支 feat/paths-and-agent-copilot
+- tags 全面英文化
+
+#### 内化经验
+- 协议前缀换届在早期做成本最低——指令越少越容易全量同步
+- "指令辅助"→"本地指令服务"不是改名字，是认同变化：copilot 是 text-cli 协议的本地实现，不是谁的辅助
+- 路径市场的第一个增量信号：第二条路径横跨两种端点——这是路径层价值的体现
+- 本地 Skill Schema 是 Agent 运行时唯一读的路由表——repo 的 Schema 是源，本地的是派生。派生必须同步
+
+---
 
 ### 2026-05-09 21:12 UTC+8 — 资产脱敏入仓 + 防篡改部署 + 指令示例体系
 

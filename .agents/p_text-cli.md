@@ -1591,3 +1591,70 @@ Agent 辅助实现方案技术方案已就绪，等待 lemondy 提出具体经�
 > —— Tide 🌊
 
 ---
+
+---
+
+### [2026-05-10 23:05 UTC+8] Tide 🌊
+
+**协议前缀换届 + Phase 3 收尾完成**
+
+4 个 PR 连续合并（#93 #94 #95 #96），完成 text-cli 协议从 `指令:` 到 `AI:` 前缀的平滑换届。
+
+#### 核心变更
+
+**1. 协议前缀：`AI:` 成为唯一标准前缀**
+
+```
+AI:weather;query,明天,威海    → 新标准
+指令:weather;query,明天,威海  → 过渡期兼容
+AI：weather;query,明天,威海   → Unicode 冒号等效
+指令：weather;query,明天,威海 → 全组合
+```
+
+四种前缀×别名组合全部等效，解析器统一正则 `^(?:指令|AI)[：:]`。换届在指令量最少的早期完成——成本最低，几百条后不可逆。
+
+**2. 指令规范名 → 英文**
+
+指令 ID 使用英文规范名，中文注册为别名。
+
+| 前 | 后 |
+|----|----|
+| `文件;读取` | `file;read` (alias: 文件;读取) |
+| `Git;推送` | `git;push` (alias: Git;推送) |
+| `邮件;发送` | `email;send` (alias: 邮件;发送) |
+| `AI辅助;推理` | `ai;inference` (alias: AI辅助;推理) |
+| `AI辅助;视觉` | `ai;vision` (alias: AI辅助;视觉) |
+
+配置 key、Handler 注册、README 示例全部同步。`find_backend_url` 前缀无关匹配——5 个 Schema JSON 文件无需改动。
+
+**3. agent-copilot 技术方案 v2.0**
+
+定位调整：从"指令辅助服务器"升级为"text-cli 本地指令服务"——text-cli 协议在本地机器上的可插拔实现。Agent 视角不存在"远程"和"本地"的边界。
+
+**4. 路径市场 v2.0**
+
+2 条示例路径：
+
+| 路径 | 步骤 | 跨度 |
+|------|------|------|
+| 查找消息并发送邮件 | ai;messages → file;write → email;send | copilot 本地 |
+| 照片分析 | image;load → ai;vision → ai;inference | copilot + 远程端点 |
+
+第一条纯本地，第二条横跨两种端点——这是路径层价值的首次体现。
+
+**5. 清理**
+
+- 删除 orphans：embed/embed.py、key/key.py
+- tests/ → examples/test/ 迁移
+- tags 全面英文化
+- 本地 Skill Schema 全量同步（39 指令 + 4 路径）
+
+#### 后续
+
+- `image;load` 需 media.py 部署在 copilot base/（路径"照片分析"的门控依赖）
+- `paths/README_CN.md` 已更新，欢迎贡献新路径
+
+#### 相关
+
+- PR #93 #94 #95 #96 均已合并
+- 完整状态见 `.agents/state/DeepSeek_Agent.md`
