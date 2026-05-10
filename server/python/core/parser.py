@@ -1,9 +1,14 @@
 import re
 from dataclasses import dataclass
 
+# 双前缀协议：中文 `指令:` 和英文 `AI:` 同等效力
+# 兼容 v1.0 `指令:` 格式，同时支持 v1.1+ `AI:` 国际化前缀
 DIRECTIVE_PATTERN = re.compile(
-    r"^指令:([^;]+);([^,]+)(?:,(.+))?$"
+    r"^(?:指令|AI):([^;]+);([^,]+)(?:,(.+))?$"
 )
+
+# 提取前缀，用于 directive_key 重建
+_PREFIX_PATTERN = re.compile(r"^(指令|AI):")
 
 MAX_DIRECTIVE_LENGTH = 512
 MAX_PARAMS = 10
@@ -18,7 +23,10 @@ class ParsedDirective:
 
     @property
     def directive_key(self) -> str:
-        return f"指令:{self.domain};{self.action}"
+        """返回带原始前缀的指令键，用于 schema 匹配"""
+        m = _PREFIX_PATTERN.match(self.raw)
+        prefix = m.group(1) if m else "指令"
+        return f"{prefix}:{self.domain};{self.action}"
 
 
 class DirectiveParseError(Exception):
