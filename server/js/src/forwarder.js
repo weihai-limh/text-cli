@@ -1,5 +1,5 @@
-const FORWARD_TIMEOUT = parseInt(globalThis.FORWARD_TIMEOUT || '30', 10) * 1000;
-const MAX_RETRIES = parseInt(globalThis.FORWARD_MAX_RETRIES || '1', 10);
+const DEFAULT_TIMEOUT_MS = 30_000;
+const DEFAULT_MAX_RETRIES = 1;
 
 export async function forwardRequest({
   parsed,
@@ -11,8 +11,8 @@ export async function forwardRequest({
   timeout,
   maxRetries,
 }) {
-  const requestTimeout = timeout || FORWARD_TIMEOUT;
-  const retries = maxRetries ?? MAX_RETRIES;
+  const requestTimeout = timeout || DEFAULT_TIMEOUT_MS;
+  const retries = maxRetries ?? DEFAULT_MAX_RETRIES;
 
   const requestId = crypto.randomUUID();
   const headers = { 'Content-Type': 'application/json' };

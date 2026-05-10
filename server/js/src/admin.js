@@ -288,8 +288,8 @@ export async function handleDirectivesRegister(request, env) {
   const backendUrl = body?.backend_url?.trim() || body?.endpoint?.trim();
   if (!domain || !action) return json({ error: 'domain and action are required' }, 400);
   if (!backendUrl) return json({ error: 'backend_url or endpoint is required' }, 400);
-  const directiveKey = `${domain}:${action}`;
-  const id = directiveKey.toLowerCase().replace(/[^a-z0-9:-]/g, '_');
+  const directiveKey = `${domain};${action}`;
+  const id = directiveKey.toLowerCase().replace(/[^a-z0-9;-]/g, '_');
   const name = body?.name || `${domain}-${action}`;
   const category = body?.category || domain;
   const description = body?.description || '';
@@ -350,8 +350,8 @@ export async function handleDirectivesDiscover(request, env) {
     const params = action?.params || [];
     const description = action?.note || action?.description || '';
     const format = action?.format || '';
-    const directiveKey = `${domain}:${actionName}`;
-    const id = directiveKey.toLowerCase().replace(/[^a-z0-9:-]/g, '_');
+    const directiveKey = `${domain};${actionName}`;
+    const id = directiveKey.toLowerCase().replace(/[^a-z0-9;-]/g, '_');
     const existing = await env.DB
       .prepare('SELECT id FROM directives WHERE directive_key = ?')
       .bind(directiveKey).first();

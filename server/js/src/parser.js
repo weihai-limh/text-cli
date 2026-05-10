@@ -1,4 +1,5 @@
-const DIRECTIVE_PATTERN = /^\s*指令[：:]([^;]+);([^,]+)(?:,(.+))?\s*$/;
+const DIRECTIVE_PATTERN = /^\s*(?:指令|AI)[：:]([^;]+);([^,]+)(?:,(.+))?\s*$/;
+const PREFIX_PATTERN = /^(指令|AI)[：:]/;
 const MAX_DIRECTIVE_LENGTH = 512;
 const MAX_PARAMS = 10;
 
@@ -7,6 +8,15 @@ export class DirectiveParseError extends Error {
     super(message);
     this.code = code;
   }
+}
+
+export function normalizeDirectiveKey(key) {
+  for (const prefix of ['指令:', 'AI:', '指令：', 'AI：']) {
+    if (key.startsWith(prefix)) {
+      return key.slice(prefix.length);
+    }
+  }
+  return key;
 }
 
 export function parseDirective(prompt) {
@@ -54,11 +64,14 @@ export function parseDirective(prompt) {
   if (!domain) throw new DirectiveParseError('domain is empty');
   if (!action) throw new DirectiveParseError('action is empty');
 
+  const prefixMatch = PREFIX_PATTERN.exec(cleaned);
+  const prefix = prefixMatch ? prefixMatch[1] : '指令';
+
   return {
     domain,
     action,
     params,
     raw: cleaned,
-    directiveKey: `指令:${domain};${action}`,
+    directiveKey: `${prefix}:${domain};${action}`,
   };
 }
