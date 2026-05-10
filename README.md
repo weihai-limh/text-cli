@@ -485,7 +485,7 @@ text-cli 的指令分布在三个层面，从零门槛到无限扩展：
 
 通过 agent-copilot 在本地运行，覆盖文件、Git、邮件等 **14 条指令**。
 
-`文件;读取` `文件;写入` `文件;列表` `文件;移动` `Git;状态` `Git;推送` `邮件;发送` `AI协作;消息` `AI协作;状态` `系统;健康` `系统;状态` `终端;天气` `编码;base64` `编码;hex`
+`file;read` `file;write` `file;list` `file;move` `git;status` `git;push` `email;send` `ai;messages` `ai;status` `system;health` `system;status` `terminal;weather` `encode;base64` `encode;hex`
 
 → 详见 [server/agent-copilot/README_CN.md](./server/agent-copilot/README_CN.md)
 

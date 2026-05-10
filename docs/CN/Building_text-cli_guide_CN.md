@@ -519,7 +519,7 @@ curl http://localhost:8000/health
 # 执行指令
 curl -X POST http://localhost:8000/cli/text_cli \
   -H "Content-Type: application/json" \
-  -d '{"prompt":"指令:示例领域;回显,hello"}'
+  -d '{"prompt":"AI:示例领域;回显,hello"}'
 
 # 获取 Schema(Agent 发现用)
 curl http://localhost:8000/text_cli_schema.json
@@ -1606,7 +1606,7 @@ curl https://text-cli-skill.<subdomain>.workers.dev/health
 curl -X POST https://text-cli-skill.<subdomain>.workers.dev/cli/text_cli \
   -H "Content-Type: application/json" \
   -H "Service-token: your-token" \
-  -d '{"prompt":"指令:示例领域;回显,hello"}'
+  -d '{"prompt":"AI:示例领域;回显,hello"}'
 
 # 获取 Schema
 curl https://text-cli-skill.<subdomain>.workers.dev/text_cli_schema.json
