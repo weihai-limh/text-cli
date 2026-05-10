@@ -4,11 +4,11 @@ from dataclasses import dataclass
 # 双前缀协议：中文 `指令:` 和英文 `AI:` 同等效力
 # 兼容 v1.0 `指令:` 格式，同时支持 v1.1+ `AI:` 国际化前缀
 DIRECTIVE_PATTERN = re.compile(
-    r"^(?:指令|AI):([^;]+);([^,]+)(?:,(.+))?$"
+    r"^(?:指令|AI)[：:]([^;]+);([^,]+)(?:,(.+))?$"
 )
 
-# 提取前缀，用于 directive_key 重建
-_PREFIX_PATTERN = re.compile(r"^(指令|AI):")
+# Extract prefix for directive_key reconstruction
+_PREFIX_PATTERN = re.compile(r"^(指令|AI)[：:]")
 
 MAX_DIRECTIVE_LENGTH = 512
 MAX_PARAMS = 10

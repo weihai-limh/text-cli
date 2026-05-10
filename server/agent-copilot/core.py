@@ -46,7 +46,7 @@ def load_config(config_path: str) -> dict:
 # Instruction Parser
 # ═══════════════════════════════════════════════════════════════
 
-PREFIXES = ['指令:', 'directive:']
+PREFIXES = ['指令:', '指令：', 'AI:', 'AI：']
 
 
 def parse_instruction(prompt: str) -> dict | None:
