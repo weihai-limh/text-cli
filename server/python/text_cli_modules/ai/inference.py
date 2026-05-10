@@ -32,7 +32,7 @@ MODEL_REGISTRY = {
         'key_service': 'zhipu',
         'auth_prefix': 'Bearer ',
         'models': ['glm-4-flash', 'glm-4-flash-250414'],
-        'vl_models': ['glm-4v-flash', 'glm-4.6v-flash'],
+        'vl_models': ['GLM-4.1V-Thinking-Flash', 'glm-4v-flash'],
     },
     'xunfei': {
         'url': 'https://spark-api-open.xf-yun.com/v1/chat/completions',
@@ -40,12 +40,34 @@ MODEL_REGISTRY = {
         'auth_prefix': 'Bearer ',
         'models': ['lite'],
         'vl_models': [],
-    }
+    },
+    'modelscope': {
+        'url': 'https://api-inference.modelscope.cn/v1',
+        'key_service': 'modelscope',
+        'auth_prefix': 'Bearer ',
+        'models': [
+            'ZhipuAI/GLM-5',
+            'moonshotai/Kimi-K2.5',
+            'MiniMax/MiniMax-M2.5',
+            'Qwen/Qwen3-Coder-480B-A35B-Instruct',
+        ],
+        'vl_models': ['Qwen/Qwen3-VL-8B-Instruct'],
+    },
 }
 
 # 回退链：按顺序试，先成先用
 FALLBACK_FAST = ['zhipu', 'xunfei']       # 免费/便宜
-FALLBACK_QUALITY = ['']          # 付费（夜间额度充裕）
+FALLBACK_QUALITY = ['modelscope']          # 付费（夜间额度充裕）
+
+
+
+# ── 允许外部配置注入（从 model_aliases.json）──
+def set_model_registry(providers: dict, fallback_fast: list, fallback_quality: list):
+    """从外部配置注入模型注册表，替代硬编码值"""
+    global MODEL_REGISTRY, FALLBACK_FAST, FALLBACK_QUALITY
+    MODEL_REGISTRY = providers
+    FALLBACK_FAST = fallback_fast
+    FALLBACK_QUALITY = fallback_quality
 
 
 # ═══════════════════════════════════════════════════════════

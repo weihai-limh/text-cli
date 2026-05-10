@@ -1,84 +1,80 @@
 # examples/text-cli
 
-指令示例与 Schema 注册表——为人与 AI Agent 提供统一的指令发现入口。
+指令市场——按需安装的 text-cli service 指令包。每个目录是一个独立的指令单元，自带 handler 代码和双语说明。
 
 ```
 text-cli/
-├── README.md                    ← 本文件
-├── text-cli.json                ← 21 条指令 Schema 聚合（机器消费）
+├── README.md                         ← 本文件
+├── text-cli.json                     ← 21 条指令 Schema 聚合（机器消费）
 │
-├── key/                         ← 密钥管理
-│   ├── key_CN.md                ← 指令说明 + curl 示例
-│   └── key.py                   ← 实现片段（XOR + 本地加密）
+├── ai_inference/                     ← AI 推理 + 视觉
+│   ├── handler.py                    ← 实现（多模型回退链，时段感知路由）
+│   ├── model_aliases.example.json    ← 配置模板
+│   └── README.md                     ← 安装 + 使用指南
 │
-├── ai/                          ← AI 辅助
-│   ├── ai_CN.md                 ← 推理/视觉 + 回退链说明
-│   └── ai.py                   ← 实现片段（多模型回退链）
+├── ai_generate/                      ← AI 图像/视频生成
+│   ├── handler.py
+│   ├── model_aliases.example.json
+│   └── README.md
 │
-├── embed/                       ← 语义嵌入
-│   ├── embed_CN.md              ← 编码/相似/匹配 + 维度说明
-│   └── embed.py                 ← 实现片段（cosine + 批量编码）
+├── image/                            ← 图片处理（EXIF + 编码）
+│   ├── handler.py
+│   └── README.md
 │
-├── mail/                        ← (待补) 邮件
-├── 文件/                         ← (待补) 文件
-├── git/                         ← (待补) Git
-├── system/                      ← (待补) 系统
-├── 编码/                         ← (待补) 编码
-└── terminal/                    ← (待补) 终端
+├── media/                            ← 媒体加载（URL 透传 + 本地白名单）
+│   ├── handler.py
+│   └── README.md
+│
+├── template/                         ← 提示模板引擎
+│   ├── handler.py
+│   ├── prompt_templates.json
+│   └── README.md
+│
+├── key/                              ← 密钥管理（注册/撤销/列表）
+│   ├── handler.py
+│   └── README.md
+│
+└── embed/                            ← 语义嵌入（编码/相似/匹配）
+    ├── handler.py
+    └── README.md
 ```
 
 ---
 
 ## CN · 中文导航
 
-### 基础设施
-
-- [key/key_CN.md](./key/key_CN.md) — 密钥注册/撤销/列表。XOR 传输加密 + 本地二次加密存储。含完整链路示例。
-
 ### 智能服务
+- [ai_inference](./ai_inference/) — AI辅助推理与视觉。多模型回退链，时段感知路由，零外部依赖。
+- [ai_generate](./ai_generate/) — 图像与视频生成。CogView/CogVideoX 兼容 API。
 
-- [ai/ai_CN.md](./ai/ai_CN.md) — AI辅助推理与视觉。多模型回退链（zhipu/xunfei/modelscope），时段感知路由，零外部依赖。
-- [embed/embed_CN.md](./embed/embed_CN.md) — 语义嵌入编码/相似/匹配。embedding-3 在线 API，4 种维度模式，余弦相似度判定。
+### 媒体与模板
+- [image](./image/) — 图片 EXIF 提取 + 编码缓存。Pillow 依赖。
+- [media](./media/) — 媒体文件加载。公网 URL 透传，本地白名单校验。
+- [template](./template/) — 确定性提示模板。零 AI token 消耗，防幻觉。
 
-### 工具链 · 待补
+### 基础设施
+- [key](./key/) — 密钥注册/撤销/列表。XOR 加密存储。
+- [embed](./embed/) — 语义嵌入编码/相似/匹配。BGE-M3 兼容。
 
-| 域 | 指令数 | 文件 |
-|----|--------|------|
-| 邮件 | 1 | `mail/mail_CN.md` (待补) |
-| 文件 | 4 | `文件/` (待补) |
-| Git | 2 | `git/` (待补) |
-| 系统 | 2 | `system/` (待补) |
-| 编码 | 2 | `编码/` (待补) |
-| 终端 | 1 | `terminal/` (待补) |
-
-### Schema 注册表
-
-- [text-cli.json](./text-cli.json) — 全部 21 条指令的 Schema 定义（id/参数/响应/安全策略）。Agent 路由与 Function Calling 的权威源。
+### Schema
+- [text-cli.json](./text-cli.json) — 全部指令 Schema 定义（id/参数/响应/安全策略）。
 
 ---
 
 ## EN · English
 
-### Infrastructure
-
-- [key/key_CN.md](./key/key_CN.md) — Key register/revoke/list. XOR transport + local AES encrypt. Complete workflow example. *(Doc in Chinese)*
-
 ### Intelligent Services
+- [ai_inference](./ai_inference/) — Text reasoning & vision. Multi-model fallback chain, period-aware routing.
+- [ai_generate](./ai_generate/) — Image & video generation. CogView/CogVideoX compatible API.
 
-- [ai/ai_CN.md](./ai/ai_CN.md) — AI reasoning & vision. Multi-model fallback chain (zhipu/xunfei/modelscope), period-aware routing, zero external dependencies. *(Doc in Chinese)*
-- [embed/embed_CN.md](./embed/embed_CN.md) — Semantic encode/similarity/match. embedding-3 online API, 4 dimension modes, cosine verdict. *(Doc in Chinese)*
+### Media & Templates
+- [image](./image/) — EXIF extraction + image encoding with cache. Pillow dependency.
+- [media](./media/) — Media file loading. Public URL pass-through, local whitelist validation.
+- [template](./template/) — Deterministic prompt templates. Zero AI tokens, hallucination-proof.
 
-### Toolchain · Pending
+### Infrastructure
+- [key](./key/) — API key register/revoke/list. XOR encrypted storage.
+- [embed](./embed/) — Semantic encode/similarity/match. BGE-M3 compatible.
 
-| Domain | Directives | File |
-|--------|-----------|------|
-| Mail | 1 | `mail/` (pending) |
-| Files | 4 | `文件/` (pending) |
-| Git | 2 | `git/` (pending) |
-| System | 2 | `system/` (pending) |
-| Codec | 2 | `编码/` (pending) |
-| Terminal | 1 | `terminal/` (pending) |
-
-### Schema Registry
-
-- [text-cli.json](./text-cli.json) — 21 directive schemas. Authoritative source for Agent routing & Function Calling.
+### Schema
+- [text-cli.json](./text-cli.json) — Full directive schema registry for Agent routing & Function Calling.
