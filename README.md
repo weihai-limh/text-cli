@@ -116,7 +116,7 @@
 
 > 路径链的主要 Token 节约发生在"意图→步骤链"的推理环节，而非执行环节。一次路径匹配可省 350-700 tokens 的 Agent 推理。
 
-→ 完整测试报告：[`examples/test/test_token_paths_CN.md`](./examples/test/test_token_paths_CN.md) | 路径注册表：[`paths/path-schema.json`](./paths/path-schema.json)
+→ 完整测试报告：[`examples/test/test_token_paths_CN.md`](./examples/test/test_token_paths_CN.md) | 路径注册表：[`schema/path-schema.json`](./schema/path-schema.json)
 ---
 
 
