@@ -10,6 +10,7 @@ from handlers.ai import AIHandlers
 from handlers.oc_terminal import TerminalHandlers
 from handlers.codec import CodecHandlers
 from handlers.key import KeyHandlers
+from handlers.media import MediaHandlers
 
 __all__ = [
     'FileHandlers',
@@ -20,4 +21,5 @@ __all__ = [
     'TerminalHandlers',
     'CodecHandlers',
     'KeyHandlers',
+    'MediaHandlers',
 ]
