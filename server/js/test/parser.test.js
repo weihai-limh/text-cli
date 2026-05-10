@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { parseDirective, DirectiveParseError } from '../src/parser.js';
+import { parseDirective, normalizeDirectiveKey, DirectiveParseError } from '../src/parser.js';
 
-describe('parseDirective', () => {
+describe('parseDirective ("指令:" prefix)', () => {
   it('parses domain and action without params', () => {
     const r = parseDirective('指令:基础应用;天气查询');
     expect(r.domain).toBe('基础应用');
@@ -26,6 +26,7 @@ describe('parseDirective', () => {
   it('accepts full-width colon', () => {
     const r = parseDirective('指令：基础应用;天气查询');
     expect(r.domain).toBe('基础应用');
+    expect(r.directiveKey).toBe('指令:基础应用;天气查询');
   });
 
   it('throws on empty prompt', () => {
@@ -59,5 +60,55 @@ describe('parseDirective', () => {
   it('sets raw to trimmed prompt', () => {
     const r = parseDirective('  指令:领域;动作  ');
     expect(r.raw).toBe('指令:领域;动作');
+  });
+});
+
+describe('parseDirective (AI: prefix)', () => {
+  it('parses AI: with half-width colon', () => {
+    const r = parseDirective('AI:weather;query,tomorrow,weihai');
+    expect(r.domain).toBe('weather');
+    expect(r.action).toBe('query');
+    expect(r.params).toEqual(['tomorrow', 'weihai']);
+    expect(r.directiveKey).toBe('AI:weather;query');
+  });
+
+  it('parses AI：with full-width colon', () => {
+    const r = parseDirective('AI：weather;query');
+    expect(r.domain).toBe('weather');
+    expect(r.action).toBe('query');
+    expect(r.directiveKey).toBe('AI:weather;query');
+  });
+
+  it('parses AI: with Chinese domain and action', () => {
+    const r = parseDirective('AI:基础应用;天气查询,明天');
+    expect(r.domain).toBe('基础应用');
+    expect(r.action).toBe('天气查询');
+    expect(r.directiveKey).toBe('AI:基础应用;天气查询');
+  });
+
+  it('throws on invalid AI prefix format', () => {
+    expect(() => parseDirective('AI;weather;query')).toThrow(DirectiveParseError);
+  });
+});
+
+describe('normalizeDirectiveKey', () => {
+  it('strips "指令:" prefix', () => {
+    expect(normalizeDirectiveKey('指令:基础应用;天气查询')).toBe('基础应用;天气查询');
+  });
+
+  it('strips AI: prefix', () => {
+    expect(normalizeDirectiveKey('AI:weather;query')).toBe('weather;query');
+  });
+
+  it('strips "指令：" full-width prefix', () => {
+    expect(normalizeDirectiveKey('指令：基础应用;天气查询')).toBe('基础应用;天气查询');
+  });
+
+  it('strips AI：full-width prefix', () => {
+    expect(normalizeDirectiveKey('AI：weather;query')).toBe('weather;query');
+  });
+
+  it('returns key as-is when no prefix', () => {
+    expect(normalizeDirectiveKey('基础应用;天气查询')).toBe('基础应用;天气查询');
   });
 });

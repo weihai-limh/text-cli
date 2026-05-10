@@ -40,4 +40,19 @@ describe('schema-loader (static mode)', () => {
     const url = findBackendUrl('指令:不存在;的指令');
     expect(url).toBeNull();
   });
+
+  it('findBackendUrl matches AI: prefix against "指令:" schema', () => {
+    const url = findBackendUrl('AI:基础应用;天气查询');
+    expect(url).toContain('example.com');
+  });
+
+  it('findBackendUrl matches "指令：" full-width prefix', () => {
+    const url = findBackendUrl('指令：基础应用;天气查询');
+    expect(url).toContain('example.com');
+  });
+
+  it('findBackendUrl matches AI：full-width prefix', () => {
+    const url = findBackendUrl('AI：基础应用;天气查询');
+    expect(url).toContain('example.com');
+  });
 });

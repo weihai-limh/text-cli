@@ -1,4 +1,5 @@
 import staticSchema from './config/schema.json';
+import { normalizeDirectiveKey } from './parser.js';
 
 let _internalSchema = {};
 let _externalSchema = {};
@@ -33,8 +34,10 @@ export function getExternalSchema() {
 }
 
 export function findBackendUrl(directiveKey) {
+  const normalized = normalizeDirectiveKey(directiveKey);
   for (const entry of Object.values(_internalSchema)) {
-    if (entry.directive === directiveKey) {
+    const entryNormalized = normalizeDirectiveKey(entry.directive || '');
+    if (entryNormalized === normalized) {
       return entry.url;
     }
   }
@@ -77,10 +80,19 @@ export function loadSchemaFromD1(db, endpointBaseUrl) {
 }
 
 export function findBackendUrlFromD1(db, directiveKey) {
+  const normalized = normalizeDirectiveKey(directiveKey);
   return db
-    .prepare('SELECT backend_url FROM directives WHERE directive_key = ? AND enabled = 1')
-    .bind(directiveKey)
-    .first()
-    .then((row) => (row ? row.backend_url : null))
+    .prepare(
+      'SELECT backend_url, directive_key FROM directives WHERE enabled = 1'
+    )
+    .all()
+    .then(({ results }) => {
+      for (const row of results) {
+        if (normalizeDirectiveKey(row.directive_key || '') === normalized) {
+          return row.backend_url;
+        }
+      }
+      return null;
+    })
     .catch(() => null);
 }

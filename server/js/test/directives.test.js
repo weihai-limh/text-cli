@@ -1,4 +1,3 @@
-// admin.js 指令注册 API 测试
 import { describe, it, expect, vi } from 'vitest';
 import {
   handleDirectivesList,
@@ -42,8 +41,8 @@ function requestWithKey(body, path = '/api/directives') {
   });
 }
 
-describe('指令注册 API', () => {
-  it('GET /api/directives 返回空列表', async () => {
+describe('directives registration API', () => {
+  it('GET /api/directives returns empty list', async () => {
     const env = { ADMIN_API_KEY: 'test-admin-key', DB: mockDB([]) };
     const req = new Request('https://test/api/directives', {
       headers: { 'X-Admin-Key': 'test-admin-key' },
@@ -53,7 +52,7 @@ describe('指令注册 API', () => {
     expect(data.directives).toEqual([]);
   });
 
-  it('POST /api/directives 注册新指令', async () => {
+  it('POST /api/directives registers new directive', async () => {
     const env = {
       ADMIN_API_KEY: 'test-admin-key',
       DB: mockDB([], null),
@@ -75,10 +74,10 @@ describe('指令注册 API', () => {
     const resp = await handleDirectivesRegister(req, env);
     const data = await resp.json();
     expect(data.status).toBe('registered');
-    expect(data.directive_key).toBe('智能空间:记忆检索');
+    expect(data.directive_key).toBe('智能空间;记忆检索');
   });
 
-  it('POST /api/directives 拒绝无效请求', async () => {
+  it('POST /api/directives rejects invalid request', async () => {
     const req = new Request('https://test/api/directives', {
       method: 'POST',
       headers: {
@@ -91,7 +90,7 @@ describe('指令注册 API', () => {
     expect(resp.status).toBe(400);
   });
 
-  it('POST /api/directives 未授权拒绝', async () => {
+  it('POST /api/directives rejects unauthorized request', async () => {
     const env = { ADMIN_API_KEY: 'test-admin-key' };
     const req = new Request('https://test/api/directives', {
       method: 'POST',
