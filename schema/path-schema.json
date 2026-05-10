@@ -12,7 +12,7 @@
     "path_doc": "",
     "require_instructions": ["ai;messages", "file;write", "email;send"],
     "rank": 1,
-    "tags": ["工具链", "消息", "邮件"],
+    "tags": ["toolchain", "messages", "email"],
     "remarks": "全 copilot 本地执行，不依赖远程端点"
   },
 
@@ -27,7 +27,7 @@
     "path_doc": "",
     "require_instructions": ["image;load", "ai;vision", "ai;inference"],
     "rank": 1,
-    "tags": ["工具链", "视觉", "照片", "摘要"],
+    "tags": ["toolchain", "vision", "photo", "summary"],
     "remarks": "横跨 copilot(本地) + 远程端点。image;load 需 media.py 部署在 copilot base/"
   }
 }

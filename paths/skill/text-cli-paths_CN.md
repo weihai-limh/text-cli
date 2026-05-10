@@ -43,7 +43,7 @@ schema/path-schema.json
     "path_doc": "<路径文档相对路径，空字符串 = 链即全部>",
     "require_instructions": ["领域;动作", "领域;动作"],
     "rank": 1,
-    "tags": ["工具链", "标签"],
+    "tags": ["toolchain", "messages"],
     "remarks": ""
   }
 }
