@@ -21,6 +21,42 @@
         "parameters_en": ["file_path"],
         "returns": "rst_data.text = file content, rst_data.size = bytes"
       },
+      "image;load": {
+        "level": "read",
+        "aliases": ["image;load", "图片;加载"],
+        "description": "加载本地图片 → base64 data URI",
+        "description_en": "Load local image → base64 data URI",
+        "parameters": ["图片路径"],
+        "parameters_en": ["image_path"],
+        "returns": "rst_types=picture, rst_data.url=data:image/...;base64,..."
+      },
+      "video;load": {
+        "level": "read",
+        "aliases": ["video;load", "视频;加载"],
+        "description": "加载本地视频 → 文件路径引用",
+        "description_en": "Load local video → file path reference",
+        "parameters": ["视频路径"],
+        "parameters_en": ["video_path"],
+        "returns": "rst_types=video, rst_data.url=file:///<path>"
+      },
+      "audio;load": {
+        "level": "read",
+        "aliases": ["audio;load", "音频;加载"],
+        "description": "加载本地音频 → 文件路径引用",
+        "description_en": "Load local audio → file path reference",
+        "parameters": ["音频路径"],
+        "parameters_en": ["audio_path"],
+        "returns": "rst_types=audio, rst_data.url=file:///<path>"
+      },
+      "file;load": {
+        "level": "read",
+        "aliases": ["file;load", "文件;加载"],
+        "description": "加载本地文本文件内容",
+        "description_en": "Load local text file content",
+        "parameters": ["文件路径"],
+        "parameters_en": ["file_path"],
+        "returns": "rst_types=file, rst_data.text=<content>"
+      },
       "git;status": {
         "level": "read",
         "aliases": ["git;status", "Git;状态"],
