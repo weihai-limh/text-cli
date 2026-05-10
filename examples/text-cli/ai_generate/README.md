@@ -16,9 +16,9 @@ cp examples/text-cli/ai_generate/model_aliases.example.json server/python/config
 ## Usage
 
 ```
-AI:图像;生成,A whale jumping through ocean waves,1024x1024
-AI:视频;生成,Slow motion waves crashing on rocks,1024x576,standard
-AI:视频;状态,<task_id>
+AI:ai_generate;image,A whale jumping through ocean waves,1024x1024
+AI:ai_generate;video,Slow motion waves crashing on rocks,1024x576,standard
+AI:ai_generate;video_status,<task_id>
 ```
 
 ---

@@ -18,7 +18,7 @@ pip install Pillow
 ```
 AI:image;info,/path/to/photo.jpg
 AI:image;encode,/path/to/photo.jpg
-AI:AI辅助;视觉,Describe the scene,cache:<sha256>
+AI:ai_inference;vision,Describe the scene,cache:<sha256>
 ```
 
 ---

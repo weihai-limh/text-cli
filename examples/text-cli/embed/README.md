@@ -15,9 +15,9 @@ cp examples/text-cli/embed/handler.py server/python/handlers/embed.py
 ## Usage
 
 ```
-AI:语义;编码,The winter sea wind in Weihai is strong
-AI:语义;相似,Weihai winters are cold,The winter sea wind in Weihai is strong
-AI:语义;匹配,The weather is great today,Weihai winters are cold;It rained today;Spring has arrived,3
+AI:semantic;encode,The winter sea wind in Weihai is strong
+AI:semantic;similar,Weihai winters are cold,The winter sea wind in Weihai is strong
+AI:semantic;match,The weather is great today,Weihai winters are cold;It rained today;Spring has arrived,3
 ```
 
 ---

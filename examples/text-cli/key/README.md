@@ -15,10 +15,10 @@ cp examples/text-cli/key/handler.py server/python/handlers/key.py
 ## Usage
 
 ```
-AI:密钥;注册,zhipu,<your_api_key>,api_key
-AI:密钥;注册,modelscope,<your_api_key>,api_key
-AI:密钥;列表
-AI:密钥;撤销,zhipu
+AI:key;register,zhipu,<your_api_key>,api_key
+AI:key;register,modelscope,<your_api_key>,api_key
+AI:key;list
+AI:key;revoke,zhipu
 ```
 
 ---
