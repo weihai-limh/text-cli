@@ -74,8 +74,8 @@ def list_commands(params: list[str]) -> str:
     """列出所有可用指令"""
     return (
         "可用指令:\n"
-        "- 指令:示例领域;查询,城市,日期  → 查询天气\n"
-        "- 指令:示例领域;计算,表达式      → 计算表达式\n"
-        "- 指令:示例领域;搜索,关键词      → 搜索知识库\n"
-        "- 指令:示例领域;列表            → 显示此列表"
+        "- AI:sample;query,城市,日期  → 查询天气\n"
+        "- AI:sample;calc,表达式      → 计算表达式\n"
+        "- AI:sample;search,关键词      → 搜索知识库\n"
+        "- AI:sample;list            → 显示此列表"
     )

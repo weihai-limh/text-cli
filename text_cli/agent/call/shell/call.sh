@@ -8,7 +8,7 @@
 
 set -euo pipefail
 
-DIRECTIVE="${1:?用法: $0 \"指令:领域;动作,参数1,参数2\"}"
+DIRECTIVE="${1:?用法: $0 \"AI:领域;动作,参数1,参数2\"（指令: 仍兼容）}"
 ENDPOINT="${2:-${TEXT_CLI_ENDPOINT:-https://test.text-cli.com/cli/text_cli}}"
 TOKEN="${TEXT_CLI_TOKEN:-}"
 

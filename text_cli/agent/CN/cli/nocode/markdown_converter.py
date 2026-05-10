@@ -15,7 +15,7 @@ markdown_converter.py — 将结构化 Markdown 经验文档自动转化为 text
     3. 启动 HTTP 服务
 
 调用方:
-    指令:家庭园艺;盆栽急救,绿萝,叶片发黄
+    AI:家庭园艺;盆栽急救,绿萝,叶片发黄
     → 返回: 基于文档中绿萝叶片发黄章节的养护建议
 
 参考:
@@ -140,7 +140,7 @@ def plant_firstaid(params: list[str]) -> str:
     """
     盆栽急救指令处理器。
 
-    指令格式: 指令:家庭园艺;盆栽急救,<植物名>,<症状>
+    指令格式: AI:家庭园艺;盆栽急救,<植物名>,<症状>
     """
     if not params:
         return _list_plants()
@@ -201,8 +201,8 @@ def _list_plants() -> str:
     """列出所有已收录植物。"""
     return (
         f"📋 已收录植物 ({len(_knowledge_base)} 条经验): {_list_plant_names()}\n"
-        f"用法: 指令:家庭园艺;盆栽急救,植物名,症状\n"
-        f"示例: 指令:家庭园艺;盆栽急救,绿萝,叶片发黄"
+        f"用法: AI:家庭园艺;盆栽急救,植物名,症状\n"
+        f"示例: AI:家庭园艺;盆栽急救,绿萝,叶片发黄"
     )
 
 

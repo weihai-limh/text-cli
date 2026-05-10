@@ -4,7 +4,7 @@ call.py — text-cli 指令调用（Python）
 用法:
     from call import call_directive
 
-    result = call_directive("指令:天气;查询,明天,威海")
+    result = call_directive("AI:weather;query,明天,威海")
     print(result)  # "明天威海: 晴, 15-22°C"
 
 环境变量:
@@ -31,7 +31,7 @@ def call_directive(
     调用 text-cli 指令，返回文本结果。
 
     参数:
-        directive: 指令文本，格式 "指令:领域;动作,参数1,参数2"
+        directive: 指令文本，格式 "AI:领域;动作,参数1,参数2"（`指令:` 仍兼容）
         endpoint:  端点 URL，默认取环境变量 TEXT_CLI_ENDPOINT 或公共端点
         token:     Access Token / Service Token，默认取环境变量 TEXT_CLI_TOKEN
         timeout:   HTTP 超时秒数

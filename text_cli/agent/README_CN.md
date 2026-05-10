@@ -33,19 +33,19 @@
 # Shell 最简调用
 cd call/shell
 export TEXT_CLI_TOKEN="your-token"
-./call.sh "指令:天气;查询,明天,威海"
+./call.sh "AI:weather;query,明天,威海"
 ```
 
 ```python
 # Python SDK
 from call.python.call import call_directive
-result = call_directive("指令:天气;查询,明天,威海")
+result = call_directive("AI:weather;query,明天,威海")
 ```
 
 ```js
 // Node.js
 const { callDirective } = require('./call/js/call');
-const result = await callDirective('指令:天气;查询,明天,威海');
+const result = await callDirective('AI:weather;query,明天,威海');
 ```
 
 ### 作为生产者：发布一条指令
@@ -115,7 +115,7 @@ text_cli/
 
 1. **零依赖优先**：Python 模块仅用标准库（除按需的 FastAPI 路径外）
 2. **多层不互斥**：shell / python / nocode 各层独立，按场景选择
-3. **协议即文档**：指令格式 `指令:领域;动作,参数...` 是人机共读的 API 约定
+3. **协议即文档**：指令格式 `AI:领域;动作,参数...` 是人机共读的 API 约定（`指令:` 仍兼容）
 4. **按实现方式组织**：`python/` `js/` `nocode/` 分层，不做 All-in-One
 
 ---
