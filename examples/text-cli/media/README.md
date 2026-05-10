@@ -1,6 +1,6 @@
 # Media Loading
 
-**Directives:** `图片;加载`, `视频;加载`, `音频;加载`, `文件;加载`
+**Directives:** `image;load` (alias: `图片;加载`), `video;load` (alias: `视频;加载`), `audio;load` (alias: `音频;加载`), `file;load` (alias: `文件;加载`)
 **Dependencies:** None (stdlib only)
 **Configuration:** `PATH_WHITELIST` (edit handler.py)
 
@@ -16,15 +16,17 @@ cp examples/text-cli/media/handler.py server/python/handlers/media.py
 ## Usage
 
 ```
-AI:media;load,https://example.com/photo.jpg
-AI:media;load,/local/path/to/photo.jpg
+AI:image;load,https://example.com/photo.jpg
+AI:image;load,/local/path/to/photo.jpg
+AI:video;load,https://example.com/video.mp4
+AI:file;load,https://example.com/document.pdf
 ```
 
 ---
 
 # 媒体加载
 
-**指令:** `图片;加载`, `视频;加载`, `音频;加载`, `文件;加载`
+**指令:** `image;load` (别名: `图片;加载`), `video;load` (别名: `视频;加载`), `audio;load` (别名: `音频;加载`), `file;load` (别名: `文件;加载`)
 **依赖:** 无（仅用标准库）
 **配置:** `PATH_WHITELIST`（编辑 handler.py）
 
@@ -40,6 +42,8 @@ cp examples/text-cli/media/handler.py server/python/handlers/media.py
 ## 使用
 
 ```
+AI:image;load,https://example.com/photo.jpg
 指令:图片;加载,https://example.com/photo.jpg
-指令:图片;加载,/local/path/to/photo.jpg
+AI:video;load,https://example.com/video.mp4
+AI:file;load,https://example.com/document.pdf
 ```

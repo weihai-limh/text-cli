@@ -1,6 +1,6 @@
 # Prompt Templates
 
-**Directives:** `模板;列表`, `模板;使用`
+**Directives:** `template;list` (alias: `模板;列表`), `template;use` (alias: `模板;使用`)
 **Dependencies:** None
 **Configuration:** `prompt_templates.json` (no secrets, can be shared)
 
@@ -24,7 +24,7 @@ AI:template;use,photo_describe,{"地点":"Weihai","时间":"2026-05-10 14:30:00"
 
 # 提示模板
 
-**指令:** `模板;列表`, `模板;使用`
+**指令:** `template;list` (别名: `模板;列表`), `template;use` (别名: `模板;使用`)
 **依赖:** 无
 **配置:** `prompt_templates.json`（不含密钥，可共享）
 
@@ -40,6 +40,7 @@ cp examples/text-cli/template/prompt_templates.json server/python/config/prompt_
 ## 使用
 
 ```
+AI:template;list
 指令:模板;列表
-指令:模板;使用,photo_describe,{"地点":"威海","时间":"2026-05-10 14:30:00"}
+AI:template;use,photo_describe,{"地点":"威海","时间":"2026-05-10 14:30:00"}
 ```

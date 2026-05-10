@@ -1,6 +1,6 @@
 # AI Inference
 
-**Directives:** `AI辅助;推理`, `AI辅助;视觉`
+**Directives:** `ai;infer` (alias: `AI辅助;推理`), `ai;vision` (alias: `AI辅助;视觉`)
 **Dependencies:** `text_cli_modules/ai/`
 **Configuration:** `model_aliases.example.json` → `model_aliases.json`
 
@@ -18,8 +18,8 @@ cp server/python/config/model_aliases.example.json server/python/config/model_al
 ## Usage
 
 ```
-AI:ai_inference;reason,What is the capital of France?,auto
-AI:ai_inference;vision,Describe this image,[image_url],auto
+AI:ai;infer,What is the capital of France?,auto
+AI:ai;vision,Describe this image,[image_url],auto
 ```
 
 Modes: `auto` (time-aware), `fast` (free tier chain), `quality` (paid chain), or a specific model name.
@@ -28,7 +28,7 @@ Modes: `auto` (time-aware), `fast` (free tier chain), `quality` (paid chain), or
 
 # AI 推理
 
-**指令:** `AI辅助;推理`, `AI辅助;视觉`
+**指令:** `ai;infer` (别名: `AI辅助;推理`), `ai;vision` (别名: `AI辅助;视觉`)
 **依赖:** `text_cli_modules/ai/`
 **配置:** `model_aliases.example.json` → `model_aliases.json`
 
@@ -46,7 +46,9 @@ cp server/python/config/model_aliases.example.json server/python/config/model_al
 ## 使用
 
 ```
+AI:ai;infer,法国的首都是哪里？,auto
 指令:AI辅助;推理,法国的首都是哪里？,auto
+AI:ai;vision,描述这张图片,[图片地址],auto
 指令:AI辅助;视觉,描述这张图片,[图片地址],auto
 ```
 

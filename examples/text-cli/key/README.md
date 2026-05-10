@@ -1,6 +1,6 @@
 # Key Management
 
-**Directives:** `密钥;注册`, `密钥;撤销`, `密钥;列表`
+**Directives:** `key;register` (alias: `密钥;注册`), `key;revoke` (alias: `密钥;撤销`), `key;list` (alias: `密钥;列表`)
 **Dependencies:** `text_cli_modules/sqlite/`, `text_cli_modules/key/`
 **Configuration:** None
 
@@ -25,7 +25,7 @@ AI:key;revoke,zhipu
 
 # 密钥管理
 
-**指令:** `密钥;注册`, `密钥;撤销`, `密钥;列表`
+**指令:** `key;register` (别名: `密钥;注册`), `key;revoke` (别名: `密钥;撤销`), `key;list` (别名: `密钥;列表`)
 **依赖:** `text_cli_modules/sqlite/`, `text_cli_modules/key/`
 **配置:** 无
 
@@ -40,8 +40,8 @@ cp examples/text-cli/key/handler.py server/python/handlers/key.py
 ## 使用
 
 ```
+AI:key;register,zhipu,<your_api_key>,api_key
 指令:密钥;注册,zhipu,<your_api_key>,api_key
-指令:密钥;注册,modelscope,<your_api_key>,api_key
-指令:密钥;列表
-指令:密钥;撤销,zhipu
+AI:key;list
+AI:key;revoke,zhipu
 ```
