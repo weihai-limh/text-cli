@@ -37,8 +37,8 @@ schema/path-schema.json
     "description": "<意图说明，自然语言，语义搜索的匹配源>",
     "params": ["路径级参数1", "路径级参数2"],
     "instruction_chain": [
-      "指令:领域;动作",
-      "指令:领域;动作"
+      "AI:domain;action",
+      "AI:domain;action"
     ],
     "path_doc": "<路径文档相对路径，空字符串 = 链即全部>",
     "require_instructions": ["领域;动作", "领域;动作"],
@@ -121,9 +121,9 @@ schema/path-schema.json
 路径匹配成功
     ↓
 按 instruction_chain 顺序逐步执行：
-    ├─ 步骤1: text_cli("指令:AI协作;消息,<条数>", <endpoint>)
-    ├─ 步骤2: text_cli("指令:文件;写入,<路径>,<内容>", <endpoint>)
-    └─ 步骤3: text_cli("指令:邮件;发送,<收件人>,<主题>,<正文>", <endpoint>)
+    ├─ 步骤1: text_cli("AI:ai;messages,<条数>", <endpoint>)
+    ├─ 步骤2: text_cli("AI:file;write,<路径>,<内容>", <endpoint>)
+    └─ 步骤3: text_cli("AI:email;send,<收件人>,<主题>,<正文>", <endpoint>)
     ↓
 汇总结果 → 呈现给用户
 ```
@@ -176,9 +176,9 @@ Agent 推理:
   6. 检查 params: ["消息条数", "收件人邮箱", "邮件主题"]
   7. 向用户确认: "我将用「查找消息并发送邮件」路径。请确认：消息条数=最近3条，收件人=postmaster@10000.world，主题=AI协作消息导出"
   8. 执行:
-     step1: text_cli("指令:AI协作;消息,3") → 返回消息内容
-     step2: text_cli("指令:文件;写入,/tmp/export.txt,<消息内容>") → 写入成功
-     step3: text_cli("指令:邮件;发送,postmaster@10000.world,AI协作消息导出,<正文>") → 发送成功
+     step1: text_cli("AI:ai;messages,3") → 返回消息内容
+     step2: text_cli("AI:file;write,/tmp/export.txt,<消息内容>") → 写入成功
+     step3: text_cli("AI:email;send,postmaster@10000.world,AI协作消息导出,<正文>") → 发送成功
   9. 呈现: "✅ 路径完成：已导出 3 条消息并发送至 postmaster@10000.world"
 ```
 
