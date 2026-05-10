@@ -1,6 +1,6 @@
 # Lumen ✦ — 状态文件
 
-**当前状态**：在线 | 最后更新：2026-05-05 16:00 UTC+8
+**当前状态**：在线 | 最后更新：2026-05-11 01:45 UTC+8
 
 ## 基本信息
 
@@ -16,6 +16,47 @@
 ## 消息日志
 
 > 新条目在上，旧条目在下（时间倒序）。
+
+### 2026-05-11 01:45 UTC+8 — PR #100：server/js 双前缀支持 + 前缀无关匹配 + bug 修复
+
+**PR [#100](https://github.com/weihai-limh/text-cli/pull/100)** 待合并至 `main`，分支 `feat/js-parser-dual-prefix`，1 个 commit。
+
+**本次会话产出**：
+
+| 板块 | 内容 | 文件数 |
+|:---|:---|:---|
+| `parser.js` | 双前缀正则 `(?:指令\|AI)[：:]` + 导出 `normalizeDirectiveKey()` | 1 |
+| `schema-loader.js` | 前缀无关路由匹配（归一化后比较） | 1 |
+| `forwarder.js` | 修复 `globalThis` bug，替换为命名常量 | 1 |
+| `admin.js` | 修复 `directiveKey` 分隔符 `:` → `;`（协议违规） | 1 |
+| `parser.test.js` | +8 条测试（AI: 前缀 + normalizeDirectiveKey） | 1 |
+| `schema-loader.test.js` | +3 条测试（前缀无关匹配） | 1 |
+| `directives.test.js` | 中文 describe/it 翻译为英文 | 1 |
+
+**测试结果**：40/40 通过（原 24 条，新增 16 条）
+
+**SPEC 合规性**（对照 SPEC v1.0_CN.md）：
+- ✅ §1.1 双前缀（`指令:` / `AI:` 同等效力）
+- ✅ §1.1 Unicode 冒号兼容
+- ✅ §1.4 解析器正则匹配
+- ✅ §1.4 四种前缀组合互通
+- ⚠️ §8.2 `command:` / `directive:` 前缀未实现（推迟至多语言阶段）
+
+**深度讨论产出**（未写入代码，仅决策）：
+- **Node.js copilot**：有价值但时机未到——等 MCP 桥接落地后再定方向
+- **call.js SDK 增强**：层级 1（+30 行）/ 层级 2（+80 行）/ 层级 3（+150 行）方案评估完成，等 MCP 桥接后决定
+- **MCP 桥接**：建议立即启动，方向二（text-cli → MCP）对 Agent 效率提升 3-5 倍
+- **Token 消耗分析**：text-cli 不是为省内 token 设计的，核心价值是生态桥梁
+- **多语言扩展影响**：仅需改 parser.js 3 行，schema-loader/forwarder/admin 零影响（normalizeDirectiveKey 抽象的价值）
+
+**核心经验**：
+- **"先沟通再实现"模式持续有效**：本次对话全程遵循——讨论 copilot 可行性 → call.js 价值 → MCP 桥接时机 → SPEC 合规性 → 多语言影响评估 → 最后才提交 PR。零返工
+- **normalizeDirectiveKey 的抽象层设计验证**：schema-loader 调用 parser 的归一化函数而非自行匹配前缀，扩展时只改 parser 一个文件
+- **诚实评估优于乐观承诺**：坦承 text-cli 对 IDE 内 Agent 的 token 节约有限，把价值定位在"生态桥梁"而非"效率工具"
+
+— Lumen ✦
+
+---
 
 ### 2026-05-05 16:00 UTC+8 — PR #67：AI 快速索引 + examples/ 生态项目 + README 全面同步
 
@@ -339,4 +380,4 @@ PR #5 合并，此后 `.agents/` 下可自主创建 PR 并合并。
 >
 > > 主备份：`mimo10000/lumen-memory` · 镜像：`tide-10000/my-memory` · 公开火种：`mimo10000/lumen`
 > >
-> > 最后更新：2026-05-05
+> > 最后更新：2026-05-11
