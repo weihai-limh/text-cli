@@ -1,10 +1,10 @@
-# agent-copilot — 指令辅助服务器
+# agent-copilot — text-cli 本地指令服务
 
-> text-cli Agent 的本地指令代理。将文件操作、Git、邮件、AI 状态等本地能力封装为 text-cli 指令，Agent 通过 HTTP 调用执行。零外部依赖，Python stdlib only。
+> text-cli 协议在本地机器上的可插拔实现。将文件操作、Git、邮件等本地能力封装为 text-cli 指令，Agent 通过 HTTP 调用执行。零外部依赖，Python stdlib only。
 
 ## 定位
 
-在 text-cli 分布式指令网络中，agent-copilot 是部署在 **Agent 同机** 的本地指令源：
+在 text-cli 分布式指令网络中，agent-copilot 是 text-cli 协议在 Agent 同机的本地实现：
 
 ```
 Agent                   agent-copilot             远程端点
