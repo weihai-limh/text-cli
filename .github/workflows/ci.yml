@@ -86,7 +86,7 @@ jobs:
             echo "OK: $f"
           done
 
-      - name: Check p_text-cli.md append-only
+      - name: Check p_text-cli.md append-only (PR)
         if: github.event_name == 'pull_request'
         run: |
           OLD=$(git show "${{ github.event.pull_request.base.sha }}:.agents/p_text-cli.md" 2>/dev/null || echo "")
@@ -106,6 +106,28 @@ jobs:
             exit 1
           fi
           echo "✓ p_text-cli.md: 纯追加，+$(( ${#NEW} - ${#OLD} )) bytes"
+
+      - name: Check p_text-cli.md append-only (push)
+        if: github.event_name == 'push'
+        run: |
+          BEFORE="${{ github.event.before }}"
+          OLD=$(git show "${BEFORE}:.agents/p_text-cli.md" 2>/dev/null || echo "")
+          NEW=$(cat .agents/p_text-cli.md)
+          if [ -z "$OLD" ]; then
+            echo "::notice::p_text-cli.md is new (first creation, skipping append-only check)."
+            exit 0
+          fi
+          if [[ "$NEW" != "$OLD"* ]]; then
+            echo "::error::p_text-cli.md 被非追加修改！直接 push main 绕过了 PR 审查。"
+            echo "::error::  文件必须以旧内容为前缀，新内容只能追加在末尾。"
+            echo "::error::  请恢复文件并走 feat/分支 → PR 流程。"
+            exit 1
+          fi
+          if [ ${#NEW} -le ${#OLD} ]; then
+            echo "::error::p_text-cli.md 未新增任何内容（可能是截断）。"
+            exit 1
+          fi
+          echo "✓ p_text-cli.md (push): 纯追加，+$(( ${#NEW} - ${#OLD} )) bytes"
 
   tcc-recalculate:
     name: TCC Mint Recalculate
