@@ -27,7 +27,7 @@ from core import CopilotCore, parse_instruction, error
 from handlers import (
     FileHandlers, GitHandlers, MailHandlers,
     SystemHandlers, AIHandlers, TerminalHandlers,
-    CodecHandlers, KeyHandlers,
+    CodecHandlers, KeyHandlers, MediaHandlers,
 )
 # TerminalHandlers comes from handlers.oc_terminal (depends on OpenClaw Skill)
 
@@ -45,6 +45,7 @@ class Copilot(
     TerminalHandlers,
     CodecHandlers,
     KeyHandlers,
+    MediaHandlers,
     CopilotCore,
 ):
     """Directive copilot server — inherits all handler mixins + core engine"""
