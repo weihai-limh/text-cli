@@ -8,7 +8,7 @@ from core import ok, error
 
 
 class TerminalHandlers:
-    """Terminal;weather (future: search, extract, summarize)"""
+    """terminal;weather (alias: 终端;天气) (future: search, extract, summarize)"""
 
     def _handle_terminal_weather(self, params: list) -> dict:
         if not params or not params[0]:

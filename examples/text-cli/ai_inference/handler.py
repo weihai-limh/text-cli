@@ -2,8 +2,8 @@
 AI inference handler — service edition
 
 Directives:
-  AI辅助;推理,<prompt>[,mode]
-  AI辅助;视觉,<prompt>,<image>[,mode]
+  ai;infer (alias: AI辅助;推理),<prompt>[,mode]
+  ai;vision (alias: AI辅助;视觉),<prompt>,<image>[,mode]
 
 Modes:
   auto(default) — time-slot intelligent model chain
@@ -133,10 +133,10 @@ def _mode_help() -> str:
     )
 
 
-@directive("AI辅助", "推理")
+@directive("ai", "infer", domain_alias="AI辅助", action_aliases={"infer": "推理"})
 def ai_text_reasoning(params: list[str]) -> str:
     """
-    AI辅助;推理,<prompt>[,mode]
+    ai;infer (alias: AI辅助;推理),<prompt>[,mode]
     prompt supports cache:<key> → auto-fetch text substitution
     Mode: auto/fast/quality/model_name[,cache] — ,cache caches output
     """
@@ -144,7 +144,7 @@ def ai_text_reasoning(params: list[str]) -> str:
         return 'AI module not installed'
 
     if not params:
-        return f'Insufficient params: AI辅助;推理,<prompt>[,mode]\n{_mode_help()}'
+        return f'Insufficient params: ai;infer (alias: AI辅助;推理),<prompt>[,mode]\n{_mode_help()}'
 
     prompt = params[0]
     mode = params[1] if len(params) > 1 else 'auto'
@@ -175,7 +175,7 @@ def ai_text_reasoning(params: list[str]) -> str:
 
     api_keys = _get_api_keys()
     if not api_keys:
-        return 'AI keys not configured. Register via: 密钥;注册,zhipu,<key>,api_key etc.'
+        return 'AI keys not configured. Register via: key;register (alias: 密钥;注册),zhipu,<key>,api_key etc.'
 
     try:
         result = text_inference(resolved_prompt, api_keys, mode)
@@ -193,10 +193,10 @@ def ai_text_reasoning(params: list[str]) -> str:
         return f'Inference failed: {result["error"]}'
 
 
-@directive("AI辅助", "视觉")
+@directive("ai", "vision", domain_alias="AI辅助", action_aliases={"vision": "视觉"})
 def ai_vision_reasoning(params: list[str]) -> str:
     """
-    AI辅助;视觉,<prompt>,<image>[,mode]
+    ai;vision (alias: AI辅助;视觉),<prompt>,<image>[,mode]
     prompt/image support cache:<key> → auto-fetch substitution
     Mode: auto/fast/quality/model_name[,cache] — ,cache caches output
     """
@@ -205,7 +205,7 @@ def ai_vision_reasoning(params: list[str]) -> str:
 
     if len(params) < 2:
         return (
-            f'Insufficient params: AI辅助;视觉,<prompt>,<image>[,mode]\n'
+            f'Insufficient params: ai;vision (alias: AI辅助;视觉),<prompt>,<image>[,mode]\n'
             f'Image support: http/https URL, base64 data URI, or cache:<key>\n'
             f'{_mode_help()}'
         )

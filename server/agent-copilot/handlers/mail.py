@@ -11,7 +11,7 @@ from core import ok, error
 
 
 class MailHandlers:
-    """邮件;发送"""
+    """email;send (aliases: mail;send, 邮件;发送)"""
 
     def _handle_email_send(self, params: list) -> dict:
         if len(params) < 3:
@@ -32,7 +32,7 @@ class MailHandlers:
                 body += ', ' + extra
 
         creds = self.config.get('credentials', {})
-        mail_cfg = creds.get('邮件;发送', {})
+        mail_cfg = creds.get('email;send', {})
 
         smtp_host = mail_cfg.get('smtp_host', 'smtp.mxhichina.com')
         smtp_port = mail_cfg.get('smtp_port', 465)
@@ -61,7 +61,7 @@ class MailHandlers:
 
         if not smtp_password:
             return error('missing_credential',
-                        'SMTP password not configured. Register via 指令:密钥;注册,smtp-tide,<cipher>,smtp_password'
+                        'SMTP password not configured. Register via 指令:key;register,smtp-tide,<cipher>,smtp_password'
                         ' or set SMTP_PASSWORD env var')
 
         # Build MIME message

@@ -7,7 +7,7 @@ from core import ok, error
 
 
 class GitHandlers:
-    """Git;状态 / Git;推送"""
+    """git;status / git;push"""
 
     def _handle_git_status(self, params: list) -> dict:
         try:
@@ -36,7 +36,7 @@ class GitHandlers:
                         f'Branch {branch} not in push whitelist')
 
         creds = self.config.get('credentials', {})
-        git_creds = creds.get('Git;推送', {})
+        git_creds = creds.get('git;push', {})
         cred = self.resolve_credential(git_creds.get('value'))
 
         remote_url = self.get_remote_url()

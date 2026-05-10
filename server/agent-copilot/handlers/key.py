@@ -2,9 +2,9 @@
 Key management handler mixin.
 
 Directives:
-  密钥;注册,<service>,<cipher_hex>,<key_type>
-  密钥;撤销,<service>
-  密钥;列表
+  密钥;注册,<service>,<cipher_hex>,<key_type> (alias: key;register)
+  密钥;撤销,<service> (alias: key;revoke)
+  密钥;列表 (alias: key;list)
 
 Security model:
   - XOR transport encryption: caller encrypts plaintext with XOR_KEY_<service> → cipher_hex
@@ -170,7 +170,7 @@ class KeyRegistry:
 # ═══════════════════════════════════════════════════════════════
 
 class KeyHandlers:
-    """密钥;注册 / 密钥;撤销 / 密钥;列表"""
+    """key;register (alias: 密钥;注册) / key;revoke (alias: 密钥;撤销) / key;list (alias: 密钥;列表)"""
 
     _key_registry: KeyRegistry | None = None
 
@@ -183,7 +183,7 @@ class KeyHandlers:
         return self._key_registry
 
     def _handle_key_register(self, params: list) -> dict:
-        """密钥;注册,<service>,<cipher_hex>,<key_type>
+        """key;register (alias: 密钥;注册),<service>,<cipher_hex>,<key_type>
 
         service: service identifier (e.g. smtp-tide, bigmodel-embedding-3)
         cipher_hex: XOR-encrypted key as hex string
@@ -223,7 +223,7 @@ class KeyHandlers:
         return result
 
     def _handle_key_revoke(self, params: list) -> dict:
-        """密钥;撤销,<service>"""
+        """key;revoke (alias: 密钥;撤销),<service>"""
         if not params:
             return error('missing_param', 'Missing parameter: service_name')
 
@@ -233,7 +233,7 @@ class KeyHandlers:
         return result
 
     def _handle_key_list(self, params: list) -> dict:
-        """密钥;列表 — return service+type+time, no key values"""
+        """key;list (alias: 密钥;列表) — return service+type+time, no key values"""
         entries = self.key_registry.list_keys()
         if not entries:
             return ok('Registered keys: (empty)', count=0, keys=[])

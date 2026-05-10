@@ -258,7 +258,7 @@ class CopilotCore:
 
     # ── Security Checks ──
 
-    def check_branch(self, branch: str, op_id: str = "Git;推送") -> bool:
+    def check_branch(self, branch: str, op_id: str = "git;push") -> bool:
         operations = self.config['security']['operations']
         op_cfg = operations.get(op_id, {})
         allowed = op_cfg.get('allowed_branches', [])
@@ -269,7 +269,7 @@ class CopilotCore:
 
     def get_remote_url(self) -> str | None:
         creds = self.config.get('credentials', {})
-        git_creds = creds.get('Git;推送', {})
+        git_creds = creds.get('git;push', {})
         remote_url = git_creds.get('remote_url')
         if remote_url:
             return remote_url

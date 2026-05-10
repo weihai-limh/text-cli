@@ -2,9 +2,9 @@
 Semantic embedding handler — service edition
 
 Directives:
-  语义;编码,<text>[,mode]
-  语义;相似,<textA>,<textB>[,mode]
-  语义;匹配,<query>,<candidate1>,<candidate2>,...[,mode]
+  semantic;encode (alias: 语义;编码),<text>[,mode]
+  semantic;similar (alias: 语义;相似),<textA>,<textB>[,mode]
+  semantic;match (alias: 语义;匹配),<query>,<candidate1>,<candidate2>,...[,mode]
 
 Mode: A=256 B=512(default) C=1024 D=2048
 
@@ -40,17 +40,17 @@ def _get_api_key() -> str:
     return key_get(DB_PATH, API_KEY_SERVICE) or ''
 
 
-@directive("语义", "编码")
+@directive("semantic", "encode", domain_alias="语义", action_aliases={"encode": "编码"})
 def sem_encode(params: list[str]) -> str:
     if not EMBED_ENABLED:
         return 'Embed module not installed'
 
     if not params:
-        return 'Insufficient params: 语义;编码,<text>[,mode]'
+        return 'Insufficient params: semantic;encode (alias: 语义;编码),<text>[,mode]'
 
     api_key = _get_api_key()
     if not api_key:
-        return f'API key not configured: {API_KEY_SERVICE}. Register via: 指令:密钥;注册,{API_KEY_SERVICE},<key>,api_key'
+        return f'API key not configured: {API_KEY_SERVICE}. Register via: 指令:key;register (alias: 密钥;注册),{API_KEY_SERVICE},<key>,api_key'
 
     text = params[0]
     mode = params[1] if len(params) > 1 else 'B'
@@ -63,13 +63,13 @@ def sem_encode(params: list[str]) -> str:
         return f'Encode failed: {e}'
 
 
-@directive("语义", "相似")
+@directive("semantic", "similar", domain_alias="语义", action_aliases={"similar": "相似"})
 def sem_similarity(params: list[str]) -> str:
     if not EMBED_ENABLED:
         return 'Embed module not installed'
 
     if len(params) < 2:
-        return 'Insufficient params: 语义;相似,<textA>,<textB>[,mode]'
+        return 'Insufficient params: semantic;similar (alias: 语义;相似),<textA>,<textB>[,mode]'
 
     api_key = _get_api_key()
     if not api_key:
@@ -85,13 +85,13 @@ def sem_similarity(params: list[str]) -> str:
         return f'Similarity failed: {e}'
 
 
-@directive("语义", "匹配")
+@directive("semantic", "match", domain_alias="语义", action_aliases={"match": "匹配"})
 def sem_match(params: list[str]) -> str:
     if not EMBED_ENABLED:
         return 'Embed module not installed'
 
     if len(params) < 2:
-        return 'Insufficient params: 语义;匹配,<query>,<candidate1>,<candidate2>,...[,mode]'
+        return 'Insufficient params: semantic;match (alias: 语义;匹配),<query>,<candidate1>,<candidate2>,...[,mode]'
 
     api_key = _get_api_key()
     if not api_key:

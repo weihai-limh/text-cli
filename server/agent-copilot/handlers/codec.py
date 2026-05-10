@@ -7,7 +7,7 @@ from core import ok, error
 
 
 class CodecHandlers:
-    """编码;base64 / 编码;hex"""
+    """encode;base64 (alias: 编码;base64) / encode;hex (alias: 编码;hex)"""
 
     def _handle_encode_base64(self, params: list) -> dict:
         if not params:
