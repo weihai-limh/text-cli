@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 """
-text-cli-copilot — 指令辅助服务器
-将本地文件读写、Git 操作、邮件发送、Skill 终端代理封装为 text-cli 指令。
-零依赖，Python stdlib only。localhost:20260。
+text-cli-copilot — directive copilot server
+Encapsulates local file I/O, Git operations, mail sending, and skill terminal proxy as text-cli directives.
+Zero dependencies, Python stdlib only. localhost:20260.
 
-架构:
-    core.py          — 配置加载、指令解析、dispatch 引擎
-    handlers/files   — 文件;读取, 文件;写入
-    handlers/git     — Git;状态, Git;推送
-    handlers/mail    — 邮件;发送
-    handlers/system  — 系统;健康, 系统;状态
-    handlers/ai      — AI协作;状态, AI协作;消息
-    handlers/oc_terminal — 终端;天气 (依赖 OpenClaw Skill)
+Architecture:
+    core.py          — config loading, instruction parser, dispatch engine
+    handlers/files   — File;read, File;write
+    handlers/git     — Git;status, Git;push
+    handlers/mail    — Mail;send
+    handlers/system  — System;health, System;status
+    handlers/ai      — AI;status, AI;message
+    handlers/oc_terminal — Terminal;weather (depends on OpenClaw Skill)
 
-新增 domain = 新增 handlers/xxx.py + config 加一行。零路由改动。
+Adding a new domain = adding handlers/xxx.py + one line in config. Zero routing changes.
 """
 
 import json
@@ -29,11 +29,11 @@ from handlers import (
     SystemHandlers, AIHandlers, TerminalHandlers,
     CodecHandlers, KeyHandlers,
 )
-# TerminalHandlers 来自 handlers.oc_terminal（依赖 OpenClaw Skill）
+# TerminalHandlers comes from handlers.oc_terminal (depends on OpenClaw Skill)
 
 
 # ═══════════════════════════════════════════════════════════════
-# Copilot 类 — core + 全部 handler mixin
+# Copilot Class — core + all handler mixins
 # ═══════════════════════════════════════════════════════════════
 
 class Copilot(
@@ -47,16 +47,16 @@ class Copilot(
     KeyHandlers,
     CopilotCore,
 ):
-    """指令辅助服务器 — 继承所有 handler mixin + 核心引擎"""
+    """Directive copilot server — inherits all handler mixins + core engine"""
     pass
 
 
 # ═══════════════════════════════════════════════════════════════
-# HTTP 服务
+# HTTP Service
 # ═══════════════════════════════════════════════════════════════
 
 class CopilotHandler(BaseHTTPRequestHandler):
-    """HTTP 请求处理器"""
+    """HTTP request handler"""
 
     copilot: Copilot = None
 
@@ -68,19 +68,19 @@ class CopilotHandler(BaseHTTPRequestHandler):
             self._handle_ai_status()
             return
         if self.path != '/cli/text_cli':
-            self._send_error_json(404, 'not_found', '端点不存在')
+            self._send_error_json(404, 'not_found', 'Endpoint not found')
             return
 
         auth = self.headers.get('Authorization', '')
         if not auth.startswith('Bearer '):
             self.copilot.track_error()
-            self._send_error_json(401, 'unauthorized', '需要 Bearer Token')
+            self._send_error_json(401, 'unauthorized', 'Bearer Token required')
             return
 
         token = auth[7:]
         if token != self.copilot.token:
             self.copilot.track_error()
-            self._send_error_json(401, 'unauthorized', 'Token 无效')
+            self._send_error_json(401, 'unauthorized', 'Token invalid')
             return
 
         try:
@@ -89,15 +89,15 @@ class CopilotHandler(BaseHTTPRequestHandler):
             request = json.loads(body)
         except (json.JSONDecodeError, UnicodeDecodeError):
             self.copilot.track_error()
-            self._send_error_json(400, 'bad_request', '请求体非有效 JSON')
+            self._send_error_json(400, 'bad_request', 'Request body is not valid JSON')
             return
         except Exception:
             self.copilot.track_error()
-            self._send_error_json(400, 'bad_request', '无法读取请求体')
+            self._send_error_json(400, 'bad_request', 'Unable to read request body')
             return
 
         prompt = request.get('prompt', '')
-        # 提取注入凭据（来自 service proxy）
+        # Extract injected credentials (from service proxy)
         self.copilot._injected_creds = request.get('_injected_credentials', {})
 
         parsed = parse_instruction(prompt)
@@ -105,8 +105,8 @@ class CopilotHandler(BaseHTTPRequestHandler):
         if parsed is None:
             self.copilot.track_error()
             result = error('parse_error',
-                          f'无法解析指令格式。期望格式: '
-                          f'"指令:领域;动作,参数1,参数2" 或 "directive:domain;action,param1,param2"')
+                          'Unable to parse directive format. Expected format: '
+                          '"指令:domain;action,param1,param2" or "directive:domain;action,param1,param2"')
         else:
             result = self.copilot.dispatch(parsed)
 
@@ -118,7 +118,7 @@ class CopilotHandler(BaseHTTPRequestHandler):
         elif self.path == '/health':
             self._send_json(200, {'status': 'ok'})
         else:
-            self._send_error_json(404, 'not_found', '端点不存在')
+            self._send_error_json(404, 'not_found', 'Endpoint not found')
 
     def _send_json(self, status: int, data: dict):
         body = json.dumps(data, ensure_ascii=False, indent=2).encode('utf-8')
@@ -192,7 +192,7 @@ class CopilotHandler(BaseHTTPRequestHandler):
 
 
 # ═══════════════════════════════════════════════════════════════
-# 入口
+# Entry Point
 # ═══════════════════════════════════════════════════════════════
 
 def main():
@@ -200,7 +200,7 @@ def main():
     config_path = script_dir / 'auxiliary_config.json'
 
     if not config_path.exists():
-        print(f"[copilot] ❌ 配置文件不存在: {config_path}")
+        print(f"[copilot] ❌ Config file not found: {config_path}")
         sys.exit(1)
 
     copilot = Copilot(str(config_path))
@@ -217,7 +217,7 @@ def main():
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        print("\n[copilot] 🛑 服务已停止")
+        print("\n[copilot] 🛑 Service stopped")
         server.shutdown()
 
 

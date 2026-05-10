@@ -1,7 +1,7 @@
 """
-基础图像处理 handler。
-图片;信息 — 读取宽高/格式/大小 + EXIF（GPS/时间/设备）
-图片;编码 — 缩放 + JPEG + base64 → 缓存 → 返回 cache key
+Basic image processing handler.
+图片;信息 — read dimensions/format/size + EXIF (GPS/time/device)
+图片;编码 — resize + JPEG + base64 → cache → return cache key
 """
 
 import hashlib
@@ -15,7 +15,7 @@ from core.registry import directive
 
 
 # ═══════════════════════════════════════
-# 路径白名单
+# Path whitelist
 # ═══════════════════════════════════════
 
 _PATH_WHITELIST = [
@@ -26,7 +26,7 @@ _PATH_WHITELIST = [
 
 
 def _check_path(path_str: str) -> Path | None:
-    """校验路径在白名单内"""
+    """Check path is in whitelist"""
     try:
         p = Path(path_str).resolve()
     except (OSError, ValueError):
@@ -41,21 +41,21 @@ def _check_path(path_str: str) -> Path | None:
 
 
 # ═══════════════════════════════════════
-# 内存缓存
+# In-memory cache
 # ═══════════════════════════════════════
 
 _cache: dict[str, dict] = {}
-_CACHE_TTL = 300  # 秒
+_CACHE_TTL = 300  # seconds
 
 
 def _cache_put(data: str) -> str:
-    """存入缓存，返回 SHA256 key（16 位截断）"""
+    """Store in cache, return SHA256 key (16-char truncated)"""
     key = hashlib.sha256(data.encode()).hexdigest()[:16]
     _cache[key] = {
         "data": data,
         "expires_at": time.time() + _CACHE_TTL,
     }
-    # 清理过期项
+    # Clean expired entries
     now = time.time()
     for k in list(_cache):
         if _cache[k]["expires_at"] < now:
@@ -64,7 +64,7 @@ def _cache_put(data: str) -> str:
 
 
 def cache_get(key: str) -> str | None:
-    """从缓存读取，过期返回 None"""
+    """Read from cache, return None if expired"""
     entry = _cache.get(key)
     if not entry:
         return None
@@ -75,23 +75,23 @@ def cache_get(key: str) -> str | None:
 
 
 # ═══════════════════════════════════════
-# 指令 handler
+# Directive handlers
 # ═══════════════════════════════════════
 
 @directive("图片", "信息")
 @directive("image", "info")
 def image_info(params: list[str]) -> str:
-    """图片;信息,<path> → 宽高 格式 大小 + EXIF（GPS/时间/设备）"""
+    """图片;信息,<path> → dimensions format size + EXIF (GPS/time/device)"""
     if not params or not params[0]:
-        return "缺少参数: 图片路径"
+        return "Missing parameter: image path"
 
     p = _check_path(params[0])
     if p is None:
-        return f"路径不在白名单: {params[0]}"
+        return f"Path not in whitelist: {params[0]}"
     if not p.exists():
-        return f"文件不存在: {params[0]}"
+        return f"File not found: {params[0]}"
     if not p.is_file():
-        return f"不是文件: {params[0]}"
+        return f"Not a file: {params[0]}"
 
     try:
         img = Image.open(p)
@@ -101,7 +101,7 @@ def image_info(params: list[str]) -> str:
 
         lines = [f"{w}x{h} {fmt} {_human_size(size)}"]
 
-        # EXIF 提取
+        # EXIF extraction
         exif = img.getexif()
         if exif:
             gps_text = _extract_gps(exif)
@@ -110,24 +110,23 @@ def image_info(params: list[str]) -> str:
 
             dt_text = _extract_datetime(exif)
             if dt_text:
-                lines.append(f"拍摄时间: {dt_text}")
+                lines.append(f"Taken: {dt_text}")
 
             device_text = _extract_device(exif)
             if device_text:
-                lines.append(f"设备: {device_text}")
+                lines.append(f"Device: {device_text}")
 
         return "\n".join(lines)
     except Exception as e:
-        return f"无法读取图片: {e}"
+        return f"Cannot read image: {e}"
 
 
 # ═══════════════════════════════════════
-# EXIF 辅助
+# EXIF helpers
 # ═══════════════════════════════════════
 
 def _extract_gps(exif) -> str | None:
-    """提取 GPS 坐标，返回 decimal 格式"""
-    # GPSInfo 存在于 IFD 的 GPS 标签中
+    """Extract GPS coordinates in decimal format"""
     gps_ifd_key = 34853  # GPSInfo IFD pointer
     gps_data = exif.get_ifd(gps_ifd_key) if hasattr(exif, 'get_ifd') else exif.get(gps_ifd_key)
     if not gps_data:
@@ -149,7 +148,7 @@ def _extract_gps(exif) -> str | None:
 
 
 def _extract_datetime(exif) -> str | None:
-    """提取拍摄时间"""
+    """Extract capture time"""
     for tag in (36867, 306):  # DateTimeOriginal, DateTime
         val = exif.get(tag)
         if val:
@@ -158,7 +157,7 @@ def _extract_datetime(exif) -> str | None:
 
 
 def _extract_device(exif) -> str | None:
-    """提取设备信息"""
+    """Extract device info"""
     make = exif.get(271)  # Make
     model = exif.get(272)  # Model
     if make and model:
@@ -177,34 +176,34 @@ def _extract_device(exif) -> str | None:
 @directive("图片", "编码")
 @directive("image", "encode")
 def image_encode(params: list[str]) -> str:
-    """图片;编码,<path>[,max_size] → 缓存 key"""
+    """图片;编码,<path>[,max_size] → cache key"""
     if not params or not params[0]:
-        return "缺少参数: 图片路径 [,最大尺寸]"
+        return "Missing parameter: image path [,max_size]"
 
     p = _check_path(params[0])
     if p is None:
-        return f"路径不在白名单: {params[0]}"
+        return f"Path not in whitelist: {params[0]}"
     if not p.exists():
-        return f"文件不存在: {params[0]}"
+        return f"File not found: {params[0]}"
 
-    # 解析 max_size（默认 1024）
+    # Parse max_size (default 1024)
     max_size = 1024
     if len(params) > 1 and params[1]:
         try:
             max_size = int(params[1])
         except ValueError:
-            return f"最大尺寸须为整数: {params[1]}"
+            return f"max_size must be integer: {params[1]}"
 
     try:
         img = Image.open(p)
         original_w, original_h = img.size
         original_fmt = img.format or "UNKNOWN"
 
-        # 等比缩放
+        # Proportional resize
         if img.size[0] > max_size or img.size[1] > max_size:
             img.thumbnail((max_size, max_size), Image.LANCZOS)
 
-        # 转 JPEG（统一格式，减少体积）
+        # Convert to JPEG (uniform format, reduce size)
         if img.mode in ("RGBA", "P"):
             img = img.convert("RGB")
 
@@ -224,7 +223,7 @@ def image_encode(params: list[str]) -> str:
             f"data_url:data:image/jpeg;base64,{encoded[:40]}..."
         )
     except Exception as e:
-        return f"编码失败: {e}"
+        return f"Encode failed: {e}"
 
 
 def _human_size(n: int) -> str:

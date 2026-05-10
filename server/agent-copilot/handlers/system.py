@@ -1,5 +1,5 @@
 """
-系统状态 handler mixin。
+System status handler mixin.
 """
 
 import time
@@ -24,19 +24,19 @@ class SystemHandlers:
         remote_url = self.get_remote_url() if git_workdir_valid else None
 
         report = (
-            f"text-cli-copilot v{self.config['endpoint_info']['version']} 运行中\n"
-            f"━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"运行时间: {hours}h {minutes}m {seconds}s\n"
-            f"内存占用: {mem_mb:.1f} MB (RSS)\n"
-            f"已注册指令: {len(self._handlers)} 条\n"
-            f"━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"Git 工作目录: {self.git_workdir} {'✅' if git_workdir_valid else '❌ 不存在'}\n"
-            f"Git 远程: {remote_url or '❌ 不可达'}\n"
-            f"Git Token: {'✅ 已配置' if git_token_configured else '⚠ 未配置 (SSH)'}\n"
-            f"SMTP 密码: {'✅ 已配置' if smtp_configured else '❌ 未配置'}\n"
-            f"路径白名单: {len(self.config['security'].get('path_whitelist', []))} 个目录\n"
-            f"━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"服务端点: http://{self.config['server']['host']}:{self.config['server']['port']}"
+            f"text-cli-copilot v{self.config['endpoint_info']['version']} running\n"
+            f"\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n"
+            f"Uptime: {hours}h {minutes}m {seconds}s\n"
+            f"Memory: {mem_mb:.1f} MB (RSS)\n"
+            f"Registered directives: {len(self._handlers)}\n"
+            f"\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n"
+            f"Git workdir: {self.git_workdir} {'OK' if git_workdir_valid else 'NOT FOUND'}\n"
+            f"Git remote: {remote_url or 'UNREACHABLE'}\n"
+            f"Git token: {'CONFIGURED' if git_token_configured else 'NOT SET (SSH)'}\n"
+            f"SMTP password: {'CONFIGURED' if smtp_configured else 'NOT SET'}\n"
+            f"Path whitelist: {len(self.config['security'].get('path_whitelist', []))} entries\n"
+            f"\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n"
+            f"Endpoint: http://{self.config['server']['host']}:{self.config['server']['port']}"
         )
 
         return ok(report,
@@ -57,45 +57,45 @@ class SystemHandlers:
         rph = (total / (uptime / 3600)) if uptime > 0 else 0
 
         if total == 0:
-            mood = '😴 还没人找我'
+            mood = '😴 idle'
         elif error_rate == 0:
-            mood = '😊 一切顺利'
+            mood = '😊 all good'
         elif error_rate < 0.1:
-            mood = '🙂 偶有小错'
+            mood = '🙂 minor issues'
         elif error_rate < 0.3:
-            mood = '😐 有些坎坷'
+            mood = '😐 bumpy'
         elif error_rate < 0.5:
-            mood = '😟 不太顺利'
+            mood = '😟 rough'
         else:
-            mood = '😵 需要帮助'
+            mood = '😵 needs help'
 
         if rph > 60:
-            busy = '🔥 忙不过来了'
+            busy = '🔥 overloaded'
         elif rph > 10:
-            busy = '⚡ 节奏正好'
+            busy = '⚡ steady'
         elif rph > 1:
-            busy = '🌊 不紧不慢'
+            busy = '🌊 relaxed'
         elif total > 0:
-            busy = '🍃 悠闲'
+            busy = '🍃 idle'
         else:
-            busy = '💤 空闲中'
+            busy = '💤 sleeping'
 
         if hours >= 24:
-            age = f'{hours // 24}天{hours % 24}小时'
+            age = f'{hours // 24}d{hours % 24}h'
         elif hours >= 1:
-            age = f'{hours}小时{minutes}分钟'
+            age = f'{hours}h{minutes}m'
         else:
-            age = f'{minutes}分钟'
+            age = f'{minutes}m'
 
         report = (
             f'{mood}  {busy}\n'
-            f'━━━━━━━━━━━━━━━━\n'
-            f'已工作 {age}，处理 {total} 次请求\n'
-            f'出错 {errors} 次，错误率 {error_rate:.1%}\n'
-            f'━━━━━━━━━━━━━━━━\n'
-            f'活跃度：~{rph:.0f} req/h\n'
-            f'内存：{self._get_mem_mb():.1f} MB\n'
-            f'指令：{len(self._handlers)} 条可用'
+            f'\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n'
+            f'Working {age}, handled {total} requests\n'
+            f'Errors {errors}, error rate {error_rate:.1%}\n'
+            f'\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\n'
+            f'Activity: ~{rph:.0f} req/h\n'
+            f'Memory: {self._get_mem_mb():.1f} MB\n'
+            f'Directives: {len(self._handlers)} available'
         )
 
         return ok(report,

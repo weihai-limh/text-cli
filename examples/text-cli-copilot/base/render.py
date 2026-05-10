@@ -1,14 +1,14 @@
 """
-资源渲染 handler（基础版）— 纯协议层，不依赖 Agent 框架
+Resource render handler (base edition) — pure protocol layer, no Agent framework dependency
 
-指令:
+Directive:
   资源;渲染,<type>,<url>[,<alt>]
 
 type: picture | video | audio | file | text
-url:  资源地址
-alt:  可选描述文本
+url:  resource address
+alt:  optional description text
 
-输出: rst_types + url，由 Agent 自行决定渲染方式
+Output: rst_types + url, Agent decides rendering method
 """
 
 from core import ok, error
@@ -22,7 +22,7 @@ _TYPE_ALIASES = {
 
 def resource_render(params: list) -> dict:
     if len(params) < 2:
-        return error('missing_param', '需要 type 和 url 参数')
+        return error('missing_param', 'Need type and url params')
 
     raw_type = params[0].rstrip(':')
     url = params[1]

@@ -1,17 +1,17 @@
 """
-AI 推理 handler — service 版
+AI inference handler — service edition
 
-指令:
-  AI辅助;推理,<prompt>[,模式]
-  AI辅助;视觉,<prompt>,<图片>[,模式]
+Directives:
+  AI辅助;推理,<prompt>[,mode]
+  AI辅助;视觉,<prompt>,<image>[,mode]
 
-模式:
-  auto(默认) — 时段智能选模型链
-  fast       — 免费模型链
-  quality    — 付费模型链
-  <模型名>   — 直接指定
+Modes:
+  auto(default) — time-slot intelligent model chain
+  fast         — free model chain
+  quality      — paid model chain
+  <model_name> — direct model selection
 
-模型配置从 config/model_aliases.json 读取，不进代码。
+Model config loaded from config/model_aliases.json, not hardcoded.
 """
 
 import json
@@ -28,11 +28,11 @@ try:
     AI_ENABLED = True
 except ImportError as e:
     AI_ENABLED = False
-    logger.info("AI 模块未安装: %s", e)
+    logger.info("AI module not installed: %s", e)
 
 from core.registry import directive
 
-# ── 模型配置 ──
+# ── Model config ──
 _MODEL_CFG: dict | None = None
 _KEY_SERVICES: list[str] = []
 
@@ -65,7 +65,7 @@ def init_ai_handler(db_path: str):
     if os.path.exists(candidate):
         _COPILOT_KEY_PATH = candidate
 
-    # 加载模型配置并注入推理引擎
+    # Load model config and inject into inference engine
     cfg = _load_model_config()
     if cfg:
         from text_cli_modules.ai.inference import set_model_registry
@@ -89,17 +89,17 @@ def init_ai_handler(db_path: str):
 
 
 def _get_api_keys() -> dict[str, str]:
-    """从 SQLite + copilot JSON 读取所有 AI 相关密钥"""
+    """Read all AI-related keys from SQLite + copilot JSON"""
     keys = {}
 
-    # 1. 从 SQLite 读取
+    # 1. Read from SQLite
     if DB_PATH:
         for svc in _KEY_SERVICES:
             val = key_get(DB_PATH, svc)
             if val:
                 keys[svc] = val
 
-    # 2. 从 copilot JSON 回退读取
+    # 2. Fallback to copilot JSON
     if _COPILOT_KEY_PATH:
         try:
             import json
@@ -113,7 +113,7 @@ def _get_api_keys() -> dict[str, str]:
                 if entry and 'encrypted_value' in entry:
                     encrypted = entry['encrypted_value']
                     if secret:
-                        # XOR 解密（内联，避免 cross-module import）
+                        # XOR decrypt (inline, avoid cross-module import)
                         key_bytes = secret.encode('utf-8')
                         cipher = bytes.fromhex(encrypted)
                         val = ''.join(chr(c ^ key_bytes[i % len(key_bytes)]) for i, c in enumerate(cipher))
@@ -127,60 +127,60 @@ def _get_api_keys() -> dict[str, str]:
 
 def _mode_help() -> str:
     return (
-        '模式: auto(时段智能) / fast(免费链) / quality(付费链)'
-        ' / 模型名(指定)\n'
-        '时段: 0-6时付费模型 / 6-24时免费模型'
+        'Mode: auto(time-slot) / fast(free chain) / quality(paid chain)'
+        ' / model_name(direct)\n'
+        'Time slot: 0-6h paid models / 6-24h free models'
     )
 
 
 @directive("AI辅助", "推理")
 def ai_text_reasoning(params: list[str]) -> str:
     """
-    AI辅助;推理,<prompt>[,模式]
-    prompt 支持 cache:<key> → 自动 fetch 文本替入
-    模式: auto/fast/quality/模型名[,cache] — ,cache 缓存输出
+    AI辅助;推理,<prompt>[,mode]
+    prompt supports cache:<key> → auto-fetch text substitution
+    Mode: auto/fast/quality/model_name[,cache] — ,cache caches output
     """
     if not AI_ENABLED:
-        return 'AI 模块未安装'
+        return 'AI module not installed'
 
     if not params:
-        return f'参数不足: AI辅助;推理,<prompt>[,模式]\n{_mode_help()}'
+        return f'Insufficient params: AI辅助;推理,<prompt>[,mode]\n{_mode_help()}'
 
     prompt = params[0]
     mode = params[1] if len(params) > 1 else 'auto'
 
-    # 解析模式：纯模式名 vs 逗号分隔；也检查尾部参数
+    # Parse mode: plain mode name vs comma-separated; also check trailing params
     want_cache = False
-    # 如果在 mode 内用逗号分隔: auto,cache
+    # If mode uses comma separation: auto,cache
     if ',' in mode:
         parts = mode.split(',')
         mode = parts[0]
         want_cache = 'cache' in parts[1:]
-    # 如果 cache 是独立参数（被逗号分隔出来）
+    # If cache is a separate param (split by comma)
     if not want_cache:
         for p in params[1:]:
             if p.strip() == 'cache':
                 want_cache = True
                 break
 
-    # cache:<key> 在 prompt 中 → 替换为缓存文本
+    # cache:<key> in prompt → substitute with cached text
     resolved_prompt = prompt
     if 'cache:' in prompt:
         from handlers.image import cache_get
         def _replace_tcache(m):
             key = m.group(1)
             data = cache_get(key)
-            return data if data else f'[缓存过期:{key}]'
+            return data if data else f'[cache expired:{key}]'
         resolved_prompt = re.sub(r'cache:([a-f0-9]{12,16})', _replace_tcache, prompt)
 
     api_keys = _get_api_keys()
     if not api_keys:
-        return '未配置 AI 密钥。请先注册: 密钥;注册,zhipu,<key>,api_key 等'
+        return 'AI keys not configured. Register via: 密钥;注册,zhipu,<key>,api_key etc.'
 
     try:
         result = text_inference(resolved_prompt, api_keys, mode)
     except Exception as e:
-        return f'推理异常: {e}'
+        return f'Inference error: {e}'
 
     if result['ok']:
         content = result['content']
@@ -190,23 +190,23 @@ def ai_text_reasoning(params: list[str]) -> str:
             return f'cache:{key}\n{content}'
         return content
     else:
-        return f'推理失败: {result["error"]}'
+        return f'Inference failed: {result["error"]}'
 
 
 @directive("AI辅助", "视觉")
 def ai_vision_reasoning(params: list[str]) -> str:
     """
-    AI辅助;视觉,<prompt>,<图片>[,模式]
-    prompt/图片 支持 cache:<key> → 自动 fetch 替入
-    模式: auto/fast/quality/模型名[,cache] — ,cache 缓存输出
+    AI辅助;视觉,<prompt>,<image>[,mode]
+    prompt/image support cache:<key> → auto-fetch substitution
+    Mode: auto/fast/quality/model_name[,cache] — ,cache caches output
     """
     if not AI_ENABLED:
-        return 'AI 模块未安装'
+        return 'AI module not installed'
 
     if len(params) < 2:
         return (
-            f'参数不足: AI辅助;视觉,<prompt>,<图片>[,模式]\n'
-            f'图片支持: http/https URL, base64 data URI, 或 cache:<key>\n'
+            f'Insufficient params: AI辅助;视觉,<prompt>,<image>[,mode]\n'
+            f'Image support: http/https URL, base64 data URI, or cache:<key>\n'
             f'{_mode_help()}'
         )
 
@@ -214,7 +214,7 @@ def ai_vision_reasoning(params: list[str]) -> str:
     image_url = params[1]
     mode = params[2] if len(params) > 2 else 'auto'
 
-    # 解析模式
+    # Parse mode
     want_cache = False
     if ',' in mode:
         parts = mode.split(',')
@@ -226,33 +226,33 @@ def ai_vision_reasoning(params: list[str]) -> str:
                 want_cache = True
                 break
 
-    # cache:<key> 在 prompt 中 → 替换为缓存文本
+    # cache:<key> in prompt → substitute with cached text
     resolved_prompt = prompt
     if 'cache:' in prompt:
         from handlers.image import cache_get
         def _replace_vcache(m):
             key = m.group(1)
             data = cache_get(key)
-            return data if data else f'[缓存过期:{key}]'
+            return data if data else f'[cache expired:{key}]'
         resolved_prompt = re.sub(r'cache:([a-f0-9]{12,16})', _replace_vcache, prompt)
 
-    # cache:<key> 作为图片 → 从本地缓存读取 base64
+    # cache:<key> as image → read base64 from local cache
     if image_url.startswith('cache:'):
         from handlers.image import cache_get
         key = image_url[6:]
         data = cache_get(key)
         if data is None:
-            return f'缓存已过期或不存在: {key}'
+            return f'Cache expired or not found: {key}'
         image_url = f'data:image/jpeg;base64,{data}'
 
     api_keys = _get_api_keys()
     if not api_keys:
-        return '未配置 AI 密钥'
+        return 'AI keys not configured'
 
     try:
         result = vision_inference(resolved_prompt, image_url, api_keys, mode)
     except Exception as e:
-        return f'视觉推理异常: {e}'
+        return f'Vision inference error: {e}'
 
     if result['ok']:
         content = result['content']
@@ -262,4 +262,4 @@ def ai_vision_reasoning(params: list[str]) -> str:
             return f'cache:{key}\n{content}'
         return content
     else:
-        return f'视觉推理失败: {result["error"]}'
+        return f'Vision inference failed: {result["error"]}'

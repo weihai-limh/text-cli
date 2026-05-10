@@ -1,6 +1,6 @@
 """
-text-cli-copilot 核心 — 配置加载、指令解析、响应辅助、dispatch 引擎
-零依赖，Python stdlib only。
+text-cli-copilot core — configuration loading, instruction parser, response helpers, dispatch engine
+Zero dependencies, Python stdlib only.
 """
 
 import json
@@ -15,17 +15,17 @@ from typing import Any
 
 
 # ═══════════════════════════════════════════════════════════════
-# 配置加载
+# Configuration Loading
 # ═══════════════════════════════════════════════════════════════
 
 def _resolve_env(value: Any) -> Any:
-    """递归替换字符串中的 ${VAR_NAME} 占位符（启动时一次性）"""
+    """Recursively replace ${VAR_NAME} placeholders in strings (resolved once at startup)"""
     if isinstance(value, str):
         def _replace(m: re.Match) -> str:
             var_name = m.group(1)
             resolved = os.environ.get(var_name, "")
             if not resolved:
-                print(f"[copilot] ⚠ 环境变量 {var_name} 未设置，使用空字符串")
+                print(f"[copilot] ⚠ env var {var_name} not set, using empty string")
             return resolved
         return re.sub(r'\$\{([^}]+)\}', _replace, value)
     elif isinstance(value, dict):
@@ -36,14 +36,14 @@ def _resolve_env(value: Any) -> Any:
 
 
 def load_config(config_path: str) -> dict:
-    """加载并解析配置文件"""
+    """Load and resolve config file"""
     with open(config_path, 'r', encoding='utf-8') as f:
         raw = json.load(f)
     return _resolve_env(raw)
 
 
 # ═══════════════════════════════════════════════════════════════
-# 指令解析器
+# Instruction Parser
 # ═══════════════════════════════════════════════════════════════
 
 PREFIXES = ['指令:', 'directive:']
@@ -51,16 +51,16 @@ PREFIXES = ['指令:', 'directive:']
 
 def parse_instruction(prompt: str) -> dict | None:
     """
-    解析 text-cli 指令。
-    返回:
-        {'domain': str, 'action': str, 'params': list} | None (解析失败)
+    Parse a text-cli directive.
+    Returns:
+        {'domain': str, 'action': str, 'params': list} | None (parse failure)
     """
     if not prompt or not isinstance(prompt, str):
         return None
 
     prompt = prompt.strip()
 
-    # 1. 识别前缀
+    # 1. Match prefix
     prefix_matched = None
     for prefix in PREFIXES:
         if prompt.startswith(prefix):
@@ -74,7 +74,7 @@ def parse_instruction(prompt: str) -> dict | None:
     if not body:
         return None
 
-    # 2. 分号分割领域和动作+参数
+    # 2. Split domain from action+params on first semicolon
     parts = body.split(';', 1)
     if len(parts) != 2:
         return None
@@ -85,7 +85,7 @@ def parse_instruction(prompt: str) -> dict | None:
     if not domain or not tail:
         return None
 
-    # 3. 逗号分割参数 — 先做初步 split，dispatch 中再按预期参数数精确 split
+    # 3. Split on first comma — do a preliminary split; dispatch will re-split with maxsplit
     comma_idx = tail.find(',')
     if comma_idx == -1:
         action = tail
@@ -94,13 +94,13 @@ def parse_instruction(prompt: str) -> dict | None:
     else:
         action = tail[:comma_idx].strip()
         _raw_params = tail[comma_idx + 1:]
-        # 初步 split — dispatch 中会用 maxsplit 重新处理
+        # Preliminary split — dispatch will re-process with maxsplit
         param_parts = _raw_params.split(',')
         if len(param_parts) == 1:
             params = [param_parts[0].strip()] if param_parts[0].strip() else []
         else:
             params = [p.strip() for p in param_parts[:-1]]
-            params.append(param_parts[-1])  # 最后一个不 strip，保留原始内容
+            params.append(param_parts[-1])  # Last param left as-is, preserving original content
 
     if not action:
         return None
@@ -114,11 +114,11 @@ def parse_instruction(prompt: str) -> dict | None:
 
 
 # ═══════════════════════════════════════════════════════════════
-# 响应辅助
+# Response Helpers
 # ═══════════════════════════════════════════════════════════════
 
 def ok(text: str, **extra) -> dict:
-    """text-cli 标准成功响应"""
+    """text-cli standard success response"""
     rst_data = {'text': text}
     rst_data.update(extra)
     return {
@@ -128,7 +128,7 @@ def ok(text: str, **extra) -> dict:
 
 
 def error(code: str, detail: str) -> dict:
-    """text-cli 标准错误响应"""
+    """text-cli standard error response"""
     return {
         'rst_types': 'text',
         'rst_data': {'text': f'[{code}] {detail}'},
@@ -137,11 +137,11 @@ def error(code: str, detail: str) -> dict:
 
 
 # ═══════════════════════════════════════════════════════════════
-# Copilot 核心引擎（不含 handler 实现）
+# Copilot Core Engine (handler implementations excluded)
 # ═══════════════════════════════════════════════════════════════
 
 class CopilotCore:
-    """指令辅助服务器核心 — dispatch、凭据、安全校验"""
+    """Directive copilot server core — dispatch, credentials, security checks"""
 
     def __init__(self, config_path: str):
         self.config = load_config(config_path)
@@ -157,33 +157,34 @@ class CopilotCore:
         self._register_handlers()
         self._setup_git_workdir()
 
-    # ── Handler 注册（命名约定自动注册） ──
+    # ── Handler Registration (auto-register by naming convention) ──
 
     def _register_handlers(self):
         operations = self.config['security']['operations']
         for op_id, op_config in operations.items():
-            # 检查 enabled 字段（默认 true）
+            # Check enabled field (default true)
             if op_config.get('enabled') is False:
-                print(f"[copilot] ⏸ 已禁用: {op_id}")
+                print(f"[copilot] ⏸ Disabled: {op_id}")
                 continue
-            # 用首个英文 alias 派生 handler 名；无 alias 时回退 canonical ID
+            # Derive handler name from first English alias; fall back to canonical ID
             aliases = op_config.get('aliases', [])
             source_id = aliases[0] if aliases else op_id
             handler_name = '_handle_' + source_id.replace(';', '_').replace(':', '_')
             if hasattr(self, handler_name):
                 self._handlers[op_id] = getattr(self, handler_name)
             else:
-                print(f"[copilot] ⚠ 未找到 handler: {handler_name}，跳过 {op_id}")
+                print(f"[copilot] ⚠ Handler not found: {handler_name}, skipping {op_id}")
 
             for alias in op_config.get('aliases', []):
                 self._alias_map[alias] = op_id
             self._alias_map[op_id] = op_id
 
-        print(f"[copilot] 已注册 {len(self._handlers)} 个 handler，"
-              f"{len(self._alias_map)} 个别名映射")
+        print(f"[copilot] Registered {len(self._handlers)} handler(s), "
+              f"{len(self._alias_map)} alias mapping(s)")
 
     def _smart_split_params(self, parsed: dict, canonical: str) -> list:
-        """根据 handler 预期参数数重新 split，保护末位参数中的逗号"""
+        """Re-split params based on expected parameter count from handler spec,
+        preserving commas in the last parameter."""
         raw = parsed.get('_raw_params', '')
         if not raw:
             return parsed.get('params', [])
@@ -211,17 +212,17 @@ class CopilotCore:
     # ── Dispatch ──
 
     def dispatch(self, parsed: dict) -> dict:
-        """根据解析结果路由到对应 handler"""
+        """Route parsed directive to the matching handler"""
         self._request_count += 1
         lookup = f"{parsed['domain']};{parsed['action']}"
 
-        # 检查是否被禁用（直接查 config，因为禁用项不在 _alias_map 中）
+        # Check if disabled (look in config directly, since disabled ops are not in _alias_map)
         for op_id, op_cfg in self.config['security']['operations'].items():
             if op_id == lookup or lookup in op_cfg.get('aliases', []):
                 if op_cfg.get('enabled') is False:
                     self._error_count += 1
                     return error('disabled',
-                                f'指令 {op_id} 已暂时禁用: {op_cfg.get("_comment", "")}')
+                                f'Directive {op_id} is temporarily disabled: {op_cfg.get("_comment", "")}')
                 break
 
         canonical = self._alias_map.get(lookup)
@@ -229,16 +230,17 @@ class CopilotCore:
         if canonical is None:
             self._error_count += 1
             return error('unknown_instruction',
-                        f'未识别的指令: {lookup}。'
-                        f'可用指令: {", ".join(self._handlers.keys())}')
+                        f'Unrecognized directive: {lookup}. '
+                        f'Available directives: {", ".join(self._handlers.keys())}')
 
         handler = self._handlers.get(canonical)
         if handler is None:
             self._error_count += 1
             return error('unknown_instruction',
-                        f'指令 {canonical} 已注册但无 handler')
+                        f'Directive {canonical} is registered but has no handler')
 
-        # 重新 split 参数：根据 handler 预期参数数，用 maxsplit 确保末位参数不被内部逗号拆开
+        # Re-split parameters using maxsplit based on handler's expected param count,
+        # so that commas in the last parameter are preserved
         params = self._smart_split_params(parsed, canonical)
 
         try:
@@ -254,7 +256,7 @@ class CopilotCore:
         self._request_count += 1
         self._error_count += 1
 
-    # ── 安全校验 ──
+    # ── Security Checks ──
 
     def check_branch(self, branch: str, op_id: str = "Git;推送") -> bool:
         operations = self.config['security']['operations']

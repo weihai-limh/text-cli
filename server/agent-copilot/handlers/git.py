@@ -1,5 +1,5 @@
 """
-Git 操作 handler mixin。
+Git operations handler mixin.
 """
 
 import subprocess
@@ -20,20 +20,20 @@ class GitHandlers:
                 output = '(empty output)'
             return ok(output.strip())
         except FileNotFoundError:
-            return error('git_not_found', '系统中未找到 git 命令')
+            return error('git_not_found', 'git command not found on system')
         except subprocess.TimeoutExpired:
-            return error('timeout', 'git status 超时 (30s)')
+            return error('timeout', 'git status timed out (30s)')
         except Exception as e:
-            return error('internal_error', f'git status 失败: {e}')
+            return error('internal_error', f'git status failed: {e}')
 
     def _handle_git_push(self, params: list) -> dict:
         if not params or not params[0]:
-            return error('missing_param', '缺少参数: 分支名')
+            return error('missing_param', 'Missing parameter: branch_name')
         branch = params[0]
 
         if not self.check_branch(branch):
             return error('branch_denied',
-                        f'分支 {branch} 不在推送白名单内')
+                        f'Branch {branch} not in push whitelist')
 
         creds = self.config.get('credentials', {})
         git_creds = creds.get('Git;推送', {})
@@ -41,14 +41,14 @@ class GitHandlers:
 
         remote_url = self.get_remote_url()
         if remote_url is None:
-            return error('no_remote', f'无法获取远程仓库 URL ({self.git_remote_name})')
+            return error('no_remote', f'Cannot get remote repo URL ({self.git_remote_name})')
 
         remote_name = self.git_remote_name
 
-        # Mode 1: 指令服务器注入（代码预留）
+        # Mode 1: Copilot server injects (reserved for future)
         if cred['mode'] == 'inject':
             return error('not_implemented',
-                        '凭据注入模式 (Mode 1) 尚未实现，请使用环境变量或 SSH')
+                        'Credential injection mode (Mode 1) not yet implemented, use env var or SSH')
 
         # Mode 2: HTTPS (token from env/plaintext)
         if cred['mode'] == 'https' and cred.get('token'):
@@ -72,16 +72,16 @@ class GitHandlers:
                 )
                 if result.returncode == 0:
                     output = result.stdout + result.stderr
-                    return ok(output.strip() or f'推送成功: {branch} → {remote_name}/{branch}',
+                    return ok(output.strip() or f'Push successful: {branch} → {remote_name}/{branch}',
                              auth_mode='https')
                 else:
-                    print(f"[copilot] HTTPS push 失败，降级 SSH: {result.stderr.strip()}")
+                    print(f"[copilot] HTTPS push failed, falling back to SSH: {result.stderr.strip()}")
             except subprocess.TimeoutExpired:
-                return error('timeout', 'git push 超时 (30s)')
+                return error('timeout', 'git push timed out (30s)')
             except Exception as e:
-                print(f"[copilot] HTTPS push 异常，降级 SSH: {e}")
+                print(f"[copilot] HTTPS push error, falling back to SSH: {e}")
 
-        # Mode 2 (token 为空) / Mode 3: SSH / HTTPS 降级
+        # Mode 2 (empty token) / Mode 3: SSH / HTTPS fallback
         try:
             result = subprocess.run(
                 ['git', 'push', remote_name, branch],
@@ -89,12 +89,12 @@ class GitHandlers:
             )
             output = result.stdout + result.stderr
             if result.returncode == 0:
-                return ok(output.strip() or f'推送成功: {branch} → {remote_name}/{branch}',
+                return ok(output.strip() or f'Push successful: {branch} → {remote_name}/{branch}',
                          auth_mode='ssh')
             else:
                 return error('push_failed',
-                            f'推送失败: {output.strip() or result.stderr.strip()}')
+                            f'Push failed: {output.strip() or result.stderr.strip()}')
         except subprocess.TimeoutExpired:
-            return error('timeout', 'git push 超时 (30s)')
+            return error('timeout', 'git push timed out (30s)')
         except Exception as e:
-            return error('push_failed', f'推送异常: {e}')
+            return error('push_failed', f'Push error: {e}')

@@ -1,5 +1,5 @@
 """
-文件操作 handler mixin。
+File operations handler mixin.
 """
 
 import json
@@ -13,49 +13,49 @@ class FileHandlers:
 
     def _handle_file_read(self, params: list) -> dict:
         if not params:
-            return error('missing_param', '缺少参数: 文件路径')
+            return error('missing_param', 'Missing parameter: file_path')
         path_str = params[0]
         p = self.check_path(path_str)
         if p is None:
-            return error('path_denied', f'路径不在白名单内: {path_str}')
+            return error('path_denied', f'Path not in whitelist: {path_str}')
         if not p.exists():
-            return error('file_not_found', f'文件不存在: {path_str}')
+            return error('file_not_found', f'File not found: {path_str}')
         if not p.is_file():
-            return error('not_a_file', f'路径不是文件: {path_str}')
+            return error('not_a_file', f'Path is not a file: {path_str}')
         if p.stat().st_size > 10 * 1024 * 1024:
-            return error('file_too_large', f'文件超过 10MB 限制: {path_str}')
+            return error('file_too_large', f'File exceeds 10MB limit: {path_str}')
         try:
             content = p.read_text(encoding='utf-8')
         except UnicodeDecodeError:
             return error('encoding_error',
-                        f'文件不是 UTF-8 编码，请使用其他方式读取: {path_str}')
+                        f'File is not UTF-8 encoded: {path_str}')
         except Exception as e:
-            return error('read_error', f'读取失败: {e}')
+            return error('read_error', f'Read failed: {e}')
         return ok(content, size=len(content.encode('utf-8')))
 
     def _handle_file_write(self, params: list) -> dict:
         if len(params) < 2:
-            return error('missing_param', '缺少参数: 文件路径 和/或 内容')
+            return error('missing_param', 'Missing parameter: file_path and/or content')
         path_str = params[0]
         content = params[1]
         p = self.check_path(path_str)
         if p is None:
-            return error('path_denied', f'路径不在白名单内: {path_str}')
+            return error('path_denied', f'Path not in whitelist: {path_str}')
         try:
             p.parent.mkdir(parents=True, exist_ok=True)
             p.write_text(content, encoding='utf-8')
             size = len(content.encode('utf-8'))
-            return ok(f'写入成功: {path_str} ({size} 字节)', size=size)
+            return ok(f'Write successful: {path_str} ({size} bytes)', size=size)
         except Exception as e:
-            return error('write_error', f'写入失败: {e}')
+            return error('write_error', f'Write failed: {e}')
 
     def _handle_file_list(self, params: list) -> dict:
         dir_path = params[0] if params else '.'
         p = self.check_path(dir_path)
         if p is None:
-            return error('path_denied', f'路径不在白名单内: {dir_path}')
+            return error('path_denied', f'Path not in whitelist: {dir_path}')
         if not p.exists():
-            return error('file_not_found', f'路径不存在: {dir_path}')
+            return error('file_not_found', f'Path not found: {dir_path}')
         if not p.is_dir():
             p = p.parent
         try:
@@ -74,31 +74,31 @@ class FileHandlers:
             text = json.dumps(entries, ensure_ascii=False, indent=2)
             return ok(text, count=len(entries), directory=str(p))
         except PermissionError:
-            return error('permission_denied', f'无权访问: {dir_path}')
+            return error('permission_denied', f'Permission denied: {dir_path}')
         except Exception as e:
-            return error('list_error', f'列表失败: {e}')
+            return error('list_error', f'List failed: {e}')
 
     def _handle_file_move(self, params: list) -> dict:
         if len(params) < 2:
-            return error('missing_param', '缺少参数: 源路径 和/或 目标路径')
+            return error('missing_param', 'Missing parameter: source_path and/or dest_path')
         src_str = params[0]
         dst_str = params[1]
         src = self.check_path(src_str)
         dst = self.check_path(dst_str)
         if src is None:
-            return error('path_denied', f'源路径不在白名单内: {src_str}')
+            return error('path_denied', f'Source path not in whitelist: {src_str}')
         if dst is None:
-            return error('path_denied', f'目标路径不在白名单内: {dst_str}')
+            return error('path_denied', f'Dest path not in whitelist: {dst_str}')
         if not src.exists():
-            return error('file_not_found', f'源路径不存在: {src_str}')
+            return error('file_not_found', f'Source path not found: {src_str}')
         try:
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.move(str(src), str(dst))
-            return ok(f'移动成功: {src_str} → {dst_str}',
+            return ok(f'Move successful: {src_str} → {dst_str}',
                       from_path=str(src_str), to_path=str(dst))
         except shutil.Error as e:
-            return error('move_error', f'移动失败: {e}')
+            return error('move_error', f'Move failed: {e}')
         except PermissionError:
-            return error('permission_denied', f'无权操作: {src_str}')
+            return error('permission_denied', f'Permission denied: {src_str}')
         except Exception as e:
-            return error('move_error', f'移动失败: {e}')
+            return error('move_error', f'Move failed: {e}')
