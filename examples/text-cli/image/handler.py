@@ -1,7 +1,7 @@
 """
 Basic image processing handler.
-图片;信息 — read dimensions/format/size + EXIF (GPS/time/device)
-图片;编码 — resize + JPEG + base64 → cache → return cache key
+image;info (alias: 图片;信息) — read dimensions/format/size + EXIF (GPS/time/device)
+image;encode (alias: 图片;编码) — resize + JPEG + base64 → cache → return cache key
 """
 
 import hashlib
@@ -78,10 +78,9 @@ def cache_get(key: str) -> str | None:
 # Directive handlers
 # ═══════════════════════════════════════
 
-@directive("图片", "信息")
-@directive("image", "info")
+@directive("image", "info", domain_alias="图片", action_aliases={"info": "信息"})
 def image_info(params: list[str]) -> str:
-    """图片;信息,<path> → dimensions format size + EXIF (GPS/time/device)"""
+    """image;info (alias: 图片;信息),<path> → dimensions format size + EXIF (GPS/time/device)"""
     if not params or not params[0]:
         return "Missing parameter: image path"
 
@@ -173,10 +172,9 @@ def _extract_device(exif) -> str | None:
     return None
 
 
-@directive("图片", "编码")
-@directive("image", "encode")
+@directive("image", "encode", domain_alias="图片", action_aliases={"encode": "编码"})
 def image_encode(params: list[str]) -> str:
-    """图片;编码,<path>[,max_size] → cache key"""
+    """image;encode (alias: 图片;编码),<path>[,max_size] → cache key"""
     if not params or not params[0]:
         return "Missing parameter: image path [,max_size]"
 

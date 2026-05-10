@@ -9,7 +9,7 @@ from core import ok, error
 
 
 class FileHandlers:
-    """文件;读取 / 文件;写入 / 文件;列表 / 文件;移动"""
+    """file;read (alias: 文件;读取) / file;write (alias: 文件;写入) / file;list (alias: 文件;列表) / file;move (alias: 文件;移动)"""
 
     def _handle_file_read(self, params: list) -> dict:
         if not params:

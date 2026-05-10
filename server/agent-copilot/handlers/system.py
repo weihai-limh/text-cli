@@ -8,7 +8,7 @@ from core import ok, error
 
 
 class SystemHandlers:
-    """系统;健康 / 系统;状态"""
+    """system;health (alias: 系统;健康) / system;status (alias: 系统;状态)"""
 
     def _handle_system_health(self, params: list) -> dict:
         uptime = time.time() - self.start_time
@@ -18,8 +18,8 @@ class SystemHandlers:
         mem_mb = self._get_mem_mb()
 
         creds = self.config.get('credentials', {})
-        smtp_configured = bool(creds.get('邮件;发送', {}).get('value', ''))
-        git_token_configured = bool(creds.get('Git;推送', {}).get('value', ''))
+        smtp_configured = bool(creds.get('email;send', {}).get('value', ''))
+        git_token_configured = bool(creds.get('git;push', {}).get('value', ''))
         git_workdir_valid = Path(self.git_workdir).is_dir()
         remote_url = self.get_remote_url() if git_workdir_valid else None
 

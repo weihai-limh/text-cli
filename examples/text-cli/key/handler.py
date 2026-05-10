@@ -32,26 +32,26 @@ def init_key_handler(db_path: str):
 if SQLITE_ENABLED:
     from core.registry import directive
 
-    @directive("密钥", "注册")
+    @directive("key", "register", domain_alias="密钥", action_aliases={"register": "注册"})
     def key_register(params: list[str]) -> str:
         if len(params) < 3:
-            return 'Insufficient params: 密钥;注册,service_name,key_value,key_type'
+            return 'Insufficient params: key;register (alias: 密钥;注册),service_name,key_value,key_type'
         svc, val, kt = params[0], params[1], params[2]
         r = _reg(DB_PATH, svc, val, kt)
         if r.get('ok'):
             return f'Key registered: {svc}'
         return f'Register failed: {r.get("detail", r.get("error", "?"))}'
 
-    @directive("密钥", "撤销")
+    @directive("key", "revoke", domain_alias="密钥", action_aliases={"revoke": "撤销"})
     def key_revoke(params: list[str]) -> str:
         if not params:
-            return 'Insufficient params: 密钥;撤销,service_name'
+            return 'Insufficient params: key;revoke (alias: 密钥;撤销),service_name'
         r = _rev(DB_PATH, params[0])
         if r.get('ok'):
             return f'Key revoked: {params[0]}'
         return f'Revoke failed: {r.get("detail", r.get("error", "?"))}'
 
-    @directive("密钥", "列表")
+    @directive("key", "list", domain_alias="密钥", action_aliases={"list": "列表"})
     def key_list(params: list[str]) -> str:
         keys = _list(DB_PATH)
         if not keys:

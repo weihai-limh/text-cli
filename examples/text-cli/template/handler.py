@@ -1,7 +1,7 @@
 """
 Template handler.
-模板;列表 — list all available templates
-模板;使用,<id>[,key1=val1,key2=val2,...] — use template with placeholders filled, output to cache
+template;list (alias: 模板;列表) — list all available templates
+template;use (alias: 模板;使用),<id>[,key1=val1,key2=val2,...] — use template with placeholders filled, output to cache
 """
 
 import json
@@ -16,7 +16,7 @@ def _load_templates() -> dict:
         return json.load(f)["templates"]
 
 
-@directive("模板", "列表")
+@directive("template", "list", domain_alias="模板", action_aliases={"list": "列表"})
 def template_list(params: list[str]) -> str:
     """List all available templates"""
     tmpl = _load_templates()
@@ -26,9 +26,9 @@ def template_list(params: list[str]) -> str:
     return "\n".join(lines)
 
 
-@directive("模板", "使用")
+@directive("template", "use", domain_alias="模板", action_aliases={"use": "使用"})
 def template_use(params: list[str]) -> str:
-    """模板;使用,<id>[,key1=val1,key2=val2,...] → filled text → cache"""
+    """template;use (alias: 模板;使用),<id>[,key1=val1,key2=val2,...] → filled text → cache"""
     if not params:
         return "Missing parameter: template_id"
 

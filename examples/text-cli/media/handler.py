@@ -2,10 +2,10 @@
 Media load handler — public passthrough + local mount
 
 Directives:
-  图片;加载,<URL or path>
-  视频;加载,<URL or path>
-  音频;加载,<URL or path>
-  文件;加载,<URL or path>
+  image;load (alias: 图片;加载),<URL or path>
+  video;load (alias: 视频;加载),<URL or path>
+  audio;load (alias: 音频;加载),<URL or path>
+  file;load (alias: 文件;加载),<URL or path>
 
 Public URL → direct passthrough
 Local path → whitelist check → /media/ route
@@ -52,7 +52,7 @@ def _check_path(path: str) -> Path | None:
 
 
 def media_load(params: list) -> dict:
-    """Handle 图片;加载 / 视频;加载 / 音频;加载 / 文件;加载"""
+    """Handle image;load (alias: 图片;加载) / video;load (alias: 视频;加载) / audio;load (alias: 音频;加载) / file;load (alias: 文件;加载)"""
     if not params or not params[0]:
         return error('missing_param', 'Please provide media path or URL')
 

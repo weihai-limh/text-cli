@@ -2,8 +2,10 @@ import re
 from dataclasses import dataclass
 
 DIRECTIVE_PATTERN = re.compile(
-    r"^\s*指令[：:]([^;]+);([^,]+)(?:,(.+))?\s*$"
+    r"^\s*(?:指令|AI)[：:]([^;]+);([^,]+)(?:,(.+))?\s*$"
 )
+
+_PREFIX_PATTERN = re.compile(r"^(指令|AI)[：:]")
 
 MAX_DIRECTIVE_LENGTH = 512
 MAX_PARAMS = 20
@@ -18,7 +20,10 @@ class ParsedDirective:
 
     @property
     def directive_key(self) -> str:
-        return f"指令:{self.domain};{self.action}"
+        """Return directive key preserving the original prefix used"""
+        m = _PREFIX_PATTERN.match(self.raw)
+        prefix = m.group(1) if m else "指令"
+        return f"{prefix}:{self.domain};{self.action}"
 
 
 class DirectiveParseError(Exception):

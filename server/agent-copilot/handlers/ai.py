@@ -7,7 +7,7 @@ from core import ok, error
 
 
 class AIHandlers:
-    """AI协作;状态 / AI协作;消息"""
+    """ai;status / ai;messages"""
 
     def _handle_ai_status(self, params: list) -> dict:
         mode = (params[0].upper() if params else 'A') if params and params[0] else 'A'
@@ -80,7 +80,7 @@ class AIHandlers:
         # ── Read mode ──
         n = int(mode) if mode else 1
         if not msg_file.exists():
-            return error('no_messages', 'No messages yet. Write via AI协作;消息,push first')
+            return error('no_messages', 'No messages yet. Write via ai;messages,push first')
         data = json.loads(msg_file.read_text(encoding='utf-8'))
         messages = data.get('messages', [])
         if not messages:

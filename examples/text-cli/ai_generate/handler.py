@@ -1,7 +1,7 @@
 """
 Image/video generation handler.
-图像;生成,<prompt>[,size] → CogView-3-Flash → image URL
-视频;生成,<prompt>[,size,quality] → CogVideoX-Flash → task ID + polling
+image;generate (alias: 图像;生成),<prompt>[,size] → CogView-3-Flash → image URL
+video;generate (alias: 视频;生成),<prompt>[,size,quality] → CogVideoX-Flash → task ID + polling
 """
 
 import hashlib
@@ -72,9 +72,9 @@ def _http_post(url: str, body: dict, timeout: int = 120) -> dict:
         return {"error": str(e)}
 
 
-@directive("图像", "生成")
+@directive("image", "generate", domain_alias="图像", action_aliases={"generate": "生成"})
 def image_generate(params: list[str]) -> str:
-    """图像;生成,<prompt>[,size] → URL"""
+    """image;generate (alias: 图像;生成),<prompt>[,size] → URL"""
     if not params:
         return "Missing parameter: prompt [,size]"
 
@@ -103,9 +103,9 @@ def image_generate(params: list[str]) -> str:
     return f"Generation successful\nURL: {url}\nSize: {size}\nPrompt: {prompt}"
 
 
-@directive("视频", "生成")
+@directive("video", "generate", domain_alias="视频", action_aliases={"generate": "生成"})
 def video_generate(params: list[str]) -> str:
-    """视频;生成,<prompt>[,size,quality] → task ID (async)"""
+    """video;generate (alias: 视频;生成),<prompt>[,size,quality] → task ID (async)"""
     if not params:
         return "Missing parameter: prompt [,size,quality]"
 
@@ -141,9 +141,9 @@ def video_generate(params: list[str]) -> str:
     )
 
 
-@directive("视频", "状态")
+@directive("video", "status", domain_alias="视频", action_aliases={"status": "状态"})
 def video_status(params: list[str]) -> str:
-    """视频;状态,<task_id> → polling result"""
+    """video;status (alias: 视频;状态),<task_id> → polling result"""
     if not params:
         return "Missing parameter: task_id"
 
