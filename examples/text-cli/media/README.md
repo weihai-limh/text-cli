@@ -16,8 +16,8 @@ cp examples/text-cli/media/handler.py server/python/handlers/media.py
 ## Usage
 
 ```
-指令:图片;加载,https://example.com/photo.jpg
-指令:图片;加载,/local/path/to/photo.jpg
+AI:图片;加载,https://example.com/photo.jpg
+AI:图片;加载,/local/path/to/photo.jpg
 ```
 
 ---

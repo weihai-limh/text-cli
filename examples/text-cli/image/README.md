@@ -1,10 +1,10 @@
 # Image Processing
 
-**Directives:** `图片;信息`, `图片;编码`
+**Directives:** `图片;信息` / `image;info`, `图片;编码` / `image;encode`
 **Dependencies:** Pillow (`pip install Pillow`)
 **Configuration:** None (no secrets)
 
-Extract EXIF metadata (GPS, time, device, dimensions) and encode images for AI vision API consumption. Cache layer returns `cache:<sha256>` references to avoid passing base64 in request payloads.
+Extract EXIF metadata (GPS, time, device, dimensions) and encode images for AI vision API consumption. Cache layer returns `cache:<sha256>` references to avoid passing base64 in payloads.
 
 ## Install
 
@@ -16,16 +16,16 @@ pip install Pillow
 ## Usage
 
 ```
-指令:图片;信息,/path/to/photo.jpg
-指令:图片;编码,/path/to/photo.jpg
-指令:AI辅助;视觉,Describe the scene,cache:<sha256>
+AI:image;info,/path/to/photo.jpg
+AI:image;encode,/path/to/photo.jpg
+AI:AI辅助;视觉,Describe the scene,cache:<sha256>
 ```
 
 ---
 
 # 图像处理
 
-**指令:** `图片;信息`, `图片;编码`
+**指令:** `图片;信息` / `image;info`, `图片;编码` / `image;encode`
 **依赖:** Pillow (`pip install Pillow`)
 **配置:** 无（不含密钥）
 
@@ -41,7 +41,7 @@ pip install Pillow
 ## 使用
 
 ```
-指令:图片;信息,/path/to/photo.jpg
-指令:图片;编码,/path/to/photo.jpg
+指令:image;info,/path/to/photo.jpg
+指令:image;encode,/path/to/photo.jpg
 指令:AI辅助;视觉,描述这个场景,cache:<sha256>
 ```

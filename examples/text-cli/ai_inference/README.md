@@ -18,8 +18,8 @@ cp server/python/config/model_aliases.example.json server/python/config/model_al
 ## Usage
 
 ```
-指令:AI辅助;推理,What is the capital of France?,auto
-指令:AI辅助;视觉,Describe this image,[image_url],auto
+AI:AI辅助;推理,What is the capital of France?,auto
+AI:AI辅助;视觉,Describe this image,[image_url],auto
 ```
 
 Modes: `auto` (time-aware), `fast` (free tier chain), `quality` (paid chain), or a specific model name.

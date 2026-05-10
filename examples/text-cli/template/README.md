@@ -16,8 +16,8 @@ cp examples/text-cli/template/prompt_templates.json server/python/config/prompt_
 ## Usage
 
 ```
-指令:模板;列表
-指令:模板;使用,photo_describe,{"地点":"威海","时间":"2026-05-10 14:30:00"}
+AI:模板;列表
+AI:模板;使用,photo_describe,{"地点":"Weihai","时间":"2026-05-10 14:30:00"}
 ```
 
 ---

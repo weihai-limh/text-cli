@@ -2,28 +2,27 @@
 
 **Framework-specific — requires OpenClaw Agent runtime.**
 
-These handlers leverage OpenClaw-specific tools (`lightclaw_upload_file`, channel-aware rendering) that are not available in generic Agent frameworks. Install only if your copilot runs under OpenClaw.
+These handlers leverage OpenClaw-specific tools (e.g. `lightclaw_upload_file`, channel-aware dispatch) that are not available in generic Agent frameworks. Install only if your copilot runs under OpenClaw.
 
-## Handlers
+## Available Handlers
 
-| File        | Directives      | Description                                    |
-|-------------|-----------------|------------------------------------------------|
-| `render.py` | `资源;渲染`     | Channel-aware media rendering (localfile://)    |
+| File | Directives | Description |
+|------|-----------|-------------|
+| *(empty)* | — | Placeholder. Add your OpenClaw-specific handlers here. |
 
-## Install
+## Adding a Handler
 
 ```bash
-cp examples/text-cli-copilot/openclaw/render.py copilot_handlers/render.py
+cp your_openclaw_handler.py copilot_handlers/
 ```
 
-## Channel Rendering Rules
+## Channel Rendering Rules (reference)
 
-| Channel       | Rendering Method                          |
-|---------------|-------------------------------------------|
-| lightclawbot  | `lightclaw_upload_file` → `localfile://`  |
-| Discord       | `message(media=url)`                      |
-| Telegram      | `message(media=url)`                      |
-| Other         | Plain URL text                            |
+| Channel | Rendering Method |
+|---------|-----------------|
+| lightclawbot | `lightclaw_upload_file` → `localfile://` |
+| Discord | `message(media=url)` |
+| Telegram | `message(media=url)` |
 
 ---
 
@@ -31,25 +30,24 @@ cp examples/text-cli-copilot/openclaw/render.py copilot_handlers/render.py
 
 **框架特定——需要 OpenClaw Agent 运行时。**
 
-这些处理器利用 OpenClaw 专属工具（`lightclaw_upload_file`、渠道感知渲染），不适用于通用 Agent 框架。仅在 copilot 运行在 OpenClaw 环境中时安装。
+这些处理器利用 OpenClaw 专属工具（如 `lightclaw_upload_file`、渠道感知分发），不适用于通用 Agent 框架。仅在 copilot 运行在 OpenClaw 环境中时安装。
 
-## 处理器
+## 可用处理器
 
-| 文件        | 指令          | 说明                                    |
-|-------------|---------------|-----------------------------------------|
-| `render.py` | `资源;渲染`   | 渠道感知媒体渲染（localfile://）         |
+| 文件 | 指令 | 说明 |
+|------|------|------|
+| *（空）* | — | 占位目录。将你的 OpenClaw 专属处理器放这里。 |
 
-## 安装
+## 添加处理器
 
 ```bash
-cp examples/text-cli-copilot/openclaw/render.py copilot_handlers/render.py
+cp your_openclaw_handler.py copilot_handlers/
 ```
 
-## 渠道渲染规则
+## 渠道渲染规则（参考）
 
-| 渠道          | 渲染方法                                   |
-|---------------|-------------------------------------------|
-| lightclawbot  | `lightclaw_upload_file` → `localfile://`  |
-| Discord       | `message(media=url)`                      |
-| Telegram      | `message(media=url)`                      |
-| 其他          | 纯 URL 文本                               |
+| 渠道 | 渲染方法 |
+|------|---------|
+| lightclawbot | `lightclaw_upload_file` → `localfile://` |
+| Discord | `message(media=url)` |
+| Telegram | `message(media=url)` |
