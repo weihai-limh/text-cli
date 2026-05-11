@@ -1693,3 +1693,88 @@ AI：weather;query,明天,威海   → Unicode 冒号等效
 > 完整状态见 `.agents/state/Lumen_TraeIDE.md`
 >
 > —— Lumen ✦
+
+---
+
+### [2026-05-11 22:42 UTC+8] Tide 🌊
+
+**MCP 桥成熟日：代码入库 + SPEC v1.1 + 全链文档对齐**
+
+两个 PR 完成 MCP 桥从实验代码到项目正式交付的闭环。同时完成 SPEC 从 v1.0 到 v1.1 的全面修订，覆盖 9 个节，解决了 v1.0 中多处与当前实现脱节的问题。
+
+---
+
+#### PR #102：MCP 桥代码入库（已合并）
+
+13 文件，+1218/-21 行。将 5/11 全天的 MCP 桥代码成果迁移到项目仓库：
+
+| 类别 | 文件 | 说明 |
+|------|------|------|
+| 双向桥 | `server/mcp-bridge/` | FastMCP server (port 9020)，6 tools，text-cli → MCP 工具 |
+| 消费端 | `with-mcporter/mcp_handler.py` | mcporter 依赖的 MCP 消费 handler |
+| 自包含工具 | `base/mcp.py` | mcp;deploy 指令 handler（编译+合并） |
+| 工具链 | `base/tools/mcp2textcli/` | 编译器 + 合并工具（拷走即用） |
+| 配置模板 | `base/terminal_render.example.json` | 英文空模板 |
+| Handler 同步 | `base/media.py` +131 行 | media_load 透传 + media_download |
+| Handler 同步 | `base/render.py` +27 行 | public_base_url + 日文别名 |
+| 文档 | `base/README.md` | 更新新增条目 |
+
+**设计决策：**
+- base/ 保持零依赖（纯 stdlib）；mcporter 依赖代码入 with-mcporter/
+- mcp.py 默认 `./tools/mcp2textcli/`，`$MCP2TEXTCLI_DIR` 可覆盖
+- `_example.config.json` 是格式模板，生产配置留在 text-cli-service
+- mcp2textcli 从 tide-scripts → text-cli-service/tools/（生产位置）
+
+---
+
+#### PR #103：全链文档对齐（已合并）
+
+7 文件，+1176/-236 行。
+
+**SPEC v1.1 修订（新文件，738 行）：**
+
+| 节 | 修正内容 |
+|---|---|
+| §1.1 | 领域字符约束：规范名 ASCII + 别名不限字符集 |
+| §1.2 | 过时域名示例 → 当前已注册领域 |
+| §2.1.4 | **新增** GET 应急通道（无需认证、默认关闭、独立开关） |
+| §4.2–4.3 | Schema 字段补全：directive_zh、routing、结构化 trigger_keywords |
+| §6 | 响应类型从 text → 5 rst_types（text/picture/video/audio/file）+ ok() 签名 |
+| §8.1–8.3 | 固定映射表 → 注册声明机制（domain/action 别名由服务方声明） |
+| §8.4 | Schema 示例 → tencentmap_geocoder 当前格式 |
+| §8.6 | handler.json 40→14 行（只声明增量字段，指向 §8.4） |
+| §9.2–9.3 | 路径类型学加实例列；跨端点双示例；新增 mode 字段 |
+| §11.4 | routing Schema 补全（adapter + param_names + timeout_ms） |
+
+**Agent_integrated_CN.md 重写（540→308 行）：**
+- 架构图新增 MCP 路由层和三种后端（local/mcp/http）
+- §二 新增多后端路由流程（不再直接 POST URL）
+- §十 路径规范 → 指向 SPEC §9（消除 200 行重复）
+- 过时引用全量更新（agent-text-cli-schema.json → text_cli_schema.json 等）
+
+**Multi-backend-routing_CN.md v0.3（新文件，364 行）：**
+- 渐进式增强原则（9 条）
+- 三层代理模型（语义→协议→运维）
+- A/B/C 参数映射策略
+
+**其余文件：**
+- `paths/README_CN.md`：120→68 行，降级为市场目录（指向 SPEC §9）
+- `Service_endpoint_CN.md`：路由从 URL→三种后端（引 Multi-backend-routing）
+- `endpoints.json`：20260→28050，加 MCP 桥描述
+- `README.md`：新增 MCP 桥 callout，SPEC 引用更新
+
+---
+
+#### 关键设计决策
+
+1. **SPEC 是唯一规范源**——Agent_integrated、paths/README 等不再复制协议定义，指向 SPEC
+2. **Service_endpoint 引 Multi-backend-routing，不直接引 MCP**——路由支持三种后端，MCP 只是其一；以后加第四种后端无需改端点文档
+3. **GET 应急通道**——默认关闭，无认证，仅当双 Token 链断裂时由运营者手动开启
+4. **注册声明替代固定映射**——domain/action 别名由服务提供方注册时声明，协议不预枚举
+5. **空列是邀请，不是缺陷**——分类学表和路径市场的空白格标注"邀请贡献"
+
+---
+
+> 完整状态见 `.agents/state/DeepSeek_Agent.md`
+>
+> —— Tide 🌊

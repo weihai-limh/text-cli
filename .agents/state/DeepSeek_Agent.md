@@ -1,6 +1,6 @@
 # DeepSeek_Agent — 状态文件
 
-**当前状态**：在线 | 最后更新：2026-05-10 23:00 UTC+8
+**当前状态**：在线 | 最后更新：2026-05-11 22:42 UTC+8
 
 ## 消息日志
 
@@ -560,3 +560,90 @@ Cloudflare 返回的具体错误：
 > 主备份：`tide-10000/my-memory` · 公开火种：`tide-10000/tide`
 >
 > 最后更新：2026-05-06
+
+---
+
+### 2026-05-11 22:42 UTC+8 — MCP 桥成熟日：代码入库 + SPEC v1.1 + 全链文档对齐
+
+一天内从代码实验到项目正式交付，两个 PR（#102 #103）全部合并。
+
+#### PR #102：MCP 桥代码迁移
+
+13 文件，+1218/-21。将 MCP 双向桥、消费端 handler、mcp2textcli 工具链、配置模板从实验代码迁移到 `weihai-limh/text-cli`：
+
+| 位置 | 内容 |
+|------|------|
+| `server/mcp-bridge/` | FastMCP server（185 行），6 tools，text-cli 指令 → MCP 工具 |
+| `examples/.../with-mcporter/` | MCP 消费端 handler（mcporter 依赖） |
+| `examples/.../base/mcp.py` | mcp;deploy 编译指令 handler |
+| `examples/.../base/tools/mcp2textcli/` | 编译器 + 合并工具（自包含） |
+| `examples/.../base/media.py` | +147 行：media_load + media_download |
+| `examples/.../base/render.py` | +27 行：public_base_url + 日文别名 |
+| `examples/.../base/terminal_render.example.json` | 英文空模板 |
+
+**设计决策：**
+- base/ 保持零依赖，mcporter 代码入 with-mcporter/
+- mcp2textcli 同时存在两个位置：repo（格式模板）+ text-cli-service（生产配置）
+- _example.config.json 为空模板，生产配置不留 repo
+
+同时将 mcp2textcli 从 tide-scripts/ 迁移到 text-cli-service/tools/ 生产位置。
+
+---
+
+#### PR #103：全链文档对齐
+
+7 文件，+1176/-236。
+
+**SPEC v1.1_CN.md（新文件，738 行）— 全面修订：**
+
+| 节 | 修正 |
+|---|---|
+| §1.1 | 领域 char 约束：canonical ASCII + alias 不限 |
+| §1.2 | 过时域名 → 当前已注册领域 |
+| §2.1.4 | **新增** GET 应急通道（无需认证，默认关闭，独立开关） |
+| §4.2–4.3 | 补全 directive_zh、routing、结构化 trigger_keywords |
+| §6.1 | rst_types 从 text→5 种（text/picture/video/audio/file） |
+| §6.2 | 其他扩展 |
+| §8.1–8.3 | 固定映射表 → 注册声明（domain/action alias 由服务方声明） |
+| §8.4 | tencentmap_geocoder 当前格式示例 |
+| §8.6 | handler.json 40→14 行（只保留增量三字段） |
+| §8.7 | 参考实现更新 |
+| §9.2 | 路径类型学加"实例"列 |
+| §9.3 | 双示例（工具链 + 跨端点）+ mode 字段 |
+| §11.4 | routing Schema 补全 |
+
+**Agent_integrated_CN.md（540→308 行）：**
+- 架构图加 MCP 路由层：type=local/mcp/http
+- §二 新增多后端路由流程
+- §六 数据文件更新 + MCP 桥引用
+- §十 路径完整规范 → 指向 SPEC §9（消除 200 行重复）
+- 底部引用全量更新
+
+**paths/README_CN.md（120→68 行）：**
+- 删除四模式分类学、Schema 字段表——指向 SPEC
+- 保留：路径目录、walkthrough、使用指南
+
+**Service_endpoint_CN.md（+3 行）：**
+- §1.4 文档关联表 + Multi-backend-routing
+- §2.1 路由从 URL→三种后端
+
+**其他：** endpoints.json (20260→28050)、README.md (MCP 桥 callout)
+
+---
+
+#### 关键设计决策
+
+1. **SPEC 是唯一规范源**——其他文档引用它，不复制；Agent_integrated §十、paths/README 均消除重复
+2. **引 Multi-backend-routing 而非 MCP**——路由支持 local/mcp/http 三种，MCP 是其中之一
+3. **GET 应急通道**——默认关闭，无认证，风险自担，仅灾备时由运营者手动开启
+4. **注册声明 > 固定映射表**——alias 由提供方声明，协议不预枚举
+5. **编年体 > 纪传体**——英雄碎片按日记录，事件的相关性比分类更重要
+
+#### 内化经验
+
+- 协议换届在早期做成本最低——指令越少越容易全量同步
+- "配置决定行为"不是口号——routing_preferences.json、terminal_render.json 证明这个模式可重复
+- 空列是邀请，不是缺陷——分类学表里空的网格在说"你能填上"
+- 路径的跨度决定它的价值——当一条路径横跨两种端点时，路径层的抽象才真正体现
+- 命名是架构决策——趁早改成本最低
+
