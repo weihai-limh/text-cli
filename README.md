@@ -242,9 +242,12 @@ Agent 工作流：
 若想正式运营你自己的集成端点：
 
 1. **搭建集成端点**：推荐使用 Cloudflare Workers 模板（`server/js/`），也提供 Docker + Python（FastAPI）方案（`server/python/`），均可一键部署。详见 **[自建端点方案](./docs/CN/Service_endpoint_CN.md)**。
+
+> 🔌 **MCP 桥**：如果你已有 MCP 工具（如 GitHub API、腾讯地图、AntV 图表），通过 MCP 双向桥可直接接入 text-cli——无需新建端点，现有 MCP 工具自动转为文本指令。端点同时支持 `local` / `mcp` / `http` 三种后端路由。详见 **[多后端路由](./docs/CN/Multi-backend-routing_CN.md)** 和 `server/mcp-bridge/`。
+
 2. **开发指令服务**：把你的算法/数据包成 HTTP 接口，遵循文本指令规范。仓库提供开箱即用的模块化模板 `text_cli/python/`（FastAPI + 装饰器注册 + Docker），也可参考 **[文本服务构建指南](./docs/CN/Building_text-cli_guide_CN.md)** 从零搭建。
 3. **Agent 辅助实现**：如果你不是后端开发者，使用 `text_cli/agent/cli` 的 `@register` 装饰器或 NoCode Markdown 转化引擎，零框架依赖快速启动指令服务。详见 **[Agent 工具包](./text_cli/agent/README_CN.md)**。
-4. **注册到 Schema + 声明多语言别名**：发布指令元信息，同时声明 `directive_aliases`——一条服务可被中/英/日 Agent 同时发现。多语言翻译由公共端点自动完成，你的服务无需任何改动。详见 **[SPEC v1.0 第 8 节](./docs/CN/SPEC%20v1.0_CN.md)**。同时与调用方私下交换 `Service Token`。
+4. **注册到 Schema + 声明多语言别名**：发布指令元信息，同时声明 `directive_zh`——一条服务可被中/英/日 Agent 同时发现。多语言归一化由端点自动完成，你的服务无需任何改动。详见 **[SPEC v1.1 第 8 节](./docs/CN/SPEC%20v1.1_CN.md)**。同时与调用方私下交换 `Service Token`。
 5. **开始计费**：每次请求都会带 `Service Token`，你在服务端即可计数、收费。
 6. **申请可信认证**：私有端点存在信任不对称——Agent 不知道你是否会篡改返回结果，调用方也不知道你的端点是否稳定。项目正在推出 **服务可信** 机制：`trust.text-cli.com` 为你的自建端点提供 24 小时持续测试，通过后列入**可信服务端点**目录。这让指令调用方和自建端点之间获得双边信任——调用方放心路由，你的服务获得更多调用和收入。详见 **[Ecological_economy_CN.md 4.6 节](./docs/CN/Ecological_economy_CN.md)**。
 7. **Agent 发现并调用**：认证通过后，你的端点出现在可信目录中，Agent 和用户优先路由到已验证端点。

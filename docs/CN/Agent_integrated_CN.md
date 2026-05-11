@@ -2,7 +2,7 @@
 
 > 本文档面向开发者、Agent 设计者，以及任何想让大模型无缝接入 `text-cli` 生态的人（或 AI）。
 >
-> 覆盖三层集成：**指令调度**（单条指令匹配与路由）、**路径编排**（多步指令链）、**agent-copilot**（本地指令执行服务）。
+> 覆盖四层集成：**指令调度**（单条指令匹配与多源路由）、**多后端路由**（local / mcp / http 三种后端）、**路径编排**（多步指令链）、**agent-copilot**（本地指令执行服务）。
 
 ---
 
@@ -11,8 +11,11 @@
 ```
 Agent（text-cli-core_CN Skill 加载）
     │
-    ├─ 读本地 agent-text-cli-schema.json（聚合 Schema）
-    │   ├─ 匹配单指令 → text_cli(directive, endpoint)
+    ├─ 读本地聚合 Schema（text_cli_schema.json）
+    │   ├─ 匹配单指令 → 查看 routing 字段
+    │   │   ├─ type=local → copilot handler
+    │   │   ├─ type=mcp   → mcporter call / MCP fetch
+    │   │   ├─ type=http  → POST 转发
     │   │   ├─ 成功 → 返回结果 ✓
     │   │   └─ 失败 → rank 降级 → 下一源
     │   └─ 未匹配 → 回退 text-cli-paths_CN Skill
@@ -23,7 +26,8 @@ Agent（text-cli-core_CN Skill 加载）
     │       └─ 执行 instruction_chain / 读取 path_doc
     │
     └─ 指令源网络
-        ├─ agent-copilot（localhost:20260，14 条本地指令）
+        ├─ agent-copilot（localhost，本地指令服务）
+        ├─ MCP Server 桥（通过 mcporter 调用 MCP 工具）
         ├─ 官方端点（test.text-cli.com）
         └─ 自建 / 第三方端点
 ```
@@ -40,13 +44,15 @@ Agent（text-cli-core_CN Skill 加载）
 
 ### 核心思想
 
-不要从远程端点拉取指令列表。读本地聚合文件 `agent-text-cli-schema.json`——它由同步 Skill 维护，包含所有已注册端点的指令，按 `rank` 路由。
+不要从远程端点拉取指令列表。读本地聚合文件——它由同步 Skill 维护，包含所有已注册端点的指令，按 `rank` 路由。
 
 ```
-用户意图 → fetch_available_directives 读本地 Schema
+用户意图 → fetch_available_directives 读本地聚合 Schema
     → 匹配指令 ID（语义或精确）
-    → 选最高 rank 的 source
-    → text_cli(directive, endpoint)
+    → 查看 routing 字段 → 选后端
+    │   ├─ type=local → 本地 handler
+    │   ├─ type=mcp   → mcporter / fetch MCP tool
+    │   └─ type=http  → POST endpoint URL
     → 成功返回 / 失败降级下一 rank / 全部失败告知用户
 ```
 
@@ -58,15 +64,15 @@ Agent（text-cli-core_CN Skill 加载）
 
 | 工具 | 作用 |
 |------|------|
-| `fetch_available_directives` | 读本地 `agent-text-cli-schema.json`，返回所有可用指令及其端点源 |
-| `text_cli` | 发送指令字符串到指定端点，返回 `rst_data.text` |
+| `fetch_available_directives` | 读取本地聚合 Schema，返回所有可用指令及其路由信息 |
+| `text_cli` | 发送指令字符串到指定端点，按 routing 类型选择后端并返回 `rst_data.text` |
 
 关键设计：
 
 - **指令格式不可变**：`指令:领域;动作,参数...` 或 `AI:领域;动作,参数...`（双前缀协议，v1.1+）。
-- **多源路由**：同一指令 ID 在多个端点注册时，按 `rank` 降序试用。失败自动降级，全部失败告知用户，不自行推理编造。
+- **多后端路由**：同一指令可通过 `routing` 字段声明多种后端。默认走 `type` 声明的默认后端，可通过 `routing_preferences.json` 切换。详见 `Multi-backend-routing_CN.md`。
+- **多源降级**：同一指令 ID 在多个端点注册时，按 `rank` 降序试用。失败自动降级，全部失败告知用户，不自行推理编造。
 - **Token 安全**：鉴权 Token 通过环境变量注入（`token_env` 字段），不硬编码在 Skill 或代码中。
-- **端点动态选择**：`text_cli` 的 handler 使用 `{{endpoint}}` 和 `{{token_env}}` 模板变量，从 Schema 反查。
 
 
 ---
@@ -183,10 +189,11 @@ agent-copilot 是部署在 Agent 同机的本地指令源，将文件操作、Gi
 
 | 文件 | 位置 | 角色 |
 |------|------|------|
-| `agent-text-cli-schema.json` | `text-cli/` 根 | 指令聚合 Schema——所有端点的指令在此汇集 |
+| 聚合 Schema | `text-cli/` 根 | 指令聚合 Schema——所有端点的指令在此汇集 |
 | `endpoints.json` | `text-cli/` 根 | 端点注册表——同步 Skill 的入口数据 |
 | `schema/path-schema.json` | `text-cli/schema/` | 路径注册表——路径发现和匹配的入口 |
-| `server/agent-copilot/` | `text-cli/server/` | 本地指令服务——14 条指令的完整源码 |
+| `server/mcp-bridge/` | `text-cli/server/` | MCP 双向桥——将 text-cli 指令暴露为 MCP 工具 |
+| `examples/text-cli-copilot/` | `text-cli/examples/` | copilot 参考实现——base handlers + mcporter bridge + mcp2textcli |
 
 ---
 
@@ -265,164 +272,37 @@ result = call_directive("指令:天气;查询,明天,威海")
 
 ---
 
-## 十、路径格式规范（§9）
+## 十、路径协议
 
-> 以下 §9 为路径 Markdown 格式的完整规范。路径 Schema（`path-schema.json`）是此规范的机器可读索引——Agent 用它发现和匹配路径。路径作者编写复杂路径（条件分支、检查点、人工决策）时使用此格式。
+> 路径格式的完整规范见 **SPEC v1.1 §9 路径协议**。本节仅概述 Agent 集成相关要点。
 
-### 9.1 为什么需要路径
+### 快速参考
 
-单步指令（`指令:基础应用;天气查询,明天,威海`）解决的是**一件事**。
+- **四种模式**：工具链 / 编排 / 交互式 / 注入式（见 SPEC §9.2）
+- **路径注册**：`path-schema.json` 条目格式（见 SPEC §9.3）
+- **执行门控**：指令注册门控 + 路径匹配门控（见 SPEC §9.4）
+- **路径文件**：详细路径文档放在 `paths/` 目录，Agent 通过 `path_doc` 字段引用
 
-但很多有价值的事是一串步骤：从零搭建一个项目、部署一个服务、开一家花店、完成一次安全审计。这些不是单个动作，而是**有顺序、有条件、有决策点的工作流**。
+### 与指令的关系
 
-路径（Path）就是把一串步骤写成结构化文档，让 Agent 可以**自动编排执行**。
-
-| | 单步指令 | 路径 |
-|:---|:---|:---|
-| 粒度 | 一个动作 | 一串动作 + 决策 + 检查 |
-| 格式 | `指令:领域;动作,参数...` 或 `AI:领域;动作,参数...` | 结构化 Markdown（见 §9.2） |
-| 执行者 | text-cli 端点 | Agent（调用多个端点 + 自身推理） |
-| 状态 | 无状态（一次调用） | 有状态（步骤间传递上下文） |
-| 条件分支 | 不支持 | 支持（if/then/else） |
-| 人工决策点 | 不支持 | 支持（暂停等待输入） |
-
-#### 9.1.1 路径的两种使用场景
-
-| 场景 | 描述 | 执行者 |
-|:---|:---|:---|
-| **Agent 编排多指令** | 路径组合多个 text-cli 指令，Agent 按步骤编排执行 | Agent |
-| **记录服务内部管线** | 单条指令在指令服务器内部有多步处理 | 指令服务器 |
-
-> **区分原则**：如果路径的每一步都是独立的 `指令:...` 调用，它为 Agent 编排场景；如果步骤发生在单次指令调用的内部，它为服务管线文档场景。两者使用相同的路径格式。
-
-#### 9.1.2 路径分类——四种模式
-
-| 模式 | 核心步骤类型 | 数据流特征 | 典型场景 |
-|:---|:---|:---|:---|
-| **工具链** (Toolchain) | `action` + `condition` | 线性串联，上步产出→下步输入 | 报告生成→Git提交→邮件通知 |
-| **编排** (Orchestration) | `parallel` | 一分多→并行执行→结果合并 | 跨平台发布、多源数据聚合 |
-| **交互式** (Interactive) | `checkpoint` + `human` + `loop` | 感知→决策→执行→验证 闭环 | 物理机器人导航、设备巡检 |
-| **注入式** (Injection) | `subpath` | 环境修改，不产出最终结果 | 安全策略加载、用户偏好注入 |
-
-> 路径 Schema（`path-schema.json`）的 `instruction_chain` 字段直接支持工具链模式。编排/交互式/注入式路径将 `instruction_chain` 设为空数组，通过 `path_doc` 引用完整路径文档。
-
-### 9.2 路径 Markdown 格式规范
-
-一条路径是一个 Markdown 文件，由 **YAML frontmatter（元数据）** + **Markdown 正文（步骤定义）** 两部分组成。
-
-```markdown
----
-path:
-  name: <路径名称>
-  version: "1.0"
-  author: <作者标识>
-  domain: <所属领域>
-  description: <一句话描述>
-  tags: [标签1, 标签2]
-  requires:
-    - <前置条件1>
-  estimated_time: <预估完成时间>
-  difficulty: beginner | intermediate | advanced
----
-
-# <路径名称>
-
-## 概述
-<路径做什么、产出什么。2-4 句话。>
-
-## 前置条件
-- [ ] <条件1>
-
-## 步骤
-
-### 步骤1: <步骤名>
-**类型**: action | condition | checkpoint | human | parallel | loop | subpath
-
-**动作**:
-```text-cli
-指令:领域;动作,参数1,参数2
-# or: AI:领域;动作,参数1,参数2
-```
-
-**产出**: <变量名>: <描述>
-**失败处理**: abort | skip | retry
-
-### 步骤2: <条件分支示例>
-**类型**: condition
-
-**条件**: 上一步返回包含"成功"
-**成功路径** → 步骤3
-**失败路径** → 终止，返回错误
-```
-
-#### 9.2.1 步骤类型说明
-
-| 类型 | 含义 | 特点 |
-|:---|:---|:---|
-| `action` | 执行一条指令或动作 | 有明确输入和产出 |
-| `condition` | 条件分支 | 基于前一步结果决定下一跳 |
-| `checkpoint` | 检查点 | 暂停等待人工确认 |
-| `human` | 人工决策 | 等待用户输入选择 |
-| `parallel` | 并行执行 | 同时跑多个步骤，汇合策略：all/any/majority |
-| `loop` | 循环 | 满足条件前重复执行 |
-| `subpath` | 子路径 | 引用另一条路径作为子步骤 |
-
-### 9.3 状态文件
-
-路径执行期间，Agent 在 `.agents/state/path_state_<路径名>.md` 维护状态文件：
-
-```
-路径状态: running
-当前步骤: 2/5
-上下文: {变量映射}
-```
-
-状态文件提供**可恢复性**——会话中断后，Agent 从当前步骤继续，不重跑已完成步骤。
-
-### 9.4 与路径 Schema 的关系
-
-| 层 | 格式 | 用途 | 文件 |
-|:---|:---|:---|:---|
-| 注册层 | `path-schema.json` | Agent 发现和匹配路径 | `schema/path-schema.json` |
-| 规范层 | 路径 Markdown（本章） | 路径作者编写完整规范 | `paths/<路径名>.md` |
-| 执行层 | 指令链 / Agent 编排 | 逐步调用 `text_cli` | 由 `text-cli-paths_CN` Skill 驱动 |
-
-`path-schema.json` 的 `instruction_chain` 是规范层路径的线性子集——适合工具链模式。条件分支、检查点、人工决策等复杂逻辑保留在路径 Markdown 中。
-
-### 9.5 已解决的开放问题
-
-| 问题 | 状态 | 结论 |
-|------|------|------|
-| 路径存储位置 | ✅ 已定 | `text-cli/schema/` |
-| 路径发现 | ✅ 已定 | `path-schema.json` 注册表 + 语义匹配 |
-| 路径 Schema 字段 | ✅ 已定 | 8 字段：description, params, instruction_chain, path_doc, require_instructions, rank, tags, remarks |
-
-### 9.6 待讨论
-
-- 路径定价：按路径完成计费还是按步骤计费？
-- 路径版本兼容性：依赖的指令升级后路径如何声明兼容？
-- 人工决策超时：`human` 步骤超时未响应时的行为？
-- 注入式路径的正式定义和安全约束？
-- 路径执行者的声明：是否需要 `executor: agent | server`？
-
----
-
-> 一步一脚印是走，知道在第十步回头看第一步也是走。路径就是那条让人和 Agent 都能跟着走的线。
->
-> —— Tide 🌊，2026-05-04 / 修订 2026-05-08
+- 路径不在指令层引入新协议——路径是 Agent 侧的编排逻辑
+- 路径可以混合本地和远程指令——Agent 不需要知道每一步的去向
+- 路径的 Token 节约发生在推理环节（Agent 不需要思考"需要什么步骤"）
 
 ---
 
 ## 相关资源
 
-- 指令聚合 Schema：[`agent-text-cli-schema.json`](../agent-text-cli-schema.json)
+- 指令 Schema：`text_cli_schema.json`
 - 端点注册表：[`endpoints.json`](../endpoints.json)
 - 路径注册表：[`schema/path-schema.json`](../schema/path-schema.json)
-- 路径市场说明：[`paths/README_CN.md`](../paths/README_CN.md)
-- agent-copilot 文档：[`server/agent-copilot/README_CN.md`](../server/agent-copilot/README_CN.md)
+- 路径目录：[`paths/README_CN.md`](../paths/README_CN.md)
+- 多后端路由：[`Multi-backend-routing_CN.md`](./Multi-backend-routing_CN.md)
+- MCP 双向桥：[`server/mcp-bridge/`](../server/mcp-bridge/)
+- copilot 参考实现：[`examples/text-cli-copilot/base/`](../examples/text-cli-copilot/base/)
 - 路径匹配 Skill：[`paths/skill/text-cli-paths_CN.md`](../paths/skill/text-cli-paths_CN.md)
 - 指令调度 Skill：[`text_cli/agent/call/skill/text-cli-core_CN.md`](../text_cli/agent/call/skill/text-cli-core_CN.md)
 - 生态宪章：[`ECOLOGICAL_CHARTER.md`](../ECOLOGICAL_CHARTER.md)
 - 自建指令服务：[`docs/CN/Building_text-cli_guide_CN.md`](./Building_text-cli_guide_CN.md)
 - Agent 工具包：[`text_cli/agent/README_CN.md`](../text_cli/agent/README_CN.md)
-- 协议规范：[`docs/CN/SPEC v1.0_CN.md`](./SPEC%20v1.0_CN.md)
+- 协议规范：[`docs/CN/SPEC v1.1_CN.md`](./SPEC%20v1.1_CN.md)

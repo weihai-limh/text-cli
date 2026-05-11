@@ -51,6 +51,7 @@
 | `SPEC v1.0` | 协议规范 | Endpoint 必须严格遵循其 API 定义 |
 | `Building_text-cli_guide_CN.md` | 如何构建后端技能服务 | Endpoint 转发的目标就是这类服务 |
 | `Agent_integrated_CN.md` | 如何让 Agent 接入 text-cli | Agent 通过 Endpoint 暴露的 Schema 发现指令 |
+| `Multi-backend-routing_CN.md` | 多后端路由实现 | Endpoint 路由支持三种后端类型（local / mcp / http） |
 | **本方案** | 如何构建集成端点 | 连接调用方和技能服务的中间层 |
 
 ---
@@ -63,7 +64,7 @@ Endpoint 承担且仅承担以下职责：
 
 1. **Access Token 鉴权**：验证调用方是否有权使用此端点
 2. **指令解析**：从 prompt 中提取 domain、action、params
-3. **路由匹配**：根据解析结果，在 Schema 中找到对应指令的后端 url
+3. **路由匹配**：根据解析结果，在 Schema 中找到对应指令的 routing 信息。路由支持三种后端类型——`local`（本地 handler）、`mcp`（MCP 协议）、`http`（传统 POST 转发）。详见 `Multi-backend-routing_CN.md`。
 4. **请求转发**：将请求透明转发到后端技能服务（含 Service Token）
 5. **调用记账**：将每次调用的元数据写入 SQLite
 6. **Schema 转换**：对外暴露去掉真实后端地址的 Schema
