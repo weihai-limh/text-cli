@@ -210,6 +210,24 @@
         "parameters": [],
         "parameters_en": [],
         "returns": "rst_data.text = key list, rst_data.count, rst_data.keys"
+      },
+      "ai;json;query": {
+        "level": "read",
+        "aliases": ["ai;json;query", "AI:json;query", "json;query", "json;查询"],
+        "description": "从 JSON 源中提取信息。路径（$.key）走快通道，自然语言走关键词匹配，未来接入 AI 语义匹配。",
+        "description_en": "Query JSON source. Path ($.key) → fast, natural language → keyword match (future: AI semantic).",
+        "parameters": ["JSON源(文件路径或内联JSON)", "意图(JSONPath或自然语言)", "返回数量(可选,默认3)"],
+        "parameters_en": ["source(file_path|inline)", "intent(path|nl)", "limit(optional,default3)"],
+        "returns": "rst_data.matches = [{path, value, score}, ...], rst_data.count, or rst_data.result for path query"
+      },
+      "ai;json;replace": {
+        "level": "write",
+        "aliases": ["ai;json;replace", "AI:json;replace", "json;replace", "json;替换"],
+        "description": "替换 JSON 中指定路径的值。纯机械操作，零 AI。文件路径会写回磁盘。",
+        "description_en": "Replace value at JSON path. Pure mechanical, zero AI. File paths are written back.",
+        "parameters": ["JSON源(文件路径或内联JSON)", "JSONPath(如$.key.sub)", "新值"],
+        "parameters_en": ["source", "path", "new_value"],
+        "returns": "rst_data.path, rst_data.old, rst_data.new, rst_data.wrote_to"
       }
     }
   },
