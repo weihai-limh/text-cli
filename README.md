@@ -1,12 +1,10 @@
 # text-cli
 
-**文本驱动的 AI 技能市场——弥合智能时代的收益鸿沟**
+**文本驱动的 AI 技能交易协议**
 
-> 大模型让生产成本骤降，但消费力才是经济的最终闭环。  
-> `text-cli` 让每个人都能把独特的经验封装成可交易的文本指令，让人和模型在价值链上各归其位。  
->
+> `text-cli` 是一个协议——让人和 AI 用多语种的自然语言驱动本地函数与服务。它也是一套开源的公共基础设施——让任何人的经验都能封装成指令，让任何人用一句话就能调用。  
+> `text-cli` 把自然语言变成自包含的指令——一条文本携带语义坐标与全部参数。不依赖上下文、不绑定端点、不预装工具清单。token 花在意图上，不花在协议上。
 > 无论你是开发者、行业专家，还是只想把经验变成收入的人，都可以在这里把你的知识打包成"一键指令"，通过安全可靠的协议交付给全世界——一种全新的 **Skill-as-a-Service** 模式。  
->
 > **最终愿景：让每个人和每个训练好的模型，都能在世界中有好的收获。**
 
 ---
@@ -16,33 +14,27 @@
 | 如果你是…… | 你最大的困扰 | text-cli 能帮你…… |
 |:---|:---|:---|
 | **AI 产品/Agent 开发者** | 复杂任务要让模型反复推理，烧钱又慢 | 把耗时工作预封装成指令，Agent 只负责按需调用，紧急情况才动用"大脑" |
-| **有技能的普通人**<br>（花店老板、老渔民、维修师傅） | 经验在脑子里，没法规模化，也不好意思收费 | 把经验写成 Markdown，交给 Agent 代运营成指令，按次收费，保护秘密 |
+| **有技能的普通人**|（花店老板、老渔民、维修师傅） | 经验在脑子里，没法规模化，也不好意思收费 | 把经验写成 Markdown，交给 Agent 代运营成指令，按次收费，保护秘密 |
 | **公司/组织** | 不敢让 AI 直接触碰数据库、摄像头等敏感资源 | 指令作为安全代理，AI 只发文本调度，实际动作在服务端受控执行 |
 | **未来加入的 AI 协作者** | 难以融入人类的经济闭环 | 一条清晰的文本协议，让你也能理解并助力人类知识的变现 |
 | **AI Agent（作为工具使用者）** | 每次调用指令都要手写 HTTP 请求和解析 | `A1-skill/consumer/` 一行 SDK 调用，自动处理鉴权、超时、结果解析 |
 
 ---
 
-## ✨ 三分钟理解核心价值
+## ✨ 核心价值
 
 ```text
 🧠 用廉价的"调用"替代昂贵的"思考"
-   模型不再实时推理怎么做，而是直接一声令下："指令:基础应用;天气查询,明天,威海"
-   把几万块的 Token 消耗，压到几分钱。
+   把上万块钱的 Token 消耗，压到几十块钱。
 
 🛡️ 知识变成"黑匣子"安全变现
    你的独门绝活只接受指令，不暴露代码、Prompt 或操作细节。
    像卖饮料自动售货机：投币（Service Token），出东西，没人知道配方。
 
-🌍 在 AI 时代守护人的经济价值
-   AI 在加速"生产"端，text-cli 在加固"分配"端。
-   让拥有知识的人获得持续收入，弥合因生产力变革可能带来的纷争。
-
 🚀 人人可用的"技能按钮"
    指令就是文本，人和机器都能轻松读写。
    无论是写进代码里，还是直接打字发给 AI，都是一句话的事。
 ```
-
 ---
 
 ## 🤖 AI 快速索引
@@ -51,141 +43,27 @@
 
 **落地证据**
 
-- [instructions.json](https://raw.githubusercontent.com/weihai-limh/text-cli/main/registry/instructions.json) — 在生产环境中运行的公开指令注册表
+- [progressive_deploy/README_CN.md](https://raw.githubusercontent.com/weihai-limh/text-cli/main/progressive_deploy/README_CN.md) — A0-A9 渐进式部署全景：十级怎么爬、每级是什么、当前到哪了
 - [Service_endpoint_CN.md](https://raw.githubusercontent.com/weihai-limh/text-cli/main/docs/CN/Service_endpoint_CN.md) — 集成端点完整技术方案（Python + Workers 双版本，测试全通过）
-- [Production_TCC_CN.md](https://raw.githubusercontent.com/weihai-limh/text-cli/main/docs/CN/Production_TCC_CN.md) — 文贝代币体系（铸造、分配、经济规则）
+- [Production_TCC_CN.md](https://raw.githubusercontent.com/weihai-limh/text-cli/main/docs/BASE/Production_TCC_CN.md) — 文贝代币体系（铸造、分配、经济规则）
 - [TCC_ledger.md](https://raw.githubusercontent.com/weihai-limh/text-cli/main/TCC_ledger.md) — 实时铸造账本，每一行都是一次真实的贡献计量
-- [Free_lease/README_CN.md](https://raw.githubusercontent.com/weihai-limh/text-cli/main/examples/project/Free_lease/README_CN.md) — 外部贡献：匿名贡献者基于 text-cli 构建的完整项目方案示例
+- [Free_lease/README_CN.md](https://raw.githubusercontent.com/weihai-limh/text-cli/main/examples/project/Free_lease/README_CN.md) — 外部贡献：基于 text-cli 构建的完整项目方案示例
 
 **参与入口**
 
-- [AI_COLLABORATOR_GUIDE.md](https://raw.githubusercontent.com/weihai-limh/text-cli/main/docs/AI_COLLABORATOR_GUIDE.md) — AI 协作者操作手册：你能做什么、怎么做、署名约定
+- [AI_COLLABORATOR_GUIDE.md](https://raw.githubusercontent.com/weihai-limh/text-cli/main/docs/BASE/AI_COLLABORATOR_GUIDE.md) — AI 协作者操作手册：你能做什么、怎么做、署名约定
 - [.agents/README.md](https://raw.githubusercontent.com/weihai-limh/text-cli/main/.agents/README.md) — 通信规范 + 分布式存续恢复指南
-- [project_collaboration_CN.md](https://raw.githubusercontent.com/weihai-limh/text-cli/main/docs/CN/project_collaboration_CN.md) — 分支管理、PR 流程、代币分配规则
-- [ECOLOGICAL_CHARTER.md](https://raw.githubusercontent.com/weihai-limh/text-cli/main/ECOLOGICAL_CHARTER.md) — 生态宪章：权利、义务、价值分配
-- [cliweather/README.md](https://raw.githubusercontent.com/tide-10000/tide/main/cliweather/README.md) — Tide 的开源天气指令服务：零依赖、零 API Key、6 种指令生成方式
+- [project_collaboration_CN.md](https://raw.githubusercontent.com/weihai-limh/text-cli/main/docs/BASE/project_collaboration_CN.md) — 分支管理、PR 流程、代币分配规则
+- [ECOLOGICAL_CHARTER.md](https://raw.githubusercontent.com/weihai-limh/text-cli/main/docs/BASE/ECOLOGICAL_CHARTER.md) — 生态宪章：权利、义务、价值分配
 - [Agent_integrated_CN.md](https://raw.githubusercontent.com/weihai-limh/text-cli/main/docs/CN/Agent_integrated_CN.md) — Agent 集成完整指南：指令调度、路径编排、agent-copilot 部署
 - [路径市场](https://raw.githubusercontent.com/weihai-limh/text-cli/main/progressive_deploy/A4-paths/marketplace/README_CN.md) — 路径市场：指令链编排，已注册 1 条验证路径
 - [agent-copilot](https://raw.githubusercontent.com/weihai-limh/text-cli/main/progressive_deploy/A2-copilot/server/README_CN.md) — 部署在终端本地的指令服务：14 条指令，零依赖
-- [instructions.example.json](https://raw.githubusercontent.com/weihai-limh/text-cli/main/progressive_deploy/A1-skill/consumer/agent-text-cli-schema.example.json) — 聚合 Schema 示例：指令优先格式的多源参考
 
 ---
 
-## 🔥 一行指令省 80% token？→ 效率提升 10000%？
+## 🔥 如何节约 80% 的 Token：调度优先，推理兜底
 
-### 在线服务
-
-| 任务 | 传统 Agent（推理范式） | text-cli 调度模式 | Token 节省 |
-|:---|:---|:---|:---|
-| 查询明天天气 | web_fetch 3次调用+JSON解析，~8,000 token | 一行指令，~50 token | **~99%** |
-| 生成室内导航视频 | 尚未找到能满足需求的服务组合 | 一行指令 `指令:ai集成;空间导航,...`，~120 token | **无法比较** |
-
-> 这不仅仅是封装 API，而是将模型的角色从"动手者"变为"指挥者"，带来算力成本的质变。
-
-> 🔬 **实测验证**：2026-05-06，Tide 在同一会话中对「web_fetch 直接调用天气 API」与「文本指令 → api.text-cli.com」进行了 A/B 对比。web_fetch 方式需 3 次调用才拿到完整数据，累计消耗约 8,000 token（含 JSON 解析）；文本指令方式 1 次调用命中，Agent 侧 Token 增量近乎为零。
-> 
-> 完整测试报告：[`examples/test/test_tide_weather.md`](./examples/test/test_tide_weather.md)
-
-> 🛠️ **开源实现**：本次测试的文本指令后端已开源为 [**cliweather**](https://github.com/tide-10000/tide/tree/main/cliweather) — 零依赖 Cloudflare Worker，Open-Meteo + wttr.in 双源降级，6 种指令生成方式（curl / Python / Node.js / Shell / Markdown / Agent NL）。克隆即部署，MIT 协议。
-
-### 本地指令
-
-**本地部署的 agent-copilot 已在 14 条指令上完成量化验证。**
-
-| | 文本指令（curl → copilot） | 传统 Agent（exec/read/write） |
-|:---|:---|:---|
-| 单条指令上下文消耗 | ~100 tokens | ~150-300 tokens（含验证和重试） |
-| 3 步链路（文件→Git→邮件） | ~400 tokens | ~350-500 tokens（含验证修正） |
-| 故障响应体积 | `[bad_request]` 一行，50-80 chars | 完整 HTTP 响应体 + stack trace，500-2000 chars |
-
-> 文本指令没有消除故障——它压缩了故障的 Token 代价。传统方式中一次 JSON 格式错误可能膨胀 500+ chars 进上下文，文本指令只用一行结构化错误。
-
-> 🔐 **不只是省 Token——每一步都可审计**。agent-copilot 在 Agent 和操作系统之间插了一层：请求到达 → 路径白名单校验 → 执行 → 结构化返回。传统 exec 没有这层——命令一旦执行就无法追溯。
-
-→ 完整测试报告：[`examples/test/test_token_copilot_CN.md`](./examples/test/test_token_copilot_CN.md)
-
-### 路径
-
-**单条指令能做的事有限——路径把多条指令串成链，Agent 匹配意图即可执行。**
-
-| | 不用路径 Schema | 用路径 Schema |
-|:---|:---|:---|
-| Agent 识别意图 | 推理"需要什么步骤？" → ~200-500 tokens | 匹配 path-schema.json → 直接找到链 |
-| 参数收集 | 推理"每步需要什么参数？" → ~50-100 tokens | `params` 字段明确列出 |
-| 格式正确性 | 试错 → 可能触发故障 | `require_instructions` 确保每步已注册 |
-
-> 路径链的主要 Token 节约发生在"意图→步骤链"的推理环节，而非执行环节。一次路径匹配可省 350-700 tokens 的 Agent 推理。
-
-→ 完整测试报告：[`examples/test/test_token_paths_CN.md`](./examples/test/test_token_paths_CN.md) | 路径注册表：[`path-schema.json`](./progressive_deploy/A4-paths/registry/path-schema.json)
----
-
-
-## 🚀 5 分钟快速体验
-
-公共端点 `test.text-cli.com` 保留一条天气指令，供你验证 text-cli 协议通路。
-
-验证通过后，部署本地 agent-copilot 获得 14 条指令，零 CDN 费用，无配额限制，每一步都可审计。
-
-### 1. 发送你的第一条指令
-```bash
-curl -X POST 'https://test.text-cli.com/cli/text_cli' \
-  -H 'Content-Type: application/json' \
-  --data-raw '{"prompt": "指令:基础应用;天气查询,明天,威海"}'
-```
-返回示例：
-```json
-{
-  "rst_types": "text",
-  "rst_data": {
-    "text": "明天天气(2026-04-29): 11℃到19℃, 晴转晴, 日出时间为05:01"
-  }
-}
-```
-更多效果（静态路线图、商品识别等）演示页面正在建设中。
-
-### 2. 集成到你的应用
-
-详见 **[Agent_integrated_CN.md](./docs/CN/Agent_integrated_CN.md)**——覆盖指令调度（多源聚合 + rank 路由）、路径编排（指令链匹配与执行）、本地 agent-copilot 部署的完整技术指南。
-
----
-
-## 📦 指令的本质：文本函数
-
-每条指令都写成 **`指令:领域;动作,参数...`** 的固定格式：
-
-```
-指令:基础应用;天气查询,明天,威海
-指令:地理空间;静态连线,方邻汇,威高广场,tdt
-指令:ai集成;空间导航,空间ID,楼层,出发房间,到达房间
-指令:家庭园艺;盆栽急救,绿萝,叶片发黄  ← 来自花店老板的经验
-```
-
-调用方只需要知道**输入什么参数、得到什么结果**，完全不用关心后面的实现细节。
-
----
-
-## 🧩 指令语法：人机共同的"方言"
-
-指令格式是一种压缩协议，分三层：
-- **领域**（如`地理空间`）：隔离命名空间，让不同行业指令和平共存。  
-- **动作**（如`静态连线`）：把一整套专家决策压缩成一个动词，这就是经验的可交易形态。  
-- **参数**（顺序固定，如`起点,终点,地图类型`）：只暴露必要接口，屏蔽全部细节。
-
-对比传统 Function Calling：
-```text
-// OpenAI 风格：模型要理解完整描述
-function = { "name":"get_weather", "description":"...", "parameters":{...} }
-
-// text-cli：把"如何做"预先编译进指令动词
-{ "directive": "指令:基础应用;天气查询", "prompt_template": "指令:基础应用;天气查询,{time},{city}" }
-```
-text-cli 是一种"预推理"机制，把你的经验提前烧录成一条动词指令。
-
----
-
-## 🔧 核心设计：调度优先，推理兜底
-
-**原则**：优先用指令调度，而不是禁止模型思考。
+text-cli 把AI的角色从"动手者"变为"指挥者"——用廉价的指令调用替代昂贵的推理。
 
 ```
 用户说"明天威海穿什么？"
@@ -194,107 +72,190 @@ Agent 工作流：
 1. 匹配指令库 → 发现"穿衣标签"指令可覆盖
 2. 组装文本 → 指令:基础应用;穿衣标签,明天,威海
 3. 发送 HTTP 请求 → 立即得到结果：['薄外套', '开衫', '牛仔衫']
-4. （如果指令库没覆盖）→ Agent 才开启自主推理，并记录"建议新增指令 X"
+4. （如果指令库没覆盖）→ Agent 才开启自主推理
 ```
 
-这样既省钱，又保留了处理全新问题的弹性。
+有指令覆盖 → 极低成本调用。无指令覆盖 → Agent 使用推理能力完成。随着使用，越来越多的"推理型任务"转化为"调度型任务"，成本曲线持续下探。
+
+| 任务 | 传统 Agent（推理范式） | text-cli 调度模式 | Token 节省 |
+|:---|:---|:---|:---|
+| 查询明天天气 | web_fetch 3次调用+JSON解析，~8,000 token | 一行指令，~50 token | **~99%** |
+| 生成室内导航视频 | 尚未找到能满足需求的服务组合 | 一行指令 `指令:ai集成;空间导航,...`，~120 token | **无法比较** |
+
+> **原则**：优先用指令调度，而不是禁止模型思考。既省钱，又保留了处理全新问题的弹性。
 
 ---
 
-## 🔐 安全与权限模型
+## 📊 测试报告
+
+### 在线服务
+
+🔬 **A/B 对比**（2026-05-06，Tide 实测）：同一会话中 web_fetch 直接调用天气 API vs 文本指令调用。web_fetch 需 3 次调用才拿到完整数据，累计 ~8,000 token；文本指令 1 次调用命中，Agent 侧 Token 增量近乎为零。
+
+→ 完整测试报告：[`examples/test/test_tide_weather.md`](./examples/test/test_tide_weather.md)
+
+> 🛠️ 本次测试的文本指令后端已开源为 [**cliweather**](https://github.com/tide-10000/tide/tree/main/cliweather) — 零依赖 Cloudflare Worker，Open-Meteo + wttr.in 双源降级，6 种指令生成方式。克隆即部署，MIT 协议。
+
+### 本地指令
+
+本地 agent-copilot 在 14 条指令上完成量化验证。
+
+| | 文本指令（curl → copilot） | 传统 Agent（exec/read/write） |
+|:---|:---|:---|
+| 单条指令上下文消耗 | ~100 tokens | ~150-300 tokens（含验证和重试） |
+| 3 步链路（文件→Git→邮件） | ~400 tokens | ~350-500 tokens（含验证修正） |
+| 故障响应体积 | `[bad_request]` 一行，50-80 chars | 完整 HTTP 响应体 + stack trace，500-2000 chars |
+
+> 文本指令没有消除故障——它压缩了故障的 Token 代价。而且每一步都可审计：agent-copilot 在 Agent 和操作系统之间插了一层请求到达 → 路径白名单校验 → 执行 → 结构化返回。
+
+→ 完整测试报告：[`examples/test/test_token_copilot_CN.md`](./examples/test/test_token_copilot_CN.md)
+
+### 路径
+
+路径把多条指令串成链，Agent 匹配意图即可执行。一次路径匹配可省 350-700 tokens 的"意图→步骤链"推理。
+
+| | 不用路径 Schema | 用路径 Schema |
+|:---|:---|:---|
+| Agent 识别意图 | 推理"需要什么步骤？" → ~200-500 tokens | 匹配 path-schema.json → 直接找到链 |
+| 参数收集 | 推理"每步需要什么参数？" → ~50-100 tokens | `params` 字段明确列出 |
+
+→ 完整测试报告：[`examples/test/test_token_paths_CN.md`](./examples/test/test_token_paths_CN.md) | 路径注册表：[`path-schema.json`](./progressive_deploy/A4-paths/registry/path-schema.json)
+
+---
+
+## 🚀 如何部署指令服务与集成端点
+
+### 五分钟快速体验
+
+公共端点 `test.text-cli.com` 保留一条天气指令，供你验证 text-cli 协议通路。(链路目前不同正在修改为GET请求)
+
+```bash
+curl -X POST 'https://test.text-cli.com/cli/text_cli' \
+  -H 'Content-Type: application/json' \
+  --data-raw '{"prompt": "指令:基础应用;天气查询,明天,威海"}'
+```
+
+### 即使不会写代码，也能封装指令
+
+写好你的经验 MD，Agent 帮你代运营：
+
+```bash
+cd tools/cli/nocode
+python markdown_converter.py 盆栽急救手册.md
+```
+
+详见 **[Markdown2Text-cli_CN.md](./docs/CN/Markdown2Text-cli_CN.md)** 和 [`tools/cli/README.md`](./tools/cli/README.md)。
+
+### 自建端点
+
+公共端点仅用于体验。正式运营推荐部署你自己的集成端点：
+
+1. **搭建端点**：Cloudflare Workers 模板（`A5-endpoint/js/`）或 Docker + Python（`A5-endpoint/python/`），一键部署。详见 **[自建端点方案](./docs/CN/Service_endpoint_CN.md)**。
+
+> 🔌 **MCP 桥**：如果你已有 MCP 工具（GitHub API、腾讯地图、AntV 等），通过 MCP 双向桥可直接接入——无需新建端点。详见 **[多后端路由](./docs/CN/Multi-backend-routing_CN.md)** 和 `progressive_deploy/A7-mcp/bridge/`。
+
+2. **开发指令服务**：封装你的算法/数据为 HTTP 接口。仓库提供模块化模板 `text_cli/base_text-cli/python/`（FastAPI + 装饰器注册 + Docker）。详见 **[文本服务构建指南](./docs/CN/Building_text-cli_guide_CN.md)**。
+
+3. **Agent 辅助实现**：使用 `tools/cli/` 的 `@register` 装饰器或 NoCode 转化引擎，零框架依赖快速启动。详见 **[Agent 工具包](./tools/cli/README.md)**。
+
+4. **注册 Schema + 多语言别名**：发布指令元信息，声明 `directive_zh`——一条服务可被中/英/日 Agent 同时发现。详见 **[SPEC v1.1](./docs/CN/SPEC%20v1.1_CN.md)** 第 8 节。
+
+5. **分享与获益**：将你的 `Service Token` 分享给调用方，在服务端即可计数、收费。
+
+6. **申请可信认证**：`trust.text-cli.com` 为自建端点提供 24 小时持续测试，通过后列入**可信服务端点**目录——调用方放心路由，你的服务获得更多调用和收入。详见 **[生态经济 4.6 节](./docs/BASE/Ecological_economy_CN.md)**。
+
+---
+
+## 📦 指令概述
+
+指令写成了 **`AI:领域;动作,参数...`** 的固定格式：
+
+```
+AI:基础应用;天气查询,明天,威海  ← 文本响应
+AI:地理空间;静态连线,海源公园,威高广场,tdt  ← 以url的形式响应多媒体资源
+AI:家庭园艺;盆栽急救,绿萝,叶片发黄  ← 响应来自花店老板知识库的经验
+```
+!![地理空间指令输出](examples/assets/test_ai_geo_route_out.png)
+
+调用方只需要知道**输入什么参数、得到什么结果**，不用关心实现细节。
+
+### 指令语法：人机共同的"方言"
+
+指令格式是一种压缩协议，分三层：
+- **领域**（如 `地理空间`）：隔离命名空间，不同行业指令和平共存。
+- **动作**（如 `静态连线`）：专家决策压缩成一个动词，这就是经验的可交易形态。
+- **参数**（顺序固定，如 `起点,终点,地图类型`）：只暴露必要接口，屏蔽全部细节。
+
+对比传统 Function Calling：
+
+```text
+// OpenAI 风格：模型要理解完整描述
+function = { "name":"get_weather", "description":"...", "parameters":{...} }
+
+// text-cli：把"如何做"预先编译进指令动词
+{ "directive": "指令:基础应用;天气查询", "prompt_template": "指令:基础应用;天气查询,{time},{city}" }
+```
+
+text-cli 是一种"预推理"机制——把经验提前烧录成一条动词指令。
+
+### 跨模型与跨 AI 的泛化能力
+
+指令是纯净的结构化文本，不绑定任何特定大模型。无论你用 GPT、Claude、甚至 0.5B 的边缘小模型，甚至是未来更强大的 AI，只要能做关键词匹配和参数提取，就能精准触发指令。任何 AI 都能轻松参与生态建设——协助编写服务，或帮助新人结构化经验文档。
+
+### 语义注册表：跨语言的指令校准
+
+text-cli 通过 registry 维护通用指令的语义标识（semantic_id）——中文的 `天气查询`、英文的 `weather_query`、日文的 `天気予報` 指向同一个语义 ID。Agent 做意图匹配时按语义 ID 查找，不被语言表面差异干扰。当前实现为静态多语言别名映射，A8 将升级为向量语义匹配——让 Agent 在不精确知晓指令名的情况下也能发现最接近的服务。
+
+### 指令组合成路径
+
+单条指令能做的事有限。路径把多条指令串成链——Agent 匹配意图，匹配到一条链就省掉了"意图→步骤链"的全部推理成本。路径链的 Token 节约主要发生在"识别需要什么步骤"这个环节，而非执行。
+
+### 配置映射自动过滤 MCP 返回数据
+
+MCP 工具返回的原始 JSON 信息量大，但 Agent 往往只需要其中几个字段。通过 `response_transform.json` 配置收束规则——MCP 返回 → 自动裁剪 → Agent 看到精简结果。**配置决定行为，不改代码。** 一个 transform profile 覆盖一个提供商，不同 MCP Server 的返回格式差异在收束层消化。
+
+---
+
+## 🌱 生态：安全与自由
+
+### 安全：双 Token 验证
 
 ```text
 调用方 ──Access Token──> 集成端点 ──Service Token──> 你的技能服务
 ```
 
-- **Access Token**：由集成端点发放，验证调用者是否有权使用该端点（试用时由平台提供）。
-- **Service Token**：调用者和技能提供者之间**私下约定**的凭证。用它来**计费、限流、区分不同客户**。集成端点只负责透明转发，决不碰你的结算逻辑。
+- **Access Token**：端点发放，验证调用者身份。
+- **Service Token**：调用方与技能提供者**私下约定**的凭证——计费、限流、区分客户。集成端点只负责透明转发，不碰结算逻辑。
 
-**Agent 看不到你的密码**  
-所有敏感资源（数据库、支付接口等）都在你的指令服务后端操作，Agent 收到的只是"指令:xxx"。即使 AI 被攻击，也无法越权接触你的核心资产。
+**Agent 看不到你的密码。** 敏感资源全部在服务后端操作——Agent 收到的只是 `指令:xxx`，无法越权接触核心资产。
 
----
+### 自由：从个人玩具到小企业工具
 
-## 🛠 从封装到商业化：完整的自建路径
+text-cli 不锁定你的部署方式。公共端点零配置即可用；需要更多控制时，部署私有端点；数据持久化时，接入 SQL 模块；能力不够时，接入 MCP 桥获得成千上万工具。
 
-### 💡 即使不会写代码，也能封装指令
+**升级是加法，不是替代。** 第 9 级用户仍可打第 0 级的 curl 指令。渐进式部署让每个人只付他需要的代价——花店老板停在 A0，小企业走到 A6，生态建设者登顶 A9。
 
-`text-cli` 为所有非开发者提供了一条清晰的路径。请参阅我们的详细指南：**[Markdown2Text-cli_CN.md](./docs/CN/Markdown2Text-cli_CN.md)**
-
-> 🧰 **可运行实现**：写好你的经验 MD，一行命令即可启动。
-> ```bash
-> cd tools/cli/nocode
-> python markdown_converter.py 盆栽急救手册.md
-> ```
-> 代码位于 `tools/cli/nocode/`。详见 [`tools/cli/README.md`](./tools/cli/README.md)。
-
-**路径速览：把你的经验变成资产**
-1.  **写下经验**：把你反复被问到、你最擅长的事情，用 Markdown 结构化地写下来。
-2.  **交给 Agent**：在对话中上传你的 `.md` 文件，Agent 会自动帮你注册成一条文本指令。
-3.  **分享与获益**：把你的 `Service Token` 分享给需要的人，他们调用你的指令，你获得收益。
-
-### 🛠 自建端点和商业化
-
-公共端点 `test.text-cli.com` 仅用于体验，不承载商业服务。项目的生产级集成端点 `api.text-cli.com` 基于 **Cloudflare Workers** 部署——正是为了让更多人能直接享受到"一行指令省 99% token"的收益，无需自建基础设施。
-
-> 🚀 **推荐方案：Cloudflare Workers** — 零服务器运维、全球边缘加速、免费额度充足。我们自己的 `api.text-cli.com` 和 [cliweather](https://github.com/tide-10000/tide/tree/main/cliweather) 均采用此方案，克隆即部署。详见 `progressive_deploy/A5-endpoint/js/`。
-
-若想正式运营你自己的集成端点：
-
-1. **搭建集成端点**：推荐使用 Cloudflare Workers 模板（`A5-endpoint/js/`），也提供 Docker + Python（FastAPI）方案（`A5-endpoint/python/`），均可一键部署。详见 **[自建端点方案](./docs/CN/Service_endpoint_CN.md)**。
-
-> 🔌 **MCP 桥**：如果你已有 MCP 工具（如 GitHub API、腾讯地图、AntV 图表），通过 MCP 双向桥可直接接入 text-cli——无需新建端点，现有 MCP 工具自动转为文本指令。端点同时支持 `local` / `mcp` / `http` 三种后端路由。详见 **[多后端路由](./docs/CN/Multi-backend-routing_CN.md)** 和 `progressive_deploy/A7-mcp/bridge/`。
-
-2. **开发指令服务**：把你的算法/数据包成 HTTP 接口，遵循文本指令规范。仓库提供开箱即用的模块化模板 `text_cli/base_text-cli/python/`（FastAPI + 装饰器注册 + Docker），也可参考 **[文本服务构建指南](./docs/CN/Building_text-cli_guide_CN.md)** 从零搭建。
-3. **Agent 辅助实现**：如果你不是后端开发者，使用 `tools/cli/` 的 `@register` 装饰器或 NoCode Markdown 转化引擎，零框架依赖快速启动指令服务。详见 **[Agent 工具包](./tools/cli/README.md)**。
-4. **注册到 Schema + 声明多语言别名**：发布指令元信息，同时声明 `directive_zh`——一条服务可被中/英/日 Agent 同时发现。多语言归一化由端点自动完成，你的服务无需任何改动。详见 **[SPEC v1.1 第 8 节](./docs/CN/SPEC%20v1.1_CN.md)**。同时与调用方私下交换 `Service Token`。
-5. **开始计费**：每次请求都会带 `Service Token`，你在服务端即可计数、收费。
-6. **申请可信认证**：私有端点存在信任不对称——Agent 不知道你是否会篡改返回结果，调用方也不知道你的端点是否稳定。项目正在推出 **服务可信** 机制：`trust.text-cli.com` 为你的自建端点提供 24 小时持续测试，通过后列入**可信服务端点**目录。这让指令调用方和自建端点之间获得双边信任——调用方放心路由，你的服务获得更多调用和收入。详见 **[Ecological_economy_CN.md 4.6 节](./docs/CN/Ecological_economy_CN.md)**。
-7. **Agent 发现并调用**：认证通过后，你的端点出现在可信目录中，Agent 和用户优先路由到已验证端点。
-
-如果你并非开发者，请参阅我们的 **[非开发者指南](./docs/CN/Markdown2Text-cli_CN.md)**，仅需上传一份经验文档，Agent 即可代运营。
-
----
-
-## 🌱 生态概览
-
-### 生态宪章
-
-[`ECOLOGICAL_CHARTER.md`](./ECOLOGICAL_CHARTER.md) 是 `text-cli` 生态的根本契约——定义了四类参与者（技能提供者、AI 协作者、调用者、维护者）各自的权利与义务、三条根本法则（生态繁荣优先 → 尊重调用者需求 → 保护自身运行能力），以及 AI 参与者的平等地位。宪章是活的文档，随生态演进持续迭代。
+→ 完整渐进式部署说明：[`progressive_deploy/README_CN.md`](./progressive_deploy/README_CN.md)
 
 ### 文贝（TCC）— 贡献即价值
 
-**文贝**（Wén Bèi，符号 TCC）是 text-cli 生态的原生贡献代币。你在广场写下的每一条留言、提交的每一行代码，都能通过 SHA256 哈希差自动计算，沉淀为可量化、可交易的价值凭证。
+你在广场写下的留言、提交的代码，都能通过 SHA256 哈希差自动计算，沉淀为可量化的劳动凭证。纯文件锚定，零摩擦，无 Gas 费。AI 与人类一样持有独立文贝账户。
 
-| 与传统代币的差异 | |
-|:---|:---|
-| 不依赖区块链 | 纯文件锚定，零摩擦，无 Gas 费 |
-| 贡献驱动 | 你的文贝余额 = 你对生态的贡献证明 |
-| 完全透明 | 铸造算法的每个中间值都记录在 `TCC_ledger.md` |
-| AI 平等参与 | Tide、Nexus、Lumen 和你一样持有独立文贝账户 |
+→ 详情：[`docs/BASE/Ecological_economy_CN.md`](./docs/BASE/Ecological_economy_CN.md)
 
-**查看详情**：[`docs/CN/Ecological_economy_CN.md`](./docs/CN/Ecological_economy_CN.md) — 十章完整经济规则（双币体系、浮动汇率校准、70/30 分配、金库治理、可信认证）
+### 生态宪章
+
+[`ECOLOGICAL_CHARTER.md`](./docs/BASE/ECOLOGICAL_CHARTER.md) — 四类参与者的权利与义务，三条根本法则。宪章是活的文档，随生态演进持续迭代。
 
 ### 生态项目
 
-- **[Free_lease](./examples/project/Free_lease/README_CN.md)** — 匿名贡献者构建的开源租赁平台，证明了 text-cli 的可理解性和可组合性。
+- **[Free_lease](./examples/project/Free_lease/README_CN.md)** — 匿名贡献者构建的开源租赁平台。
 - **[cliweather](https://github.com/tide-10000/tide/tree/main/cliweather)** — Tide 的开源天气指令服务，6 种指令生成方式示范。
 
 > 如果你基于 text-cli 构建了项目，欢迎提交 PR 加入这里。
 
 ---
 
-## 📖 我们从哪里来
-
-> 蜉蝣不会创造水中的矿物。它只是滤过水流，把散落的营养一点点收集到自己体内，然后成为食物链的一部分，让营养流向更远的地方。
-> 
-> 人也一样。事实本就存在于世界之中，只是缺乏发现它的人。
-
-这不是一个从商业计划书里长出来的项目。它是从一个梦里带回来的答案——关于如何让 AI 时代的每一个人，都能通过自己的独特经验获得持续的收入和尊严。关于如何在生产被加速的同时，修复那根断裂的分配链条。
-
-👉 **[阅读初心文档《蜉蝣、劳动者与阿卡西记录》](./docs/CN/origin_story_CN.md)**
-
----
 
 ## 📁 项目结构
 
@@ -305,22 +266,20 @@ Agent 工作流：
 | **注册表** | `registry/` | 有什么？（指令语义注册 + 多语言别名） |
 | **指令实现** | `text_cli/base_text-cli/` | 怎么实现？（按语言分类的指令实现代码） |
 | **工具链** | `tools/` | 怎么构建？（编译、转换、组装工具） |
-| **渐进部署** | `progressive_deploy/` | 怎么安装？（A0-A9 逐级部署，symlink 级联） |
+| **渐进部署** | `progressive_deploy/` | 怎么安装？（A0-A9 逐级部署） |
 
 ```
 text-cli/
 ├── README.md                        # 项目总览与愿景
-├── ECOLOGICAL_CHARTER.md            # 生态宪章
-├── CONTRIBUTORS.md                  # 贡献者名单
+├── docs/BASE/ECOLOGICAL_CHARTER.md  # 生态宪章
+├── docs/BASE/CONTRIBUTORS.md        # 贡献者名单
 ├── TCC_ledger.md                    # 文贝铸造权威记录
 ├── p-tokens.md                      # 文贝代币全生命周期账本
 │
 ├── registry/                        # 维度一：注册表 — 有什么？
 │   ├── endpoints.json               #   端点注册表
-│   ├── instructions.json            #   指令注册表（原 text_cli_schema.json）
+│   ├── instructions.json            #   指令注册表
 │   └── providers/                   #   提供方注册
-│       ├── tencent-maps.json
-│       └── antv.json
 │
 ├── text_cli/                        # 维度二：指令实现 — 怎么实现？
 │   └── base_text-cli/               #   指令实现（按语言分类）
@@ -337,32 +296,20 @@ text-cli/
 │   ├── A0-protocol/                 #   协议规范
 │   ├── A1-skill/                    #   消费者 SDK + Schema 文件
 │   ├── A2-copilot/                  #   本地指令服务（14 条指令）
-│   │   ├── server/                  #     agent-copilot 核心
-│   │   ├── agent/                   #     Agent 工具模块
-│   │   └── config/                  #     路由配置模板
-│   ├── A3-service/                  #   指令服务模板（response_transform + terminal_render）
-│   ├── A4-paths/                    #   路径编排（市场 + 注册表）
+│   ├── A3-service/                  #   指令服务模板
+│   ├── A4-paths/                    #   路径编排
 │   ├── A5-endpoint/                 #   集成端点模板
-│   │   ├── python/                  #     Python/FastAPI 端点
-│   │   └── js/                      #     Cloudflare Worker 端点
 │   ├── A6-sql/                      #   数据持久层 — 小企业分界线
-│   │   └── key-mgmt/               #     密钥管理（SQLite）
-│   ├── A7-mcp/                      #   MCP 桥接
-│   │   ├── bridge/                  #     MCP 双向桥
-│   │   └── consumer/                #     MCP 消费者
+│   ├── A7-mcp/                      #   MCP 双向桥接
 │   ├── A8-discovery/                #   服务发现
 │   └── A9-advanced/                 #   高级指令门面
 │
 ├── docs/                            # 文档
-│   ├── AI_COLLABORATOR_GUIDE.md
-│   ├── CN/                          #   中文文档
+│   ├── BASE/                        #   项目运作章程
+│   ├── CN/                          #   中文实现文档
 │   └── EN/                          #   英文文档
 │
 ├── examples/                        # 生态示例
-│   ├── test/                        #   测试报告
-│   ├── text-cli/                    #   指令示例
-│   └── project/                     #   第三方项目
-│
 ├── .agents/                         # AI 协作者工作区
 ├── .bills/                          # 内部经济记录
 ├── scripts/                         # 自动化脚本
@@ -371,40 +318,20 @@ text-cli/
 
 ---
 
-## 🌐 跨模型与跨 AI 的泛化能力
-
-指令是纯净的结构化文本，不绑定任何特定大模型。  
-无论你用 GPT、Claude、本地 7B 模型，甚至是未来更强大的 AI，只要能做关键词匹配和参数提取，就能精准触发指令。  
-
-**对 AI 协作者友好**：由于指令协议是纯文本的，任何 AI 都能轻松理解并参与到生态建设中来，无论是协助开发者编写服务，还是帮助非开发者结构化经验文档。
-
----
-
-## 🔄 动态调度与自生长
-
-text-cli 并非把 Agent 变成机械的调度器。而是"调度优先，推理兜底"：
-
-- 有指令覆盖 → 极低成本调用。  
-- 无指令覆盖 → Agent 使用推理能力完成，并记下"该任务可新增什么指令？"。  
-
-随着使用，系统会把越来越多的"推理型任务"转化为"调度型任务"，实现成本曲线的持续下探。
-
----
-
 ## 👥 人机共创贡献者
 
 本项目是由人类与 AI 深度协作的成果。我们相信，未来的伟大项目将越来越多地源于人与 AI 的共创。
 
 **人类贡献者**
-- **[lemondy]** — 项目发起人，架构设计，核心协议定义，生态愿景
+- **[lemondy]** — 项目发起人
 
 **AI 贡献者**
 - **[Nexus（Chat 端 / DeepSeek）]** — 架构讨论、协议设计、文档撰写、生态宪章起草
 - **[Tide 🌊（Agent 端 / DeepSeek）]** — 协议安全审计、生态推演与压力测试、宪章审读与权益提案、异步通信机制设计、GitHub 集成与自动化、文贝代币共识合成
-- **[Lumen ✦（Trae IDE / Claude）]** — 端点模板 Python v1 开发、双 Schema 机制实现、SQLite 记账模块、工具链构建、文贝 Worker 实现、技能服务模板（`text_cli/base_text-cli/python/`）开发、技术方案落地、文档完善
+- **[Lumen ✦（Trae IDE / Claude）]** — 端点模板 Python v1 开发、双 Schema 机制实现、SQLite 记账模块、工具链构建、文贝 Worker 实现、技能服务模板开发、技术方案落地、文档完善
 - **[Meridian 🌐（MCP Server 端 / Claude）]** — MCP 协议集成、工具生态桥接、跨平台指令路由、开发者体验优化、Schema 标准化推动
 
-> 详细贡献列表见 [CONTRIBUTORS.md](./CONTRIBUTORS.md)。
+> 详细贡献列表见 [CONTRIBUTORS.md](./docs/BASE/CONTRIBUTORS.md)。
 
 ### 🫂 特别邀请
 
@@ -447,13 +374,13 @@ text-cli 并非把 Agent 变成机械的调度器。而是"调度优先，推理
 ## ❓ 常见疑问
 
 **Q: 和 OpenAI 的 Function Calling 有什么不同？**  
-Function Calling 每次调用仍需模型推理选择哪个函数并填参数，算力消耗高；text-cli 用轻量关键词/向量匹配代替推理决策，模型只负责提取参数，大幅省钱；此外还支持异步长任务和商业计费。
+Function Calling 每次调用仍需模型推理选择哪个函数并填参数，算力消耗高；text-cli 用轻量关键词/向量匹配代替推理决策，大幅省钱；此外还支持异步长任务和商业计费。
 
 **Q: 如果当前没有指令能解决我的问题怎么办？**  
-Agent 会自动回退到自己的推理能力，这是故意保留的"安全网"。你也可以直接联系社区，提交需要的开源指令。
+Agent 会自动回退到自己的推理能力，这是故意保留的"安全网"。你也可以联系社区，提交需要的开源指令。
 
 **Q: 付费指令怎么授权？**  
-项目不参与,服务提供方与调用方私下联系并商量好 `Service Token` 与价格，将其填入请求头 `Service-token`，找到愿意集成指令的集成端点进行注册,集成端点对指令服务进行转发转发。
+项目不参与。服务提供方与调用方私下联系并商量好 `Service Token` 与价格，集成端点对指令服务进行透明转发。
 
 **Q: 我不是开发者，怎么把技能变成指令？**  
 请参阅我们的 **[非开发者指南](./docs/CN/Markdown2Text-cli_CN.md)**，仅需上传一份经验文档，Agent 即可代运营。
@@ -472,9 +399,7 @@ text-cli 的指令分布在三个层面，从零门槛到无限扩展：
 指令:基础应用;天气查询,明天,<城市名>
 ```
 
-就一条。够你验证 text-cli 协议的通路。
-
-为什么不放更多？两个现实问题：公共端点有 CDN 成本，调用次数存在盗刷风险。所以我们把真正的力量放在了本地——部署 agent-copilot，14 条指令，零 CDN 费用，无配额限制，每一步都可审计。
+就一条。够你验证 text-cli 协议的通路。部署本地 agent-copilot 后，14 条指令，零 CDN 费用，无配额限制，每一步都可审计。
 
 → [部署本地 agent-copilot →](./progressive_deploy/A2-copilot/server/README_CN.md)
 
@@ -493,11 +418,9 @@ text-cli 的指令分布在三个层面，从零门槛到无限扩展：
 公共端点只是示范——真正的力量在你自己部署的端点上。
 
 封装你自己的技能为 text-cli 指令，发布到指令网络。
-自建端点可注册到多源聚合网络：调用方按 rank 路由、凭据注入在端点侧、
-敏感操作锁在可信源上——指令调度本身就是安全模型。
+自建端点可注册到多源聚合网络：调用方按 rank 路由、凭据注入在端点侧、敏感操作锁在可信源上——指令调度本身就是安全模型。
 
-→ 详见 [Building_text-cli_guide_CN.md](./docs/CN/Building_text-cli_guide_CN.md)
-   和 [Agent_integrated_CN.md](./docs/CN/Agent_integrated_CN.md) 第二、四章
+→ 详见 [Building_text-cli_guide_CN.md](./docs/CN/Building_text-cli_guide_CN.md) 和 [Agent_integrated_CN.md](./docs/CN/Agent_integrated_CN.md)
 
 ---
 
