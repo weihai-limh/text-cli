@@ -330,6 +330,7 @@ text-cli/
 ├── tools/                           # 维度三：工具链 — 怎么构建？
 │   ├── cli/                         #   指令编译工具
 │   ├── mcp2textcli/                 #   MCP → text-cli 转换
+│   ├── tcc/                         #   文贝贡献计量工具
 │   └── assemble/                    #   组装管道
 │
 ├── progressive_deploy/              # 维度四：渐进部署 — 怎么安装？
@@ -344,9 +345,8 @@ text-cli/
 │   ├── A5-endpoint/                 #   集成端点模板
 │   │   ├── python/                  #     Python/FastAPI 端点
 │   │   └── js/                      #     Cloudflare Worker 端点
-│   ├── A6-sql/                      #   数据持久层
-│   │   ├── tcc/                     #     文贝铸造 Worker
-│   │   └── key-mgmt/               #     密钥管理
+│   ├── A6-sql/                      #   数据持久层 — 小企业分界线
+│   │   └── key-mgmt/               #     密钥管理（SQLite）
 │   ├── A7-mcp/                      #   MCP 桥接
 │   │   ├── bridge/                  #     MCP 双向桥
 │   │   └── consumer/                #     MCP 消费者
