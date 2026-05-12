@@ -127,7 +127,7 @@ Agent 工作流：
 
 ### 五分钟快速体验
 
-公共端点 `test.text-cli.com` 保留一条天气指令，供你验证 text-cli 协议通路。(链路目前不同正在修改为GET请求)
+公共端点 `test.text-cli.com` 保留一条天气指令，供你验证 text-cli 协议通路。(地址目前不通正在改造测试访问为GET请求)
 
 ```bash
 curl -X POST 'https://test.text-cli.com/cli/text_cli' \
