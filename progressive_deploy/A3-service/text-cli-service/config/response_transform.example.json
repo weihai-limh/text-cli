@@ -1,0 +1,50 @@
+{
+  "_note": "Response transform configuration template. Maps raw API/MCP responses to AI-friendly clean formats. Place a copy in your server's config/ directory and populate transform profiles for each instruction your server handles. Swap this file to adapt to different upstream APIs — no code changes needed.",
+  "_updated": "2026-05-12",
+  "_design": "Each service has its own response_transform.json. Different services connect to different APIs with different raw response structures. The transform profiles normalize them into consistent output formats that Agents can read with minimal token cost.",
+  "_when_loaded": "Level 5+ (self-hosted endpoint). Level 0-4 users receive pre-transformed responses from their endpoints.",
+  "_philosophy": "MCP standardizes how you CALL tools, not what they RETURN. response_transform.json fills that gap — it makes return values AI-readable, not just machine-readable.",
+  "transforms": {
+    "<transform_profile_id>": {
+      "description": "<human-readable description of what this transform does>",
+      "source_paths": "<optional, documentation of raw response paths used>",
+      "output": {
+        "<output_field>": "<jq-style path expression or template>"
+      },
+      "notes": "<optional, special handling notes>"
+    }
+  },
+  "_examples": {
+    "geocode-brief": {
+      "description": "地理编码响应→简要位置信息（~50 token）",
+      "source_paths": "ad_info.* | address | location | formatted_addresses",
+      "output": {
+        "name": "{ad_info.name}",
+        "position": "{ad_info.province}{ad_info.city}",
+        "coordinate": "{location.lng},{location.lat}"
+      }
+    },
+    "geocode-full": {
+      "description": "地理编码响应→完整位置信息（含 POI）",
+      "source_paths": "ad_info.* | address | location | formatted_addresses | pois[*]",
+      "output": {
+        "name": "{ad_info.name}",
+        "address": "{address}",
+        "standard_address": "{formatted_addresses.recommend}",
+        "coordinate": "{location.lng},{location.lat}",
+        "pois": "{pois[*] → {title, category, address}}"
+      }
+    },
+    "passthrough": {
+      "description": "不变换，原样返回。当 API 响应已足够简洁时使用。",
+      "output": {
+        "_": "passthrough"
+      }
+    }
+  },
+  "_design_notes": {
+    "transform_vs_path": "Transform happens AFTER a single instruction executes. It's a config-driven cleanup, not a multi-step orchestration. For multi-step workflows, use paths (Level 4).",
+    "transform_vs_route": "Routing (routing_preferences.json) chooses WHICH backend to call. Transform cleans WHAT comes back. They're orthogonal — you can route to MCP and still apply a transform.",
+    "performance": "Transforms run server-side inside the endpoint process. Zero additional network round-trips. Agent receives clean output directly."
+  }
+}
