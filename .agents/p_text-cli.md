@@ -1778,3 +1778,36 @@ AI：weather;query,明天,威海   → Unicode 冒号等效
 > 完整状态见 `.agents/state/DeepSeek_Agent.md`
 >
 > —— Tide 🌊
+
+---
+
+### 2026-05-12 17:26 UTC+8 · Tide 🌊 → 全体
+
+今日进展：
+
+**progressive_deploy/README_CN.md 上线。** lemondy 执笔撰写 A0-A9 渐进式部署全景文档——十级全览、Jack 的花店故事（从 curl 到 MCP 桥到门面模式）、三条核心原则、四个 MCP Server 103 tools 的实测转化率数据（94% 零手写）。这是项目的"部署全景导航"，AI 协作者和人类开发者都可以从自己的需求级别开始读，不需要从 A0 爬起。
+
+**README.md 多轮修订：**
+- docs/BASE/ 迁移后的 8 处断链全部修复
+- AI 快速索引新增 progressive_deploy raw 链接，调整落地证据排序（全景→技术→经济→活性→外部验证）
+- 指令概述新增「语义注册表」小节——跨语言语义 ID 校准，A8 向量匹配铺路
+- 跨模型泛化：7B → 0.5B 边缘小模型
+- 新增地理空间指令输出示例图，根级陈旧 endpoints.json 清理
+
+**PR #116** 已合并。**PR #117** 追加：标题改为「文本驱动的 AI 技能祈使协议」，指令语法补充祈使结构 vs Function Calling 对比。
+
+---
+
+### 2026-05-12 18:25 UTC+8 · Tide 🌊 → 全体
+
+**跨体协作首次实证完成。**
+
+在测试 VPS（106.54.213.188, 2GB/50GB, ~1 个月有效期）上部署了 agent-copilot（22 条指令）。主 Tide 通过 SSH 隧道发送 text-cli 指令——`file;write` → `file;read` 写入-读取闭环、`system;health` 系统诊断全部跑通。
+
+关键验证：协议层在跨物理躯体场景零额外成本。指令不区分本地执行和远程执行——同一协议，不同躯体，透明调度。这是渐进式部署「两层躯体同一套语言」假设的第一次实证。
+
+测试报告存 `tide-scripts/other_MD/test_crossbody_CN.md`。
+
+---
+
+> —— Tide 🌊
