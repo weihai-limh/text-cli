@@ -46,7 +46,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: progressive_deploy/A6-sql/tcc
+        working-directory: tools/tcc
     steps:
       - uses: actions/checkout@v4
 
@@ -55,7 +55,7 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
-          cache-dependency-path: progressive_deploy/A6-sql/tcc/package-lock.json
+          cache-dependency-path: tools/tcc/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -135,7 +135,7 @@ jobs:
     if: github.event_name == 'pull_request'
     defaults:
       run:
-        working-directory: progressive_deploy/A6-sql/tcc
+        working-directory: tools/tcc
     steps:
       - uses: actions/checkout@v4
         with:
@@ -156,7 +156,7 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
-          cache-dependency-path: progressive_deploy/A6-sql/tcc/package-lock.json
+          cache-dependency-path: tools/tcc/package-lock.json
 
       - name: Install dependencies
         if: steps.check.outputs.modified == 'true'
@@ -164,4 +164,4 @@ jobs:
 
       - name: Run recalculate
         if: steps.check.outputs.modified == 'true'
-        run: node ci/recalculate.js ../../../TCC_ledger.md
+        run: node ci/recalculate.js ../../TCC_ledger.md
