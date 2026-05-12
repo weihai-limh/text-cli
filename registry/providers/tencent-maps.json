@@ -1,0 +1,15 @@
+{
+  "id": "tencent-maps",
+  "name": "腾讯地图",
+  "semantic_id": "tencentmap",
+  "type": "mcp",
+  "description": "腾讯地图 MCP Server — 地理编码、逆地理编码、地点搜索、路线规划",
+  "homepage": "https://mcp-api.tencent-cloud.com",
+  "category": "maps",
+  "tools": [
+    "geocoding",
+    "reverse_geocoding",
+    "place_search",
+    "direction"
+  ]
+}
