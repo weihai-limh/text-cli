@@ -1,0 +1,45 @@
+{
+  "_note": "Terminal render configuration template — canonical version. Maps response media types to render instructions. Place in your server's config/ directory. Swap only this file to adapt to a different terminal — no code changes needed.",
+  "_updated": "2026-05-12",
+  "_when_loaded": "Level 5+ (self-hosted endpoint). Level 0-4 endpoints handle rendering internally or expose pre-rendered URLs.",
+  "_design": "Not a step type — a configuration item. When any instruction or path produces a media URL, the render config decides how to display it. The same instruction output can render differently on different terminals.",
+  "triggers": {
+    "<trigger_name>": {
+      "match": "<description of what triggers this rule (e.g., response contains image URL)>",
+      "proxy": "<optional proxy instruction, null if not needed. Use {url} placeholder>",
+      "instruction": "<render instruction template. Use {url}, {alt}, {proxied_url} placeholders>",
+      "description": "<human-readable description of this trigger>"
+    }
+  },
+  "detection_order": [
+    "<ordered list of trigger names — first match wins. Put specific types before generic fallbacks>"
+  ],
+  "_proxy_notes": {
+    "why": "External CDN URLs may have signing expiry, CORS restrictions, or platform incompatibility. Proxy downloads to local workspace and serves via /media/ — URLs never expire, fully cross-platform.",
+    "how": "media;download,<url> → download to disk (SHA256 dedup) → return local /media?path= URL → resource;render from local URL",
+    "local_skip": "Local file paths and data URIs skip the proxy step — already local or self-contained."
+  },
+  "_real_example": {
+    "detection_order": ["image", "video", "audio", "fallback"],
+    "triggers": {
+      "image": {
+        "match": "response contains image/gif/png/jpg URL or data URI",
+        "proxy": "resource;proxy,{url}",
+        "instruction": "resource;render,{proxied_url}",
+        "description": "Static images and GIFs — proxy then render"
+      },
+      "video": {
+        "match": "response contains video URL",
+        "proxy": null,
+        "instruction": "resource;render,{url}",
+        "description": "Videos render inline where supported"
+      },
+      "fallback": {
+        "match": "any other response",
+        "proxy": null,
+        "instruction": "text;display,{text}",
+        "description": "Plain text — display as-is"
+      }
+    }
+  }
+}
