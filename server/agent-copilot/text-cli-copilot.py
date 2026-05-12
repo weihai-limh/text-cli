@@ -28,6 +28,7 @@ from handlers import (
     FileHandlers, GitHandlers, MailHandlers,
     SystemHandlers, AIHandlers, TerminalHandlers,
     CodecHandlers, KeyHandlers, MediaHandlers,
+    JsonProcHandlers,
 )
 # TerminalHandlers comes from handlers.oc_terminal (depends on OpenClaw Skill)
 
@@ -46,6 +47,7 @@ class Copilot(
     CodecHandlers,
     KeyHandlers,
     MediaHandlers,
+    JsonProcHandlers,
     CopilotCore,
 ):
     """Directive copilot server — inherits all handler mixins + core engine"""
