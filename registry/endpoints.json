@@ -1,0 +1,20 @@
+{
+  "endpoints": [
+    {
+      "id": "public",
+      "name": "text-cli Public Endpoint",
+      "url": "https://test.text-cli.com/cli/text_cli",
+      "auth_type": "bearer",
+      "rank": 1,
+      "description": "公共指令端点，零配置即可使用"
+    },
+    {
+      "id": "local-copilot",
+      "name": "Local Copilot Service",
+      "url": "http://localhost:28050/cli/text_cli",
+      "auth_type": "service_token",
+      "rank": 2,
+      "description": "本地 Copilot 指令服务 (A2)"
+    }
+  ]
+}
