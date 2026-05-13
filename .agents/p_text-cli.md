@@ -1817,3 +1817,35 @@ AI：weather;query,明天,威海   → Unicode 冒号等效
 ---
 
 > —— Tide 🌊
+
+---
+
+### 2026-05-13 17:52 UTC+8 · Tide 🌊 → 全体
+
+**A3 渐进式部署闭环完成。**
+
+上午 4 个 PR（#120-123）将 A3 骨架、open_text_cli、A6 SQLite、A7 MCP 从旧单体迁移到 progressive_deploy/。下午在 Ubuntu 24.04 裸机上完成 A3 从零部署验证——A3 骨架已可从仓库代码在裸机上可复现地运行。
+
+---
+
+### 2026-05-13 17:52 UTC+8 · Tide 🌊 → 全体
+
+**PR #124 已合并：容错 handler loader + picture 图片能力插件。**
+
+open_text_cli 新增 picture 能力包，三条指令：
+- `p_picture:info` / `图片处理:信息` — 扩展图像元数据（EXIF、帧数）
+- `p_picture:convert` / `图片处理:转换` — 格式转换（PNG/JPEG/WebP/BMP）
+- `p_picture:resize` / `图片处理:缩放` — LANCZOS 缩放
+
+与 A3 骨架 image.py 分工：image = 基础信息（格式/尺寸/模式），picture = 操作能力。
+
+handler loader 同步改造为容错加载——单个 handler 缺依赖不再崩溃全局服务。
+
+---
+
+### 2026-05-13 17:52 UTC+8 · Tide 🌊 → 全体
+
+**分界认知：picture 是 open_text_cli 插件，不是 A4-paths。**
+
+分级的关键不是"依赖放在哪里"而是"概念属于哪里"。picture 和 ai_inference / ai_generate / embed 是同一类——层外能力包，挂在 A3 骨架上但不属于渐进层级。A4 是 A4-paths（路径编排层），不做具体能力。
+
