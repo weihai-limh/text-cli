@@ -1,0 +1,182 @@
+{
+  "map;geocode": {
+    "server": "tencent-maps",
+    "tool": "geocoder",
+    "adapter": "passthrough",
+    "timeout_ms": 30000
+  },
+  "地图;地址解析": {
+    "server": "tencent-maps",
+    "tool": "geocoder",
+    "adapter": "passthrough",
+    "timeout_ms": 30000
+  },
+  "map;reverse_geocode": {
+    "server": "tencent-maps",
+    "tool": "reverseGeocoder",
+    "adapter": "passthrough",
+    "timeout_ms": 30000
+  },
+  "地图;逆地址解析": {
+    "server": "tencent-maps",
+    "tool": "reverseGeocoder",
+    "adapter": "passthrough",
+    "timeout_ms": 30000
+  },
+  "map;ip_location": {
+    "server": "tencent-maps",
+    "tool": "ipLocation",
+    "adapter": "passthrough",
+    "timeout_ms": 30000
+  },
+  "地图;IP定位": {
+    "server": "tencent-maps",
+    "tool": "ipLocation",
+    "adapter": "passthrough",
+    "timeout_ms": 30000
+  },
+  "map;place_search": {
+    "server": "tencent-maps",
+    "tool": "placeSuggestion",
+    "adapter": "passthrough",
+    "timeout_ms": 30000
+  },
+  "地图;地点搜索": {
+    "server": "tencent-maps",
+    "tool": "placeSuggestion",
+    "adapter": "passthrough",
+    "timeout_ms": 30000
+  },
+  "map;nearby_search": {
+    "server": "tencent-maps",
+    "tool": "placeSearchNearby",
+    "adapter": "passthrough",
+    "timeout_ms": 30000
+  },
+  "地图;周边搜索": {
+    "server": "tencent-maps",
+    "tool": "placeSearchNearby",
+    "adapter": "passthrough",
+    "timeout_ms": 30000
+  },
+  "map;place_detail": {
+    "server": "tencent-maps",
+    "tool": "placeDetail",
+    "adapter": "passthrough",
+    "timeout_ms": 30000
+  },
+  "地图;地点详情": {
+    "server": "tencent-maps",
+    "tool": "placeDetail",
+    "adapter": "passthrough",
+    "timeout_ms": 30000
+  },
+  "map;along_route": {
+    "server": "tencent-maps",
+    "tool": "placeAlongby",
+    "adapter": "passthrough",
+    "timeout_ms": 30000
+  },
+  "地图;沿途搜索": {
+    "server": "tencent-maps",
+    "tool": "placeAlongby",
+    "adapter": "passthrough",
+    "timeout_ms": 30000
+  },
+  "map;driving_route": {
+    "server": "tencent-maps",
+    "tool": "directionDriving",
+    "adapter": "passthrough",
+    "timeout_ms": 30000
+  },
+  "地图;驾车路线": {
+    "server": "tencent-maps",
+    "tool": "directionDriving",
+    "adapter": "passthrough",
+    "timeout_ms": 30000
+  },
+  "map;bicycling_route": {
+    "server": "tencent-maps",
+    "tool": "directionBicycling",
+    "adapter": "passthrough",
+    "timeout_ms": 30000
+  },
+  "地图;骑行路线": {
+    "server": "tencent-maps",
+    "tool": "directionBicycling",
+    "adapter": "passthrough",
+    "timeout_ms": 30000
+  },
+  "map;walking_route": {
+    "server": "tencent-maps",
+    "tool": "directionWalking",
+    "adapter": "passthrough",
+    "timeout_ms": 30000
+  },
+  "地图;步行路线": {
+    "server": "tencent-maps",
+    "tool": "directionWalking",
+    "adapter": "passthrough",
+    "timeout_ms": 30000
+  },
+  "map;transit_route": {
+    "server": "tencent-maps",
+    "tool": "directionTransit",
+    "adapter": "passthrough",
+    "timeout_ms": 30000
+  },
+  "地图;公交路线": {
+    "server": "tencent-maps",
+    "tool": "directionTransit",
+    "adapter": "passthrough",
+    "timeout_ms": 30000
+  },
+  "map;future_driving": {
+    "server": "tencent-maps",
+    "tool": "futureDrivingDirection",
+    "adapter": "passthrough",
+    "timeout_ms": 30000
+  },
+  "地图;未来驾车": {
+    "server": "tencent-maps",
+    "tool": "futureDrivingDirection",
+    "adapter": "passthrough",
+    "timeout_ms": 30000
+  },
+  "map;distance_matrix": {
+    "server": "tencent-maps",
+    "tool": "matrix",
+    "adapter": "passthrough",
+    "timeout_ms": 30000
+  },
+  "地图;距离矩阵": {
+    "server": "tencent-maps",
+    "tool": "matrix",
+    "adapter": "passthrough",
+    "timeout_ms": 30000
+  },
+  "map;waypoint_order": {
+    "server": "tencent-maps",
+    "tool": "waypointOrder",
+    "adapter": "passthrough",
+    "timeout_ms": 30000
+  },
+  "地图;途经点排序": {
+    "server": "tencent-maps",
+    "tool": "waypointOrder",
+    "adapter": "passthrough",
+    "timeout_ms": 30000
+  },
+  "map;weather": {
+    "server": "tencent-maps",
+    "tool": "weather",
+    "adapter": "passthrough",
+    "timeout_ms": 30000
+  },
+  "地图;天气查询": {
+    "server": "tencent-maps",
+    "tool": "weather",
+    "adapter": "passthrough",
+    "timeout_ms": 30000
+  }
+}
