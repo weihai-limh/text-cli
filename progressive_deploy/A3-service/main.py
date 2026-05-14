@@ -1,4 +1,5 @@
 import json
+import socket
 import logging
 import os
 import sys
@@ -165,7 +166,7 @@ async def health(request: Request):
 
         return {
             "status": "ok",
-            "body": "vm-4-2",
+            "body": os.environ.get("BODY_NAME", socket.gethostname()),
             "version": "1.0.0",
             "capabilities": {
                 "packages": [p for p in installed if p not in ("sample",)],
@@ -189,7 +190,7 @@ async def health(request: Request):
 
     return {
         "status": "ok",
-        "body": "vm-4-2",
+        "body": os.environ.get("BODY_NAME", socket.gethostname()),
         "version": "1.0.0",
         "public_skills": public_count,
     }

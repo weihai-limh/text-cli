@@ -9,7 +9,7 @@ import json
 import pathlib
 import time
 
-AUDIT_PATH = pathlib.Path("/path/to/text-cli/service/.install_audit.jsonl")
+AUDIT_PATH = pathlib.Path(__file__).parent.parent / ".install_audit.jsonl"
 
 
 def log_install(name: str, meta: dict, success: bool, message: str):
