@@ -1,33 +1,77 @@
 {
-  "_note": "路径注册表 — 当单条指令无法完成任务时，Agent 通过意图匹配找到路径。与 agent-text-cli-schema.json 并列。每条路径的 instruction_chain 引用的指令 ID 必须已在指令 Schema 中注册。params 列出路径执行前需从用户/环境收集的信息。",
-
-  "查找消息并发送邮件": {
-    "description": "从 AI 协作者状态中查找最近的对话消息，写入文件后通过邮件发送给指定收件人",
-    "params": ["消息条数", "收件人邮箱", "邮件主题"],
-    "instruction_chain": [
-      "AI:ai;messages",
-      "AI:file;write",
-      "AI:email;send"
-    ],
-    "path_doc": "",
-    "require_instructions": ["ai;messages", "file;write", "email;send"],
-    "rank": 1,
-    "tags": ["toolchain", "messages", "email"],
-    "remarks": "全 copilot 本地执行，不依赖远程端点"
-  },
-
-  "照片分析": {
-    "description": "加载本地图片 → 视觉模型分析地貌/植被/天气/光线 → 压缩为100字中文摘要",
-    "params": ["图片路径", "分析侧重点(可选)"],
-    "instruction_chain": [
-      "AI:image;load",
-      "AI:ai;vision",
-      "AI:ai;inference"
-    ],
-    "path_doc": "",
-    "require_instructions": ["image;load", "ai;vision", "ai;inference"],
-    "rank": 1,
-    "tags": ["toolchain", "vision", "photo", "summary"],
-    "remarks": "横跨 copilot(本地) + 远程端点。image;load 需 media.py 部署在 copilot base/"
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://text-cli.com/path-schema.json",
+  "title": "text-cli Path Declaration",
+  "description": "Schema for text-cli path declarations. Paths are composite directive chains registered via text-cli;path --register and published via text-cli;pro.",
+  "type": "object",
+  "required": ["id", "name", "version", "type", "steps"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique path identifier (e.g. 'photo_analysis')"
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable name in primary locale"
+    },
+    "name_en": {
+      "type": "string",
+      "description": "English name"
+    },
+    "version": {
+      "type": "string",
+      "description": "Semver version string"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["skill", "pipeline"],
+      "description": "skill = consumer-facing composite capability; pipeline = internal processing chain"
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["toolchain"],
+      "description": "Execution mode. toolchain = linear sequential steps"
+    },
+    "locales": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Supported locale codes (e.g. ['cn', 'en'])"
+    },
+    "description": {
+      "type": "string",
+      "description": "Path description"
+    },
+    "description_cn": {
+      "type": "string",
+      "description": "Chinese description"
+    },
+    "input_schema": {
+      "type": "object",
+      "description": "JSON Schema fragment describing expected input"
+    },
+    "output_schema": {
+      "type": "object",
+      "description": "JSON Schema fragment describing expected output"
+    },
+    "requires": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Directives required for this path to execute (domain;action format)"
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["directive", "output_as"],
+        "properties": {
+          "directive": {"type": "string", "description": "text-cli directive with ${variable} placeholders"},
+          "output_as": {"type": "string", "description": "Variable name to store step output"}
+        }
+      }
+    },
+    "directives": {
+      "type": "array",
+      "description": "Filled by text-cli;pro after publication. The skill-domain directives this path is callable through."
+    }
   }
 }
