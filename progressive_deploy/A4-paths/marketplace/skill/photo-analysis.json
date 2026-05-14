@@ -1,0 +1,45 @@
+{
+  "id": "photo_analysis",
+  "name": "照片分析",
+  "name_en": "Photo Analysis",
+  "version": "1.0.0",
+  "type": "skill",
+  "mode": "toolchain",
+  "locales": ["cn", "en"],
+  "description": "读取图片元数据 → 编码 → 视觉推理 → 生成 50 字摘要",
+  "description_cn": "读取图片元数据 → 编码压缩 → 视觉模型识别 → AI 推理生成 50 字中文摘要",
+  "input_schema": {
+    "type": "string",
+    "description_cn": "图片文件路径（本地绝对路径或可访问 URL）",
+    "description_en": "Image file path (local absolute path or accessible URL)"
+  },
+  "output_schema": {
+    "type": "text",
+    "description_cn": "50 字中文照片摘要",
+    "description_en": "50-char photo summary in Chinese"
+  },
+  "requires": [
+    "image;info",
+    "image;encode",
+    "AI;vision",
+    "AI;reasoning"
+  ],
+  "steps": [
+    {
+      "directive": "image;info,${input}",
+      "output_as": "metadata"
+    },
+    {
+      "directive": "image;encode,${input},1024",
+      "output_as": "encoded"
+    },
+    {
+      "directive": "AI;vision,请详细描述这张照片的内容,${encoded},default,cache",
+      "output_as": "description"
+    },
+    {
+      "directive": "AI;reasoning,用50字中文摘要以下描述：${description},default",
+      "output_as": "summary"
+    }
+  ]
+}
