@@ -43,8 +43,11 @@ MCP_PORT = int(os.environ.get("MCP_PORT", "9020"))
 # ── 路径 ──────────────────────────────────────────
 
 HERE = pathlib.Path(__file__).parent
-EXPOSURE_PATH = HERE / "mcp_exposure.json"
-SCHEMA_DIR = pathlib.Path("/path/to/text-cli/service/handlers/schema")
+EXPOSURE_PATH = pathlib.Path(os.environ.get("TEXTCLI_EXPOSURE_PATH", str(HERE / "mcp_exposure.json")))
+SCHEMA_DIR = pathlib.Path(os.environ.get(
+    "TEXTCLI_SCHEMA_DIR",
+    str(pathlib.Path(__file__).parent.parent.parent / "service" / "handlers" / "schema")
+))
 
 # ── FastMCP 实例 ──────────────────────────────────
 
