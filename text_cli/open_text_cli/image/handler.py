@@ -1,16 +1,16 @@
 """
-p_picture — Open text-cli image capability plugin handler.
+image — Open text-cli image capability plugin handler.
 
 Extends the protocol's image vocabulary beyond basic inspection (A3 skeleton image.py).
 Depends on Pillow for format conversion, resizing, and advanced operations.
 
 Directives:
-    图片处理:信息,<path>
-    图片处理:转换,<path>,<format>[,<quality>]
-    图片处理:缩放,<path>,<width>,<height>
-    p_picture:info,<path>
-    p_picture:convert,<in_path>,<out_format>[,<quality>]
-    p_picture:resize,<in_path>,<width>,<height>
+    图片:信息,<path>
+    图片:转换,<path>,<format>[,<quality>]
+    图片:缩放,<path>,<width>,<height>
+    image:info,<path>
+    image:convert,<in_path>,<out_format>[,<quality>]
+    image:resize,<in_path>,<width>,<height>
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ from PIL import Image
 
 from core.registry import directive
 
-logger = logging.getLogger("text-cli.p_picture")
+logger = logging.getLogger("text-cli.image")
 
 SUPPORTED_FORMATS = frozenset({"png", "jpeg", "jpg", "webp", "gif", "bmp"})
 SUPPORTED_OUTPUT = frozenset({"png", "jpg", "webp", "bmp"})
@@ -34,12 +34,12 @@ def _normalize_format(fmt: str) -> str:
     return mapping.get(fmt, fmt)
 
 
-@directive("图片处理", "信息")
-@directive("p_picture", "info")
+@directive("图片", "信息")
+@directive("image", "info")
 def picture_info(params: list[str]) -> str:
     """Return extended image metadata including EXIF if available."""
     if not params:
-        return "p_picture:info — usage: <path>"
+        return "image:info — usage: <path>"
     path = pathlib.Path(params[0])
     if not path.exists():
         return f"Error: file not found — {path}"
@@ -75,12 +75,12 @@ def picture_info(params: list[str]) -> str:
         return f"Error reading image: {exc}"
 
 
-@directive("图片处理", "转换")
-@directive("p_picture", "convert")
+@directive("图片", "转换")
+@directive("image", "convert")
 def picture_convert(params: list[str]) -> str:
     """Convert an image to another format.  Usage: <in_path>,<out_format>[,<quality>]"""
     if len(params) < 2:
-        return "p_picture:convert — usage: <in_path>,<out_format>[,<quality>]"
+        return "image:convert — usage: <in_path>,<out_format>[,<quality>]"
     in_path = pathlib.Path(params[0])
     out_fmt = _normalize_format(params[1].lower())
     quality = int(params[2]) if len(params) > 2 else 85
@@ -112,12 +112,12 @@ def picture_convert(params: list[str]) -> str:
         return f"Error converting image: {exc}"
 
 
-@directive("图片处理", "缩放")
-@directive("p_picture", "resize")
+@directive("图片", "缩放")
+@directive("image", "resize")
 def picture_resize(params: list[str]) -> str:
     """Resize an image.  Usage: <in_path>,<width>,<height>"""
     if len(params) < 3:
-        return "p_picture:resize — usage: <in_path>,<width>,<height>"
+        return "image:resize — usage: <in_path>,<width>,<height>"
     in_path = pathlib.Path(params[0])
     try:
         width = int(params[1])

@@ -1,24 +1,38 @@
 """
 Image / video generation handlers.
-image;generate,<prompt>[,size] → CogView-3-Flash → image URL
-video;generate,<prompt>[,size,quality] → CogVideoX-Flash → task ID + polling
+
+Configuration loaded from model_aliases.json at startup.
+Models and API endpoints are configurable — no hardcoded provider references.
+
+Directives:
+    image-gen;generate,<prompt>[,size] → image URL
+    video;generate,<prompt>[,size,quality] → task ID (async)
+    video;status,<task_id> → poll result
 """
 
-import hashlib
-import time
 import json
 import urllib.request
 import urllib.error
+from pathlib import Path as _Path
 
 from core.registry import directive
 
 # ── Config (loaded from model_aliases.json) ──
-import json
-from pathlib import Path as _Path
 
 _GEN_CFG: dict = {}
 
+
 def _load_gen_config():
+    """Load generation config from model_aliases.json.
+
+    Expected format:
+    {
+      "generation": {
+        "image": {"model": "...", "api_url": "..."},
+        "video": {"model": "...", "api_url": "...", "status_url": "..."}
+      }
+    }
+    """
     global _GEN_CFG
     if _GEN_CFG:
         return _GEN_CFG
@@ -28,34 +42,41 @@ def _load_gen_config():
             cfg = json.load(f)
         gen = cfg.get("generation", {})
         _GEN_CFG = {
-            "image_model": gen.get("image", {}).get("model", "cogview-3-flash"),
+            "image_model": gen.get("image", {}).get("model", ""),
             "image_api": gen.get("image", {}).get("api_url", ""),
-            "video_model": gen.get("video", {}).get("model", "CogVideoX-Flash"),
+            "video_model": gen.get("video", {}).get("model", ""),
             "video_api": gen.get("video", {}).get("api_url", ""),
             "video_status_api": gen.get("video", {}).get("status_url", ""),
         }
         return _GEN_CFG
     except Exception as e:
         logger = __import__("logging").getLogger(__name__)
-        logger.warning(f"Failed to load gen config: {e}")
+        logger.warning("Failed to load gen config: %s", e)
         return {}
+
 
 _load_gen_config()
 
-# Obtain zhipu key from AI handler
-def _get_zhipu_key() -> str | None:
+
+def _get_api_key() -> str | None:
+    """Obtain API key from AI inference handler's key registry."""
     try:
         from handlers.ai_inference import _get_api_keys
         keys = _get_api_keys()
-        return keys.get('zhipu')
+        # Return the first available key (provider-agnostic)
+        for key in keys.values():
+            if key:
+                return key
+        return None
     except Exception:
         return None
 
 
 def _http_post(url: str, body: dict, timeout: int = 120) -> dict:
-    api_key = _get_zhipu_key()
+    """POST JSON to an API endpoint with Bearer auth."""
+    api_key = _get_api_key()
     if not api_key:
-        return {"error": "Zhipu API key not configured"}
+        return {"error": "API key not configured"}
 
     data = json.dumps(body).encode("utf-8")
     req = urllib.request.Request(url, data=data, method="POST")
@@ -72,19 +93,26 @@ def _http_post(url: str, body: dict, timeout: int = 120) -> dict:
         return {"error": str(e)}
 
 
-@directive("图像", "生成")
+@directive("image-gen", "generate", domain_alias="图像", action_aliases={"generate": "生成"})
 def image_generate(params: list[str]) -> str:
-    """image;generate,<prompt>[,size] → URL"""
+    """Generate an image from a text prompt.
+
+    Usage: image-gen;generate,<prompt>[,size]
+    Returns: image URL
+    """
     if not params:
         return "Missing params: prompt [,size]"
 
     prompt = params[0]
-    size = "1280x1280"
-    if len(params) > 1 and params[1]:
-        size = params[1]
+    size = params[1] if len(params) > 1 and params[1] else "1024x1024"
 
-    result = _http_post(_GEN_CFG.get("image_api", ""), {
-        "model": _GEN_CFG.get("image_model", "cogview-3-flash"),
+    model = _GEN_CFG.get("image_model", "")
+    api_url = _GEN_CFG.get("image_api", "")
+    if not api_url:
+        return "Image generation API not configured (model_aliases.json)"
+
+    result = _http_post(api_url, {
+        "model": model,
         "prompt": prompt,
         "size": size,
     }, timeout=60)
@@ -103,22 +131,27 @@ def image_generate(params: list[str]) -> str:
     return f"Generation succeeded\nURL: {url}\nSize: {size}\nPrompt: {prompt}"
 
 
-@directive("视频", "生成")
+@directive("video", "generate", domain_alias="视频", action_aliases={"generate": "生成"})
 def video_generate(params: list[str]) -> str:
-    """video;generate,<prompt>[,size,quality] → task ID (async)"""
+    """Submit an async video generation task.
+
+    Usage: video;generate,<prompt>[,size,quality]
+    Returns: task ID for polling via video;status
+    """
     if not params:
         return "Missing params: prompt [,size,quality]"
 
     prompt = params[0]
-    size = "1920x1080"
-    quality = "quality"
-    if len(params) > 1 and params[1]:
-        size = params[1]
-    if len(params) > 2 and params[2]:
-        quality = params[2]
+    size = params[1] if len(params) > 1 and params[1] else "1920x1080"
+    quality = params[2] if len(params) > 2 and params[2] else "standard"
 
-    result = _http_post(_GEN_CFG.get("video_api", ""), {
-        "model": _GEN_CFG.get("video_model", "CogVideoX-Flash"),
+    model = _GEN_CFG.get("video_model", "")
+    api_url = _GEN_CFG.get("video_api", "")
+    if not api_url:
+        return "Video generation API not configured (model_aliases.json)"
+
+    result = _http_post(api_url, {
+        "model": model,
         "prompt": prompt,
         "quality": quality,
         "with_audio": True,
@@ -141,14 +174,22 @@ def video_generate(params: list[str]) -> str:
     )
 
 
-@directive("视频", "状态")
+@directive("video", "status", domain_alias="视频", action_aliases={"status": "状态"})
 def video_status(params: list[str]) -> str:
-    """video;status,<task_id> → poll result"""
+    """Poll video generation task status.
+
+    Usage: video;status,<task_id>
+    Returns: status + video URL on completion
+    """
     if not params:
         return "Missing param: task_id"
 
     task_id = params[0]
-    url = _GEN_CFG.get("video_status_api", "").format(task_id=task_id)
+    status_url_tpl = _GEN_CFG.get("video_status_api", "")
+    if not status_url_tpl:
+        return "Video status API not configured (model_aliases.json)"
+
+    url = status_url_tpl.format(task_id=task_id)
     result = _http_post(url, {}, timeout=30)
 
     if "error" in result:

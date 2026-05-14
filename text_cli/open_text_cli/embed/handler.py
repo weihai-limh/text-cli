@@ -8,7 +8,7 @@ Directives:
 
 Modes: A=256 B=512(default) C=1024 D=2048
 
-API key read from SQLite key_registry as bigmodel-embedding-3
+API key read from SQLite key_registry
 """
 
 import logging
@@ -26,7 +26,7 @@ except ImportError as e:
 from core.registry import directive
 
 DB_PATH: dict = {}
-API_KEY_SERVICE = "bigmodel-embedding-3"
+API_KEY_SERVICE = "your-embedding-service"
 
 
 def init_embed_handler(db_path: str):
@@ -40,7 +40,7 @@ def _get_api_key() -> str:
     return key_get(DB_PATH, API_KEY_SERVICE) or ''
 
 
-@directive("语义", "编码")
+@directive("semantic", "encode", domain_alias="语义", action_aliases={"encode": "编码"})
 def sem_encode(params: list[str]) -> str:
     if not EMBED_ENABLED:
         return 'Embedding module not installed'
@@ -63,7 +63,7 @@ def sem_encode(params: list[str]) -> str:
         return f'Encode failed: {e}'
 
 
-@directive("语义", "相似")
+@directive("semantic", "similarity", domain_alias="语义", action_aliases={"similarity": "相似"})
 def sem_similarity(params: list[str]) -> str:
     if not EMBED_ENABLED:
         return 'Embedding module not installed'
@@ -85,7 +85,7 @@ def sem_similarity(params: list[str]) -> str:
         return f'Semantic similarity failed: {e}'
 
 
-@directive("语义", "匹配")
+@directive("semantic", "match", domain_alias="语义", action_aliases={"match": "匹配"})
 def sem_match(params: list[str]) -> str:
     if not EMBED_ENABLED:
         return 'Embedding module not installed'
