@@ -1,9 +1,9 @@
 # 多后端路由（Multi-Backend Routing）
 
-> **版本**：v0.3  
-> **日期**：2026-05-11  
-> **状态**：4 MCP Server 跨类型验证完成，103 tools 实测数据支撑。新增渐进式原则、三层代理模型、参数映射策略 A/B/C。  
-> **定位**：实现层文档。协议层见 `SPEC v1.1 §10 routing 字段 + §11.4 多后端路由`
+> **版本**：v0.4  
+> **日期**：2026-05-14  
+> **状态**：+cmd 后端（CLI 沙箱），4 种后端类型全部验证。  
+> **定位**：实现层文档。协议层见 `SPEC v1.1 §10 平台自管理 + §12.4 多后端路由`
 
 ---
 
@@ -250,7 +250,47 @@ mcporter list <name> --schema
 
 ---
 
-## 五、HTTP 后端
+## 五、CMD 后端（v0.4 新增）
+
+CMD 后端将 CLI 工具封装为 text-cli 指令，通过 whitelist 驱动的沙箱执行：
+
+```
+parsed → whitelist index lookup → args_pattern 校验 → subprocess.run → stdout
+```
+
+**安全模型**：工具名、动作、参数 regex、超时全部在 `whitelist.json` 中声明。安装时由 `text-cli;install`（platform 侧）分流——schema→service 发现目录，whitelist→copilot 执行目录。
+
+**whitelist 格式**：
+
+```json
+{
+  "tool": "openclaw",
+  "commands": [
+    {
+      "action": "gateway-status",
+      "args": ["gateway", "status"],
+      "args_pattern": "^$",
+      "timeout": 10
+    }
+  ]
+}
+```
+
+| 字段 | 说明 |
+|------|------|
+| `tool` | CLI 工具名（需在系统 PATH 中） |
+| `action` | 指令动作名 |
+| `args` | 固定参数数组 |
+| `args_pattern` | 额外参数的 regex 白名单（`^$` = 不接受额外参数） |
+| `timeout` | 秒级超时，超时 → SIGKILL |
+
+**示例**：`openclaw;gateway-status` → whitelist 命中 → `subprocess.run(["openclaw", "gateway", "status"])` → stdout 直接返回。
+
+CMD 后端和 MCP 后端一样遵循渐进式原则——不装 cmd 包的 copilot 感受不到 cmd 后端存在。
+
+---
+
+## 六、HTTP 后端
 
 传统 text-cli 集成端点模式——POST 转发到技能服务。
 
@@ -268,15 +308,15 @@ mcporter list <name> --schema
 
 ---
 
-## 六、安全与计量
+## 七、安全与计量
 
-### 6.1 安全边界
+### 7.1 安全边界
 
 - **local**：路径白名单 + 分支白名单 + 凭据居中（和现在一样）
 - **mcp**：MCP server 的认证由 mcporter 管理，copilot 不接触 token
 - **http**：Service Token 转发（和现在一样）
 
-### 6.2 计量位置
+### 7.2 计量位置
 
 ```
 路由决策 → 参数适配 → 计量检查 → 后端执行
@@ -288,15 +328,15 @@ mcporter list <name> --schema
 
 ---
 
-## 七、开发指南
+## 八、开发指南
 
-### 7.1 添加新路由类型
+### 8.1 添加新路由类型
 
 1. 实现执行函数：`_dispatch_<type>(routing, params) → dict`
 2. 在 `dispatch()` 中注册
 3. 在注册表 Schema 中声明新 `type` 的子字段
 
-### 7.2 从单后端迁移到多后端
+### 8.2 从单后端迁移到多后端
 
 1. 现有指令不加 `routing` 字段 → 行为不变
 2. 需要多后端的指令加 `routing.backends` 列表
@@ -305,13 +345,13 @@ mcporter list <name> --schema
 
 ---
 
-## 八、跨 MCP Server 验证
+## 九、跨 MCP Server 验证
 
-### 8.1 概述
+### 9.1 概述
 
 基于 4 个 MCP Server（共 103 tools）的实测验证，确认多后端路由模式在不同传输方式、不同参数模式、不同输出格式的 MCP 服务上均成立。
 
-### 8.2 四 MCP Server 对比
+### 9.2 四 MCP Server 对比
 
 | | GitHub | AntV 可视化 | 腾讯地图 | CloudBase |
 |---|---:|---:|---:|---:|
@@ -323,7 +363,7 @@ mcporter list <name> --schema
 | 共享 adapter | — | 92% (json_parse) | — | 8% (json_parse) |
 | 需自定义 adapter | 2 | 0 | 0 | 4 |
 
-### 8.3 输出兼容性
+### 9.3 输出兼容性
 
 四种 MCP server 覆盖了 MCP 协议的全部常见输出类型：
 
@@ -335,7 +375,7 @@ mcporter list <name> --schema
 
 **所有 103 tools 的输出均可通过现有 `rst_data.text` 承载。对协议无任何冲击。**
 
-### 8.4 聚合统计
+### 9.4 聚合统计
 
 ```
 跨 4 个 MCP Server · 103 tools：
@@ -347,7 +387,7 @@ passthrough 直接可用:    70 tools (68%)
 零适配或一次适配可覆盖:   97 tools (94%)
 ```
 
-### 8.5 结论
+### 9.5 结论
 
 **92% 规则不是 GitHub 特例。** 它在查询类（腾讯地图 100%）、CRUD 类（CloudBase 89%）、可视化类（AntV 92% via json_parse）上以不同形式成立。
 
@@ -355,10 +395,10 @@ passthrough 直接可用:    70 tools (68%)
 
 ---
 
-## 九、参考实现
+## 十、参考实现
 
 | 实现 | 位置 | 后端 |
 |---|---|---|
-| agent-copilot MCP 桥 | `/root/text-cli-copilot/` | local + mcp（GitHub） |
-| text-cli-service MCP 集成 | `/root/text-cli-service/` | local + mcp + http proxy |
+| agent-copilot MCP 桥 | `progressive_deploy/A2-copilot/server/` | local + mcp（GitHub） |
+| text-cli-service MCP 集成 | `progressive_deploy/A3-service/` | local + mcp + http proxy |
 | mcporter 独立验证 | `tide-10000/tide-test` | GitHub + AntV + 腾讯地图 + CloudBase |

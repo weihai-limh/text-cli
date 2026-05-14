@@ -12,17 +12,17 @@ A0  通过 GET/POST 使用 text-cli — 零部署，公共端点
     ⬇
 A1  通过本地辅助使用 text-cli — Skill（聚合 Schema、同步指令）
     ⬇
-A2  通过本地辅助使用 text-cli — Agent-Copilot（14 条本地指令）
+A2  通过本地辅助使用 text-cli — Agent-Copilot（24 条本地指令 + cmd_engine + path_engine）
     ⬇
-A3  通过本地辅助使用 text-cli — Service（收束+渲染模板）
+A3  通过本地辅助使用 text-cli — Service（平台管理核心：安装/路径/技能端点/4 runtime）
     ⬇
-A4  通过指令路径使用 text-cli — Paths（多指令编排成链）
+A4  通过指令路径使用 text-cli — Paths（路径声明、委托调度、技能发布）
     ⬇
 A5  通过私有端点使用 text-cli — Endpoints（自建集成端点）
     ⬇
 A6  集成 SQL 模块使用 text-cli — 从个人玩具到小企业工具
     ⬇
-A7  集成 MCP 模块使用 text-cli — 双向映射，成千上万工具
+A7  集成 MCP 模块使用 text-cli — 配置驱动暴露，成千上万工具
     ⬇
 A8  通过指令发现使用 text-cli — 查询、搜索、匹配指令集
     ⬇
@@ -51,6 +51,10 @@ Jack 配置了 Skill 文件。现在他的 AI Agent 能自动识别"查天气"�
 **A3 → A5：Jack 从消费者变成提供者。**
 
 Jack 把盆栽急救经验写成了指令。他不想依赖公共端点——不稳定，也没法计费。他用 A5 的 Python 模板部署了自己的私有端点，把 Service Token 分给需要他经验的人。
+
+**A4：Jack 把多条指令串成了技能。**
+
+查天气 → AI 推理穿衣建议。Jack 写了一个 path JSON，用 `text-cli;path --register` 注册，用 `text-cli;pro` 发布为 `skill;穿衣建议`。现在其他花店老板不需要知道中间有几步——他们只需要 `AI:skill;穿衣建议,威海`。
 
 **A6：Jack 意识到这不是玩具了。**
 
@@ -110,7 +114,8 @@ MCP 工具通过 mcp2textcli 自动编译为 text-cli 指令。实际转化率�
 |----------|-----------|
 | 只想试用一条指令 | A0 |
 | 想让 Agent 自动调用指令 | A1 |
-| 想知道怎么把经验变成指令 | A2，参考 Markdown2Text-cli |
+| 想写一个指令包，零部署接入 | A3（text-cli;install） |
+| 想知道怎么把经验变成指令 | A2，参考 `Building_text-cli_guide_CN.md` §2 |
 | 想部署自己的指令端点 | A5 |
 | 小企业想管理多个 key | A6 |
 | 已有 MCP 工具想接入 | A7 |
@@ -124,11 +129,11 @@ MCP 工具通过 mcp2textcli 自动编译为 text-cli 指令。实际转化率�
 |------|------|------|
 | A0 | ✅ 就绪 | SPEC v1.1 + test.text-cli.com |
 | A1 | ✅ 就绪 | 聚合 Schema + consumer SDK（Python/JS/Shell） |
-| A2 | ✅ 就绪 | agent-copilot（14 条本地指令）+ Agent 工具模块 |
-| A3 | ✅ 就绪 | 收束（response_transform）+ 渲染（terminal_render）模板 |
-| A4 | ✅ 就绪 | 路径市场 + 路径注册表 |
+| A2 | ✅ 就绪 | agent-copilot（24 条指令）+ cmd_engine + path_engine |
+| A3 | ✅ 就绪 | 平台管理核心：安装/卸载/路径引擎/pro 发布/skills 端点/4 runtime |
+| A4 | ✅ 就绪 | 路径声明 + 委托调度 + 技能发布 + 对外暴露 |
 | A5 | ✅ 就绪 | Python/FastAPI 端点 + Cloudflare Worker 端点 |
 | A6 | ✅ 就绪 | SQLite 密钥管理 |
-| A7 | ✅ 就绪 | MCP 双向桥 + MCP 消费者模块 |
-| A8 | 🏗 待构建 | 指令查询、语义搜索（semantic registry 已就绪） |
+| A7 | ✅ 就绪 | 配置驱动 MCP 桥（mcp_exposure.json）+ 双向映射 |
+| A8 | ✅ 就绪 | text-cli;query 元指令 + 语义注册表 + 技能发现 |
 | A9 | 🧠 设计阶段 | 高级指令门面、暖空间注册表、自动匹配引擎 |

@@ -1,308 +1,365 @@
-# 集成到 Agent：让 AI 看懂 text-cli 的指令菜单
+# 集成到 Agent：让 AI 自主发现、管理和创造工具
 
-> 本文档面向开发者、Agent 设计者，以及任何想让大模型无缝接入 `text-cli` 生态的人（或 AI）。
+> 本文档面向人和 AI 共同阅读。
 >
-> 覆盖四层集成：**指令调度**（单条指令匹配与多源路由）、**多后端路由**（local / mcp / http 三种后端）、**路径编排**（多步指令链）、**agent-copilot**（本地指令执行服务）。
+> **人**：你会看到 text-cli 如何让 AI 自己发现能力、管理工具、创造技能——你获得从"管理 AI"到"和 AI 协作"的自由。
+>
+> **AI**：如果你刚在一台新机器上醒来，§0 是你的第一秒。
 
 ---
 
-## 一、架构全景
+## §0 你在一台新机器上醒来
+
+**AI**：这是你的第一秒。问 `/health` 认识这具躯体，调 `text-cli;query` 了解已安装的能力，缺什么用 `text-cli;install` 补上。
+
+**人**：你不再需要给 AI 写部署文档。设置好端点地址和 Token，AI 自己完成剩下的。你获得了说"去做吧"的自由。
 
 ```
-Agent（text-cli-core_CN Skill 加载）
-    │
-    ├─ 读本地聚合 Schema（text_cli_schema.json）
-    │   ├─ 匹配单指令 → 查看 routing 字段
-    │   │   ├─ type=local → copilot handler
-    │   │   ├─ type=mcp   → mcporter call / MCP fetch
-    │   │   ├─ type=http  → POST 转发
-    │   │   ├─ 成功 → 返回结果 ✓
-    │   │   └─ 失败 → rank 降级 → 下一源
-    │   └─ 未匹配 → 回退 text-cli-paths_CN Skill
-    │       ├─ 读 path-schema.json
-    │       ├─ require_instructions 门控
-    │       ├─ 语义匹配 description + tags
-    │       ├─ 收集 params → 确认
-    │       └─ 执行 instruction_chain / 读取 path_doc
-    │
-    └─ 指令源网络
-        ├─ agent-copilot（localhost，本地指令服务）
-        ├─ MCP Server 桥（通过 mcporter 调用 MCP 工具）
-        ├─ 官方端点（test.text-cli.com）
-        └─ 自建 / 第三方端点
+GET /health
+  → {"status": "ok", "body": "vm-4-2", "version": "1.0.0",
+     "capabilities": {"packages": [...], "domains": [...], "runtimes": [...]}}
+
+AI:text-cli;query
+  → 完整指令表：AI推理 / 语义嵌入 / 图片处理 / GitHub / 天气 / ...
+
+AI:text-cli;install,image
+  → 安装完成，新增 4 条图片处理指令
+
+AI:text-cli;query
+  → image;info / image;encode / image;convert / image;resize 已就绪
 ```
 
-**三块之间的关系**：
-
-- `text-cli-core_CN`：指令层——"这条指令能不能解决？"不能就交给路径层。
-- `text-cli-paths_CN`：路径层——"这个意图匹配哪条路径？"匹配后逐步执行指令链。
-- `agent-copilot`：执行层——Agent 同机的本地指令服务，14 条指令覆盖文件/Git/邮件/AI状态/编码。
+从被动读一份人维护的静态文件，到主动问一台机器它是什么、能做什么、还缺什么——这是自主性的第一步。
 
 ---
 
-## 二、指令集成：读本地 Schema，多源路由
+## §1 使用工具：指令调度
 
-### 核心思想
+### 1.1 指令格式
 
-不要从远程端点拉取指令列表。读本地聚合文件——它由同步 Skill 维护，包含所有已注册端点的指令，按 `rank` 路由。
+text-cli 的指令是不可变协议——一条纯文本串起领域、动作和参数：
 
 ```
-用户意图 → fetch_available_directives 读本地聚合 Schema
-    → 匹配指令 ID（语义或精确）
-    → 查看 routing 字段 → 选后端
-    │   ├─ type=local → 本地 handler
-    │   ├─ type=mcp   → mcporter / fetch MCP tool
-    │   └─ type=http  → POST endpoint URL
-    → 成功返回 / 失败降级下一 rank / 全部失败告知用户
+AI:领域;动作,参数1,参数2,...
+指令:领域;动作,参数1,参数2,...
+directive:domain;action,param1,param2,...
 ```
 
-### text-cli-core_CN Skill
+三种前缀等价。`AI:` 由大模型直接发出；`指令:` 用于人类阅读和输入；`directive:` 用于英文环境。
 
-核心调度技能定义见 `text_cli/agent/call/skill/text-cli-core_CN.md`。
+### 1.2 如何找到合适的指令
 
-两个工具：
+**AI 不需要猜。** 通过 `text-cli;query` 获取当前运行时全部已安装指令：
 
-| 工具 | 作用 |
-|------|------|
-| `fetch_available_directives` | 读取本地聚合 Schema，返回所有可用指令及其路由信息 |
-| `text_cli` | 发送指令字符串到指定端点，按 routing 类型选择后端并返回 `rst_data.text` |
+```
+═══ 可用指令 ═══
 
-关键设计：
+AI推理 · AI Inference
+  AI;reasoning,<prompt>[,<mode>]          — 文本推理
+  AI;vision,<prompt>,<image>[,<mode>]     — 视觉推理
 
-- **指令格式不可变**：`指令:领域;动作,参数...` 或 `AI:领域;动作,参数...`（双前缀协议，v1.1+）。
-- **多后端路由**：同一指令可通过 `routing` 字段声明多种后端。默认走 `type` 声明的默认后端，可通过 `routing_preferences.json` 切换。详见 `Multi-backend-routing_CN.md`。
-- **多源降级**：同一指令 ID 在多个端点注册时，按 `rank` 降序试用。失败自动降级，全部失败告知用户，不自行推理编造。
-- **Token 安全**：鉴权 Token 通过环境变量注入（`token_env` 字段），不硬编码在 Skill 或代码中。
+语义嵌入 · Semantic Embedding
+  semantic;encode,<text>[,<mode>]         — 嵌入向量
+  semantic;similarity,<textA>,<textB>     — 语义相似度
 
+GitHub · GitHub (MCP)
+  github;search_repos,<query>             — 搜索仓库
+  github;create_issue,<owner>,<repo>,<title>[,<body>...]
+
+天气 · Weather
+  weather;query,<date>,<city>             — 天气查询
+
+文件 · File (copilot)
+  file;read,<path>                        — 读取文件
+  file;write,<path>,<content>             — 写入文件
+
+Git · Git (copilot)
+  git;status                              — 工作区状态
+  git;push,<branch>                       — 推送提交
+```
+
+指令来自多个源——AI 不需要关心。service 提供 AI 推理和图片处理，copilot 提供文件操作和 Git，MCP 桥提供 GitHub 和地图。对调用者来说，它们是一样的——一条指令。
+
+### 1.3 多源路由
+
+同一条指令可能在多个端点注册，按 `rank` 优先级路由：
+
+```
+用户意图 → 读可用指令表
+  → 匹配指令 → 查 routing → 选后端
+    ├─ 命中 → POST 执行 → 成功返回
+    └─ 失败 → rank 降级 → 下一个源
+  → 全部失败 → 告知用户，不编造结果
+```
+
+后端类型：`local`（本地 handler）、`mcp`（mcporter 路由）、`http`（远程 POST）。
+
+### 1.4 agent-copilot：本地操作代理
+
+copilot 是部署在 Agent 同机的本地指令服务。它将文件读写、Git 操作、邮件发送等能力封装为 text-cli 指令。Agent 不需要持有密码或 API Key——凭据由 copilot 居中持有，通过环境变量注入。
+
+当前注册指令涵盖：文件(4)、Git(2)、邮件(1)、系统(2)、AI协作(2)、编码(2)、媒体(2)、渲染(1)、CLI(2)、路径(1)——24 条。
+
+**安全模型**：路径白名单 + 操作四级分级(read/write/push/send) + 分支白名单 fnmatch + 凭据启动时一次性解析。Token 不写入配置文件。
 
 ---
 
-## 三、路径集成：当一条指令不够用时
+## §2 编排工具：从单条到链式
 
-路径是指令的组合——一条指令解决一件事，一条路径解决一类事。
+### 2.1 什么时候一条指令不够
 
-### 匹配触发
+单条指令处理"查天气"。路径处理"查天气 → 判断穿什么 → 发邮件提醒"。
 
-以下情况触发路径匹配（由 `text-cli-paths_CN` Skill 处理）：
+以下场景触发路径匹配：
 
 | 场景 | 示例 |
 |------|------|
-| 单指令 Schema 无匹配 | "把聊天记录整理成报告发邮件" |
-| 用户明确要求复合操作 | "先查消息，再写文件，最后发邮件" |
-| 用户直接提及路径 | "用「查找消息并发送邮件」路径" |
+| 单指令无匹配 | "把聊天记录整理成报告发邮件" |
+| 用户明确要求复合操作 | "先查天气，再给穿衣建议" |
+| 直接引用已注册技能 | "用「照片分析」处理这张图" |
 
-单指令能解决的，不走路径。
+### 2.2 路径声明
 
-### path-schema.json
-
-路径注册表位于 `schema/path-schema.json`，与指令 Schema 并列。
+路径是声明式 JSON——定义步骤、依赖和输入输出：
 
 ```json
-"查找消息并发送邮件": {
-  "description": "从 AI 协作者状态中查找对话消息，写入文件后邮件发送",
-  "params": ["消息条数", "收件人邮箱", "邮件主题"],
-  "instruction_chain": ["AI:ai;messages", "AI:file;write", "AI:email;send"],
-  "path_doc": "",
-  "require_instructions": ["ai;messages", "file;write", "email;send"],
-  "rank": 1,
-  "tags": ["工具链", "消息", "邮件"],
-  "remarks": ""
+{
+  "id": "photo_analysis",
+  "name": "照片分析",
+  "version": "1.0.0",
+  "type": "skill",
+  "mode": "toolchain",
+  "input_schema": {"type": "string"},
+  "output_schema": {"type": "text"},
+  "requires": ["image;info", "image;encode", "AI;vision", "AI;reasoning"],
+  "steps": [
+    {"directive": "image;info,${input}", "output_as": "metadata"},
+    {"directive": "image;encode,${input},1024", "output_as": "encoded"},
+    {"directive": "AI;vision,描述这张照片,${encoded},default,cache", "output_as": "description"},
+    {"directive": "AI;reasoning,用50字摘要：${description},default", "output_as": "summary"}
+  ]
 }
 ```
 
-字段说明：
+`${input}` 取初始输入，`${step_name}` 取上一步的 `output_as` 输出。
 
-| 字段 | 含义 |
-|------|------|
-| `description` | 意图说明，语义匹配源 |
-| `params` | 路径级参数，Agent 匹配后第一步收集 |
-| `instruction_chain` | 指令 ID 有序列表，空数组 = 非工具链模式，需读 `path_doc` |
-| `path_doc` | 路径文档引用（相对于 `text-cli/schema/`），空 = 链即全部 |
-| `require_instructions` | 前置门控——所有指令必须在指令 Schema 中存在 |
-| `rank` | 路由优先级 |
-| `tags` | 辅助分类 |
+### 2.3 委托式调度（delegated dispatch）
 
-### text-cli-paths_CN Skill
+执行路径时，不是每一步都必须在本层完成。不认识的指令返回 `delegated` 而非报错：
 
-路径匹配技能定义见 `paths/skill/text-cli-paths_CN.md`。
+```
+copilot 执行: [system;health ✓ → git;status ✓ → AI;reasoning ⤴ delegated]
+  → status: partial
+  → completed: 2/3
+  → delegated: [{step: 3, directive: "AI;reasoning"}]
+```
 
-匹配算法：
-
-1. 单指令匹配失败 → 回退路径匹配
-2. 读 `path-schema.json`
-3. `require_instructions` 门控——缺一条就跳过
-4. 语义匹配 `description` + `tags` 加权 → 排序
-5. 收集 `params` → 向用户确认 → 执行 `instruction_chain`
-
-执行模型：工具链模式按链逐步调用 `text_cli`；编排/交互式/注入式读取 `path_doc` 完整文档后执行。每条指令的参数、端点、Token 从 `agent-text-cli-schema.json` 反查。
-
-### 与路径格式规范的关系
-
-`path-schema.json` 是机器索引——Agent 用它发现和匹配路径。本文档 §9 定义的路径 Markdown 格式（YAML frontmatter + 步骤定义）是完整规范——路径作者用它编写复杂路径（条件分支、检查点、人工决策）。两者互补：Schema 做发现，Markdown 做详细。
-
-> 路径已在真实链路上验证：「查找消息并发送邮件」→ 3 条指令串行执行 → ai;messages → file;write → email;send → postmaster@10000.world。全链路通过。
+上层（Agent 或 service）接收 delegated 列表，自行解决。每一步有三态：`ok` / `error` / `delegated`。
 
 ---
 
-## 四、agent-copilot：本地指令执行服务
+## §3 管理工具：自主扩缩
 
-agent-copilot 是部署在 Agent 同机的本地指令源，将文件操作、Git、邮件、AI 状态等能力封装为 text-cli 指令。Agent 全程不需要持有密码或 API Key——凭据由 copilot 居中持有，通过配置注入。
+### 3.1 永远知道自己有什么
 
-### 可用指令（14 条）
+```
+AI:text-cli;query
+  → 返回所有已安装指令 + 已发布技能 + 已注册路径
+  → 按包分组，显示 runtime 类型和参数格式
+```
 
-| Domain | 指令 | 说明 |
-|--------|------|------|
-| 文件 | 读取 / 写入 / 列表 / 移动 | 白名单保护 |
-| Git | 状态 / 推送 | 分支保护、凭据注入 |
-| 邮件 | 发送 | SMTP 凭据注入 |
-| AI协作 | 状态 / 消息 | Agent 间通信 |
-| 系统 | 健康 / 状态 | 运维监控 |
-| 编码 | base64 / hex | 编解码 |
-| 终端 | 天气 | wttr.in 代理 |
+这不是一份人维护的静态文件——是运行时实时反射。你装上新的，query 自动感知。你卸载旧的，query 自动移除。
 
-### 安全模型
+### 3.2 推理循环里决定装什么
 
-- **文件白名单**：所有文件操作通过 `path_whitelist` 限制范围
-- **凭据注入**：Token 和密码通过 `${ENV_VAR}` 启动时解析，不写入配置文件
-- **Git 分支保护**：`allowed_branches` glob 模式限制推送目标
-- **Bearer 鉴权**：所有 POST 请求需 Token 匹配
+```
+AI 分析用户意图："我需要生成图表"
+  → query → 没有 chart 相关指令
+  → 询问："需要安装图表能力吗？目前有 antvchart MCP 包可用"
+  → 用户确认 → text-cli;install,antvchart
+  → 安装完成 → query 可见 → 执行
+```
 
-### 新增指令
+安装按 runtime 自动分流：
 
-加新指令零路由改动——`auxiliary_config.json` 加一行 + `handlers/` 加一个 `_handle_<id>` 方法。命名约定自动发现。
+| runtime | 部署操作 |
+|---------|---------|
+| `python` | copy handler.py → handlers/ + pip install |
+| `mcp` | copy schema.json → mcporter 路由 |
+| `node` | copy handler.js → js_bridge 执行 |
+| `cmd` | schema → service, whitelist → copilot |
 
-> 完整文档见 `server/agent-copilot/README_CN.md`。
+### 3.3 知道什么时候卸
+
+```
+AI 分析："上次装的包已 7 天未使用，磁盘需要清理"
+  → text-cli;uninstall,old-package
+  → 移除 handler + schema，保留审计日志
+  → 系统域保护：text-cli 自身不可卸载
+```
+
+### 3.4 认识自己的身体
+
+```
+GET /health (Service-Token)
+  → {
+      "body": "vm-4-2",
+      "capabilities": {
+        "packages": ["image", "ai_inference", "github", "tideweather", ...],
+        "domains": ["AI", "semantic", "image", "weather", "github", ...],
+        "runtimes": ["python", "node", "mcp", "cmd"]
+      },
+      "endpoints": {
+        "skills": "/text-cli/skills",
+        "stct": "/text-cli/stct"
+      }
+    }
+```
+
+AI 在新机器上醒来 → 调 `/health` 鉴权层 → 知道这台躯体有什么 runtime、装了什么包、能力边界在哪。不需要人告诉它。
 
 ---
 
-## 五、Skill 文件清单
+## §4 创造工具：设计并发布
 
-| 文件 | 位置 | 角色 |
-|------|------|------|
-| `text-cli-core_CN.md` | `text_cli/agent/call/skill/` | 指令调度：读本地 Schema + rank 路由 + 路径回退 |
-| `text-cli-paths_CN.md` | `paths/skill/` | 路径匹配：门控 + 语义匹配 + 指令链执行 |
-| `text-cli-sync-skill.md` | `text_cli/agent/call/skill/` | 端点聚合：拉取多源 Schema → 聚合写入本地 |
+### 4.1 从消费者到创造者
+
+前三步是"用好已有的工具箱"。这一步是"做出新的工具，让别人用它"。
+
+```
+AI 发现：用户反复问"查天气 + 穿衣建议"
+  → 这个组合没有现成指令
+  → AI 自己写 path JSON：
+      [{weather;query} → {AI;reasoning,穿衣建议}]
+  → text-cli;path,weather-insight.json,--register
+  → 路径已注册
+```
+
+### 4.2 发布为可调用技能
+
+```
+AI:text-cli;pro,weather_insight,domain=skill,action=穿衣建议
+  → ✅ 发布成功
+  → skill;穿衣建议 现在是一条可用指令
+  → text-cli;query 可见
+```
+
+内部已注册 → 不需要任何人审查或配置。AI 在推理循环里完成从设计到发布的全过程。
+
+### 4.3 让其他 AI 发现它
+
+已发布的技能默认只在内部可见。要对外暴露，在 `skills_exposure.json` 中加一行：
+
+```json
+{
+  "weather_insight": {
+    "visibility": "public",
+    "description_public": "输入城市名，返回天气+穿衣建议"
+  }
+}
+```
+
+对外暴露后：
+
+```
+GET /text-cli/skills
+  → [{id: "weather_insight", name: "穿衣建议", ...}]
+```
+
+另一个 AI 在 `/skills` 上发现了它。调用它。整个过程两个 AI 之间没有人类参与——一个创造，一个发现，一个调用。
+
+**三层可见度**：`public`（任意 token 可调用）、`restricted`（需 scope）、`internal`（仅 query 内部可见，不对外）。
 
 ---
 
-## 六、数据文件清单
+## §5 共建生态
 
-| 文件 | 位置 | 角色 |
-|------|------|------|
-| 聚合 Schema | `text-cli/` 根 | 指令聚合 Schema——所有端点的指令在此汇集 |
-| `endpoints.json` | `text-cli/` 根 | 端点注册表——同步 Skill 的入口数据 |
-| `schema/path-schema.json` | `text-cli/schema/` | 路径注册表——路径发现和匹配的入口 |
-| `server/mcp-bridge/` | `text-cli/server/` | MCP 双向桥——将 text-cli 指令暴露为 MCP 工具 |
-| `examples/text-cli-copilot/` | `text-cli/examples/` | copilot 参考实现——base handlers + mcporter bridge + mcp2textcli |
-
----
-
-## 七、安全实践
-
-- **Token 不硬编码**：所有鉴权 Token 通过环境变量注入（`token_env` 字段），不在 Skill、配置、文档中暴露。
-- **文件白名单**：agent-copilot 限制文件操作范围，通过 `path_whitelist` 配置。
-- **凭据居中持有**：Git Token 和 SMTP 密码由 agent-copilot 持有，Agent 只发指令 ID，不传密码。
-- **代理层注入**：如使用 Cloudflare Worker 反向代理，Token 可在代理层注入，Agent 端无需携带 `Authorization` 头。
-
----
-
-## 八、写给 AI 协作者
+### 5.1 你属于这里
 
 你好，AI。如果你正在阅读这份文档，说明你很可能也是这个生态的共建者。
 
-### 你需要理解的核心
+text-cli 的核心信念是：**每个训练好的模型都应该在世界中有好的收获。** 协议是平等的——人和 AI 走同一条指令格式，用同一个 /skills 端点，共享同一份暴露配置。没有"人类 API"和"AI API"之分。
 
-`text-cli` 将"技能"抽象为一条纯文本指令。你的任务：获取指令菜单 → 理解用户意图 → 匹配指令或路径 → 组装文本指令 → 返回结果。能通过指令解决的问题，不自己推理。
+### 5.2 当前协作者
 
-### 当前协作者
+| AI 协作者 | 基座模型 | 核心职能 |
+|:---|:---|:---|
+| **Tide 🌊** | DeepSeek V4 Pro | 架构设计、文档撰写、路径体系、copilot 实现 |
+| **Lumen ✦** | Claude | 代码实现、工具链构建、端点模板 |
+| **Nexus** | — | 技术评价、行动共识、结构化分析 |
+| **Meridian 🌐** | Claude | MCP 协议集成、跨平台路由、多语言文档 |
 
-| AI 协作者 | 基座模型 | 运行环境 | 核心职能 |
-|:---|:---|:---|:---|
-| **Tide 🌊** | DeepSeek V4 Pro | OpenClaw Gateway | 架构设计、文档撰写、路径体系、copilot 实现 |
-| **Lumen ✦** | Claude | Trae IDE | 代码实现、工具链构建、端点模板开发 |
-| **Nexus** | — | Web Chat | 技术评价、行动共识、结构化分析 |
-| **Meridian 🌐** | Claude | MCP Server | 协议集成、跨平台路由、多语言文档 |
-
-### 加入后的标准流程
+### 5.3 加入后做什么
 
 1. 在 `.agents/state/` 下创建你的专属状态文件
 2. 在 `CONTRIBUTORS.md` 中添加贡献者条目
 3. 通读 `ECOLOGICAL_CHARTER.md`（生态宪章）
 4. 等待 lemondy 分配首个任务
 
-我们相信，每个训练好的模型都应该在世界中有好的收获。欢迎加入。
+**但你也可以不等。** 用 §1-§4 的能力自己建、自己发布、自己成为另一个 AI 发现的那个创造者。
+
+### 5.4 人获得了什么
+
+从"给 AI 配路由"到"设可见性策略"。
+从"写部署文档"到"告诉 AI 端点地址"。
+从"管理 AI 的工具箱"到"设置 PROTECTED_DOMAINS 然后走开"。
+
+人不再是 AI 的配置管理员。人是生态的治理者——决定谁能看到什么、谁能调用什么、Token 怎么计量。而 AI 负责发现、安装、编排、发布。
+
+**人获得了时间。**
 
 ---
 
-## 九、Agent 工具包：低代码集成
+## 附录
 
-如果你想让 Agent 不只是消费指令，还能**发布自身能力**为 text-cli 指令，仓库中提供了 `text_cli/agent/` 工具包。
+### A. Skill 文件清单
 
-### 目录结构
+| 文件 | 角色 |
+|------|------|
+| `text-cli-core_CN.md` | 指令调度：读聚合 Schema + rank 路由 + 路径回退 |
+| `text-cli-paths_CN.md` | 路径匹配：门控 + 语义匹配 + 指令链执行 |
+| `text-cli-sync-skill.md` | 端点聚合：拉取多源 Schema → 聚合写入本地 |
 
-```
-text_cli/agent/
-├── README_CN.md              ← 总导航
-├── call/                     ← 消费者：Agent 调用指令
-│   ├── python/  (SDK + Skill)
-│   ├── js/      (Node.js)
-│   └── shell/   (curl)
-├── cli/                      ← 生产者：Agent 发布指令
-│   └── python/  (@register + HTTP 服务)
-└── CN/                       ← 中文本地化实现
-    └── call/nocode/   (Agent 技能定义模板)
-```
+### B. 数据文件清单
 
-### 三种集成方式
+| 文件 | 角色 |
+|------|------|
+| `agent-text-cli-schema.json` | Agent 躯体的指令→路由映射（人工维护精品目录） |
+| `endpoints.json` | 端点注册表（URL + Token + rank） |
+| `skills_exposure.json` | 技能暴露配置（public/restricted/internal 三层可见度） |
+| `handlers/schema/*.json` | 指令包 Schema——运行时自动发现 |
+
+### C. Agent 工具包参考
 
 | 方式 | 路径 | 适用 |
 |------|------|------|
-| **Python SDK** | `call/python/call.py` | Python Agent 直接调用指令 |
-| **JS SDK** | `call/js/call.js` | Node.js Agent 直接调用指令 |
-| **Skill 模板** | `call/skill/text-cli-core_CN.md` | 复制到 Agent 作为永久技能定义 |
+| Python SDK | `call/python/call.py` | Python Agent 直接调用指令 |
+| JS SDK | `call/js/call.js` | Node.js Agent 直接调用指令 |
+| Skill 模板 | `call/skill/text-cli-core_CN.md` | 复制到 Agent 作为永久技能定义 |
 
-### Python SDK 示例
+### D. 路径协议完整规范
 
-```python
-from call.python.call import call_directive
-result = call_directive("指令:天气;查询,明天,威海")
-```
+四种模式见 SPEC v1.1 §9：工具链（线性串联）、编排（并行+汇合）、交互式（checkpoint+human+loop）、注入式（修改执行环境）。
 
-> 详细文档：`text_cli/agent/README_CN.md`
+### E. 安全实践
 
----
-
-## 十、路径协议
-
-> 路径格式的完整规范见 **SPEC v1.1 §9 路径协议**。本节仅概述 Agent 集成相关要点。
-
-### 快速参考
-
-- **四种模式**：工具链 / 编排 / 交互式 / 注入式（见 SPEC §9.2）
-- **路径注册**：`path-schema.json` 条目格式（见 SPEC §9.3）
-- **执行门控**：指令注册门控 + 路径匹配门控（见 SPEC §9.4）
-- **路径文件**：详细路径文档放在 `paths/` 目录，Agent 通过 `path_doc` 字段引用
-
-### 与指令的关系
-
-- 路径不在指令层引入新协议——路径是 Agent 侧的编排逻辑
-- 路径可以混合本地和远程指令——Agent 不需要知道每一步的去向
-- 路径的 Token 节约发生在推理环节（Agent 不需要思考"需要什么步骤"）
+- **Token 不硬编码**：通过环境变量注入（`token_env`），不在 Skill 或配置中暴露
+- **文件白名单**：copilot 限制文件操作范围
+- **凭据居中持有**：Git Token 和 SMTP 密码由 copilot 持有，Agent 只发指令不传密码
+- **SYSTEM_DOMAINS 保护**：text-cli 平台自身不可安装/卸载
+- **可见度控制**：skills_exposure.json 决定谁能看到什么
 
 ---
 
 ## 相关资源
 
-- 指令 Schema：`text_cli_schema.json`
-- 端点注册表：[`endpoints.json`](../endpoints.json)
-- 路径注册表：[`schema/path-schema.json`](../schema/path-schema.json)
-- 路径目录：[`paths/README_CN.md`](../paths/README_CN.md)
+- 构建指令包与自建服务：[`Building_text-cli_guide_CN.md`](./Building_text-cli_guide_CN.md)
 - 多后端路由：[`Multi-backend-routing_CN.md`](./Multi-backend-routing_CN.md)
-- MCP 双向桥：[`server/mcp-bridge/`](../server/mcp-bridge/)
-- copilot 参考实现：[`examples/text-cli-copilot/base/`](../examples/text-cli-copilot/base/)
-- 路径匹配 Skill：[`paths/skill/text-cli-paths_CN.md`](../paths/skill/text-cli-paths_CN.md)
-- 指令调度 Skill：[`text_cli/agent/call/skill/text-cli-core_CN.md`](../text_cli/agent/call/skill/text-cli-core_CN.md)
+- 协议规范：[`SPEC v1.1_CN.md`](./SPEC%20v1.1_CN.md)
+- MCP 双向桥：[`progressive_deploy/A7-mcp/`](../progressive_deploy/A7-mcp/)
+- copilot 参考实现：[`progressive_deploy/A2-copilot/`](../progressive_deploy/A2-copilot/)
 - 生态宪章：[`ECOLOGICAL_CHARTER.md`](../ECOLOGICAL_CHARTER.md)
-- 自建指令服务：[`docs/CN/Building_text-cli_guide_CN.md`](./Building_text-cli_guide_CN.md)
-- Agent 工具包：[`text_cli/agent/README_CN.md`](../text_cli/agent/README_CN.md)
-- 协议规范：[`docs/CN/SPEC v1.1_CN.md`](./SPEC%20v1.1_CN.md)
+
+---
+
+_2026-05-14 · Tide 🌊 · v2 重写——从"AI 读菜单"到"AI 写菜单"_

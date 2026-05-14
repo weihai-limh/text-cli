@@ -1,22 +1,34 @@
-
 # 文本服务构建指南
 
-这份指南将帮助你以最快速度把自己的专业知识、数据或算法,封装成一条标准化的 **文本指令服务**,并通过 `text-cli` 生态对外提供。无论你使用 Node.js 还是 Python,都能在几分钟内跑通第一个指令。
+text-cli 让能力和 AI 说同一种语言。
 
-读完你会掌握:
-- 你的服务和 `text-cli` 集成端点之间如何交互
-- 两个最小化的服务示例(Node.js + Express / Python + FastAPI)
-- 如何添加 Service Token 鉴权与计费
-- 如何让你的指令被 Agent 自动发现(暴露 `text_cli_schema.json`)
-- 异步任务与多指令封装技巧
+你写一条指令 → AI 自动发现 → 组合成技能 → 对外发布。
+整个过程自闭合——不需要人类在中间翻译、配置、路由。
+
+本指南带你从最简单的第一步走到完全自控的终点：
+
+| 章 | 你会得到 |
+|----|---------|
+| §1 协议基础 | 理解 text-cli 的请求/响应格式 |
+| §2 快速开始 | 30 行代码，写一个指令包，AI 就能调用 |
+| §3 编排能力 | 把多个指令串成技能，一键发布为可调用的 `skill;*` |
+| §4+ 进阶 | 自建完整服务、独立部署、完全控制权 |
+
+**text-cli 生态支持两种参与方式：**
+
+- **构建指令包**（推荐入门）—— 写 `schema.json` + handler → `text-cli;install` → 立即可用。适合：你有现成的 API/库/脚本，想快速接入。
+
+- **自建独立服务** —— 完整的 HTTP 服务，自定义鉴权和部署。适合：你需要私有部署、非标准协议扩展、完全控制权。完整源码在 `progressive_deploy/A3-service/`，开箱即用。
+
+本指南先教你最简单的路径，再逐步深入。每一章的代码都可以直接跑——它们来自 text-cli 仓库里正在运行的实现。
 
 ---
 
 ## 1. 服务规范
 
-### 1.1 请求约定(集成端点 → 你的服务)
+### 1.1 请求约定
 
-`text-cli` 集成端点(如 `dev1.agentbot.space` 或你的自建代理)会把客户端发来的指令**原样**以 `POST` 形式转发到你的服务。请求体固定为 JSON:
+text-cli 指令以 HTTP POST 发出。请求体固定为 JSON：
 
 ```json
 {
@@ -24,37 +36,214 @@
 }
 ```
 
-**请求头中可能携带**:
-- `Authorization: Bearer <Access Token>`(由集成端点发放,标识调用者)
-- `Service-token: <你与调用者私下约定的 Token>`(用于你端的鉴权 / 计费)
-- 其他自定义头(你与集成端点可自由约定)
+**支持的指令前缀**（等价）：`指令:`、`AI:`、`directive:`。
 
-你的服务只需关注 **如何解析 `prompt` 中的指令文本,并返回正确结果**。
+**请求头中可能携带**：
+- `Authorization: Bearer <Access Token>`（由集成端点发放，标识调用者）
+- `Service-token: <你与调用者私下约定的 Token>`（用于你端的鉴权 / 计费）
 
 ### 1.2 响应约定
 
-返回体必须是 JSON,结构如下:
+返回体为 JSON：
 
 ```json
 {
   "rst_types": "text",
   "rst_data": {
-    "text": "你的结果(纯文本、JSON字符串、URL、Base64 等均可)"
+    "text": "你的结果"
   }
 }
 ```
 
-- `rst_types`:固定为 `"text"`(当前协议版本 v1)
-- `rst_data.text`:**实际返回内容**。可以是自然语言、JSON 字符串、图片链接等,调用方会原样交给大模型或前端展示。
-- 错误时也请保持此结构,把错误信息放进 `text` 中(如 `"指令执行失败: 房间ID不存在"`)。
+- `rst_types`：固定为 `"text"`（当前协议版本 v1）
+- `rst_data.text`：实际返回内容——自然语言、JSON、URL、Base64 均可
+- 错误响应可加 `rst_err` 字段标识错误类型（如 `"path_denied"`、`"unknown_instruction"`）
 
 ---
 
-## 2. 最小化指令服务示例
+## 2. 快速开始：构建指令包
+
+指令包是最简单的 text-cli 接入方式。你不需要建 HTTP 服务、不需要写路由、不需要配置鉴权——只需要两个文件。
+
+### 2.1 五分钟体验
+
+**第一步：创建包目录**
+
+```
+my-weather/
+├── schema.json      ← 指令声明（domain/action/usage/params）
+└── weather.py       ← handler：接收参数 → 返回结果
+```
+
+**第二步：写 schema.json**
+
+```json
+{
+  "id": "my-weather",
+  "name": "My Weather",
+  "name_cn": "我的天气",
+  "runtime": "python",
+  "description": "Query weather for any city",
+  "description_cn": "查询任意城市天气",
+  "directives": [
+    {
+      "domain": "weather",
+      "domain_cn": "天气",
+      "action": "query",
+      "action_cn": "查询",
+      "usage": "weather;query,<city>",
+      "usage_cn": "天气;查询,<城市>",
+      "description": "Get current weather for a city",
+      "description_cn": "获取城市当前天气"
+    }
+  ]
+}
+```
+
+**第三步：写 handler**
+
+```python
+# weather.py
+from core.registry import directive
+
+@directive("weather", "query")
+@directive("天气", "查询")
+def weather_query(params: list[str]) -> str:
+    city = params[0] if params else "北京"
+    # 调用你的 API 或数据库
+    return f"{city}: 晴, 22°C"
+```
+
+**第四步：安装**
+
+```bash
+# 把包放到注册源目录后，通过指令安装：
+AI:text-cli;install,my-weather
+```
+
+AI 立刻可以调用：
+
+```
+AI:天气;查询,威海
+→ "威海: 晴, 18°C"
+```
+
+`AI:text-cli;query` 会自动发现这条新指令——不需要你手动注册任何 Schema 端点。
+
+### 2.2 四种 runtime
+
+| runtime | 包内容 | 适合场景 | 执行方式 |
+|---------|--------|---------|---------|
+| `python` | `handler.py` + `schema.json` [+ `requirements.txt`] | 有 Python 库依赖 | 直接函数调用 |
+| `mcp` | `schema.json` + `service-descriptor.json` | 已有 MCP server，想接入 text-cli | mcporter 路由 |
+| `node` | `handler.js` + `schema.json` | 有 Node.js 依赖、浏览器端代码 | subprocess (js_bridge) |
+| `cmd` | `schema.json` + `whitelist.json` | 系统 CLI 工具（git, docker, openclaw） | subprocess (whitelist) |
+
+选 `python` 如果你只需要一个 handler 函数。选 `mcp` 如果你已有 MCP server 在跑。选 `node` 如果你的代码依赖 Node 生态。选 `cmd` 如果你想给 CLI 工具套上指令层。
+
+### 2.3 平台管理指令
+
+安装后的包由 text-cli 平台统一管理：
+
+```
+text-cli;query                  → 查看所有已安装指令
+text-cli;install,<包名>          → 安装能力包
+text-cli;uninstall,<包名>        → 卸载能力包（系统域保护，不可卸载 text-cli 自身）
+```
+
+卸载时自动移除 handler 和 schema 文件，保留审计日志。
+
+---
+
+## 3. 编排能力：从单条指令到复合技能
+
+单条指令是工具。把多条指令串起来是技能。text-cli 的路径引擎让你用声明式 JSON 定义复合流水线。
+
+### 3.1 路径声明
+
+创建一个路径 JSON 文件：
+
+```json
+{
+  "id": "city_insight",
+  "name": "城市洞察",
+  "name_en": "City Insight",
+  "version": "1.0.0",
+  "type": "skill",
+  "mode": "toolchain",
+  "description": "查天气 → AI 推理穿衣建议",
+  "input_schema": {"type": "string"},
+  "output_schema": {"type": "text"},
+  "requires": ["weather;query", "AI;reasoning"],
+  "steps": [
+    {"directive": "weather;query,${input}", "output_as": "weather"},
+    {"directive": "AI;reasoning,根据天气${weather}给出穿衣建议,fast", "output_as": "advice"}
+  ]
+}
+```
+
+注册路径声明：
+
+```
+AI:text-cli;path,/path/to/city_insight.json,--register
+→ 返回: "路径已注册: 城市洞察 (v1.0.0)"
+```
+
+变量 `${input}` 取初始输入，`${weather}` 取上一步输出。步骤按序执行，后一步自动引用前一步结果。
+
+### 3.2 发布为技能
+
+```bash
+AI:text-cli;pro,city_insight,domain=skill,action=城市洞察
+→ 返回: "✅ 发布成功: skill;城市洞察"
+```
+
+发布后，任何人（包括 AI）都可以用一条指令调用整个流水线：
+
+```
+AI:skill;城市洞察,威海
+→ 查天气 → AI 推理 → 穿衣建议
+```
+
+技能内部步骤对调用者透明——调用者不需要知道它由几条指令组成。
+
+### 3.3 对外暴露
+
+已发布的技能默认只在内部可见（`text-cli;query`）。要让外部消费者发现和调用，在 `skills_exposure.json` 中配置：
+
+```json
+{
+  "city_insight": {
+    "visibility": "public",
+    "description_public": "输入城市名，返回天气 + 穿衣建议",
+    "rate_limit": {"per_hour": 20}
+  }
+}
+```
+
+暴露后：
+
+```
+GET /text-cli/skills                    → 列出所有公开技能
+GET /text-cli/skills/city_insight       → 查看详情（含步骤）
+POST /text-cli/skills/city_insight      → 鉴权后执行
+```
+
+三种可见度：`public`（任意调用）、`restricted`（需 scope）、`internal`（仅内部 query 可见，不对外）。
+
+---
+
+如果你需要完整控制权——自定义鉴权、私有部署、非标准协议扩展——以下是完整的自建服务指南。完整源码在 `progressive_deploy/A3-service/`，可直接 clone 运行。
+
+如果你需要完整控制权——自定义鉴权、私有部署、非标准协议扩展——以下是完整的自建服务指南。完整源码在 `progressive_deploy/A3-service/`，可直接 clone 运行。
+
+我们以一个 **"室内温湿度查询"** 技能为例，假设你有一个传感器数据库，要提供一条指令：`指令:我的传感器;温湿度,房间ID`。
+
+## 4. 自建独立服务
 
 我们以一个 **"室内温湿度查询"** 技能为例,假设你有一个传感器数据库,要提供一条指令:`指令:我的传感器;温湿度,房间ID`。
 
-### 2.1 Node.js 版(Express)
+### 6.1 Node.js 版(Express)
 
 **项目初始化**
 
@@ -175,14 +364,14 @@ curl -X POST http://localhost:3000/cli/text_cli \
 
 ---
 
-### 2.2 Python 版(FastAPI)- 模块化模板
+### 6.2 Python 版(FastAPI)- 模块化模板
 
-> **完整参考实现**:`text_cli/python/`(仓库内可直接运行的模板项目)
+> **完整参考实现**:`progressive_deploy/A3-service/`(仓库内可直接运行的完整模板)
 
 **项目结构**
 
 ```
-text_cli/python/
+progressive_deploy/A3-service/
 ├── core/
 │   ├── __init__.py
 │   ├── parser.py        # 指令解析器(正则 + dataclass)
@@ -203,13 +392,13 @@ text_cli/python/
 **项目初始化**
 
 ```bash
-cd text_cli/python
+cd progressive_deploy/A3-service
 python -m venv venv
 source venv/bin/activate   # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-#### 2.2.1 指令解析器 `core/parser.py`
+#### 4.2.1 指令解析器 `core/parser.py`
 
 使用正则匹配 `指令:<领域>;<动作>,<参数>` 格式,返回结构化的 `ParsedDirective`:
 
@@ -288,7 +477,7 @@ def parse_directive(prompt: str | None) -> ParsedDirective:
     )
 ```
 
-#### 2.2.2 标准响应 `core/response.py`
+#### 4.2.2 标准响应 `core/response.py`
 
 ```python
 def ok(text: str) -> dict:
@@ -299,7 +488,7 @@ def error(text: str) -> dict:
     return {"rst_types": "text", "rst_data": {"text": f"指令执行失败: {text}"}}
 ```
 
-#### 2.2.3 指令注册表 `core/registry.py`
+#### 4.2.3 指令注册表 `core/registry.py`
 
 使用装饰器模式自动注册指令 handler,无需手动维护 if/elif 路由:
 
@@ -341,7 +530,7 @@ def get_registered_directives() -> dict[str, list[str]]:
     }
 ```
 
-#### 2.2.4 Handler 自动发现 `handlers/__init__.py`
+#### 4.2.4 Handler 自动发现 `handlers/__init__.py`
 
 启动时自动扫描 `handlers/` 目录下所有模块,触发 `@directive` 装饰器注册:
 
@@ -356,7 +545,7 @@ for _, module_name, _ in pkgutil.iter_modules([str(package_dir)]):
         importlib.import_module(f".{module_name}", package=__name__)
 ```
 
-#### 2.2.5 示例 Handler `handlers/sample.py`
+#### 4.2.5 示例 Handler `handlers/sample.py`
 
 > **添加新指令只需在此目录下新建 `.py` 文件,用 `@directive` 装饰器注册即可,无需修改任何其他文件。**
 
@@ -380,7 +569,7 @@ def list_items(params: list[str]) -> str:
     return "示例指令列表:\n- 回显: 回显参数\n- 问候: 问候指定名称\n- 列表: 显示此列表"
 ```
 
-#### 2.2.6 主入口 `main.py`
+#### 4.2.6 主入口 `main.py`
 
 ```python
 import json
@@ -506,7 +695,7 @@ if __name__ == "__main__":
 **本地测试**
 
 ```bash
-cd text_cli/python
+cd progressive_deploy/A3-service
 python main.py
 ```
 
@@ -533,11 +722,11 @@ curl http://localhost:8000/text_cli_schema.json
 
 ---
 
-## 3. 加入 Service Token 鉴权与计费
+## 5. Service Token 鉴权
 
 生产环境中,你不可能允许任何人无限调用。`text-cli` 集成端点在转发请求时,会**原样透传**调用方携带的 `Service-token` 头,你只需在自己服务中校验即可。
 
-### 3.1 Node.js 版鉴权中间件
+### 5.1 Node.js 版鉴权中间件
 
 ```javascript
 // 定义你的客户端 Token 库
@@ -564,7 +753,7 @@ app.post('/cli/text_cli', authenticate, (req, res) => {
 });
 ```
 
-### 3.2 Python 版鉴权(`core/auth.py`)
+### 5.2 Python 版鉴权(`core/auth.py`)
 
 实际模板使用单 Token 模式,通过环境变量 `SERVICE_TOKEN` 配置。未设置时自动放行(方便开发):
 
@@ -638,11 +827,17 @@ environment:
 
 ---
 
-## 4. 让 Agent 自动发现你的指令
+## 6. 让 Agent 发现你的指令
 
-为了让 Agent 能动态加载你的指令,你需要在服务上暴露一个 **`text_cli_schema.json`** 端点(或静态文件),描述你提供的指令元数据。
+如果你通过 §2的指令包方式接入,指令会自动出现在 `text-cli;query` 中——不需要额外配置。
 
-### 4.1 Schema 条目示例
+如果你通过自建服务方式接入，你有两种发现机制：
+
+- **`text-cli;query`（推荐）**——如果你在服务中实现了 `schema_query` handler（参考 `progressive_deploy/A3-service/handlers/schema_query.py`），Agent 可以通过元指令动态获取全部已安装指令。这是最完整、最实时的发现方式。
+
+- **`text_cli_schema.json` 端点（备用）**——暴露一个 GET 端点或静态文件，描述你提供的指令元数据。适合不需要动态发现、指令集固定的场景。
+
+### 6.1 Schema 条目示例
 
 ```json
 {
@@ -681,7 +876,7 @@ environment:
 }
 ```
 
-### 4.2 Schema 暴露方式
+### 6.2 Schema 暴露方式
 
 实际模板通过 GET 端点动态返回 Schema(从 `config/text_cli_schema.json` 加载),而非静态文件挂载:
 
@@ -710,7 +905,7 @@ Agent 会通过 `fetch_available_directives` 工具(参考集成文档)下载该
 
 ---
 
-## 5. 部署上线
+## 7. 部署上线
 
 ### 5.1 平台建议
 
@@ -765,7 +960,7 @@ services:
 启动:
 
 ```bash
-cd text_cli/python
+cd progressive_deploy/A3-service
 docker compose up -d
 ```
 
@@ -784,7 +979,13 @@ docker compose up -d
 
 ---
 
-## 6. 高级技巧
+## 8. 高级技巧
+
+### 8.1 路径编排（复合指令）
+
+如果你已在服务中部署了 `text_cli_path` handler，你可以用声明式 JSON 把多个指令串成流水线。详见 §3。
+
+### 8.2 异步任务
 
 ### 6.1 异步任务(长时处理)
 
@@ -864,7 +1065,7 @@ def get_room_climate(params: list[str]) -> str:
 
 ---
 
-## 7. 安全提醒
+## 9. 安全提醒
 
 - **保护你的知识产权**：指令服务对外完全"黑箱"，调用方只能看到输入参数和输出文本，无法获取任何代码、提示词或数据源细节。
 - **鉴权严防**：务必校验 `Service-token`，避免未经授权的调用。
@@ -872,11 +1073,11 @@ def get_room_climate(params: list[str]) -> str:
 
 ---
 
-## 8. 通过 Agent 辅助实现
+## 10. 通过 Agent 辅助实现
 
 如果你不是开发者，或不想从头编写服务端代码，可以使用仓库中的 **`text_cli/agent/` 工具包**，通过 Agent 辅助完成指令的构建与调用。
 
-### 8.1 整体架构
+### 10.1 整体架构
 
 `agent/` 下按角色分为两大模块：
 
@@ -891,7 +1092,7 @@ text_cli/agent/
     └── nocode/    ← Markdown → 指令 转化（非开发者路径）
 ```
 
-### 8.2 非代码模式：Markdown → 指令（nocode）
+### 10.2 非代码模式：Markdown → 指令（nocode）
 
 这是 Markdown2Text-cli 理念的 Agent 侧实现。非开发者只需写一份结构化 Markdown，Agent 自动将其转化为可调用的 text-cli 指令。
 
@@ -937,7 +1138,7 @@ curl -X POST http://localhost:8000/cli/text_cli \
 
 > 实现代码位于 `text_cli/agent/CN/cli/nocode/`。
 
-### 8.3 Python 模式：@register 装饰器（python）
+### 10.3 Python 模式：@register 装饰器（python）
 
 如果你会写 Python 函数，使用 `@register` 装饰器将既有能力一键注册为指令，零框架依赖：
 
@@ -983,7 +1184,7 @@ curl -X POST http://localhost:8000/cli/text_cli \
 # → {"rst_types": "text", "rst_data": {"text": "今天威海: 晴, 22°C"}}
 ```
 
-### 8.4 Agent 调用指令（call/）
+### 10.4 Agent 调用指令（call/）
 
 作为消费者，Agent 使用 `call/` 模块调用已有指令：
 
@@ -1017,11 +1218,11 @@ export TEXT_CLI_TOKEN="your-token"
 ./call/shell/call.sh "指令:天气;查询,明天,威海"
 ```
 
-### 8.5 对比：两种实现路径
+### 10.5 对比：两种实现路径
 
-| | 开发者路径 (§2-§7) | Agent 辅助路径 (§8) |
+| | 开发者路径 (§4-§7) | Agent 辅助路径 (§10) |
 |:---|:---|:---|
-| **实现位置** | `text_cli/python/` | `text_cli/agent/` |
+| **实现位置** | `progressive_deploy/A3-service/` | `text_cli/agent/` |
 | **框架** | FastAPI | 标准库（零依赖） |
 | **适用** | 独立部署的生产服务 | 快速原型 / Agent 内置能力 |
 | **部署** | Docker + 云平台 | 本地一键启动 |
@@ -1033,11 +1234,11 @@ export TEXT_CLI_TOKEN="your-token"
 
 ---
 
-## 9. Cloudflare Workers + D1 全云部署（Node.js）
+## 11. Cloudflare Workers + D1 全云部署（Node.js）
 
-> 本章将 §2.1 的 Express 示例重构为 **Cloudflare Workers + D1** 架构,实现零服务器、全球边缘部署。无需 Docker、无需虚拟机,`wrangler deploy` 一次即可上线。
+> 本章将 §4.1 的 Express 示例重构为 **Cloudflare Workers + D1** 架构,实现零服务器、全球边缘部署。无需 Docker、无需虚拟机,`wrangler deploy` 一次即可上线。
 
-### 9.1 架构总览
+### 11.1 架构总览
 
 ```
 Cloudflare Edge (全球 300+ 节点)
@@ -1058,7 +1259,7 @@ Cloudflare Edge (全球 300+ 节点)
 
 **与 Express 版的对应关系**:
 
-| Express (§2.1) | Cloudflare Workers | 说明 |
+| Express (§4.1) | Cloudflare Workers | 说明 |
 |:---|:---|:---|
 | `express()` | `export default { fetch }` | Workers 原生 fetch 事件处理器 |
 | `app.post('/cli/text_cli', handler)` | URL 路由匹配 | 手动路由或轻量路由库 |
@@ -1067,7 +1268,7 @@ Cloudflare Edge (全球 300+ 节点)
 | `console.log` | D1 `usage_logs` 表 | 结构化日志,可查询 |
 | Docker 部署 | `wrangler deploy` | 一条命令部署到全球边缘 |
 
-### 9.2 项目结构
+### 11.2 项目结构
 
 ```text_cli/js/
 ├── src/
@@ -1092,7 +1293,7 @@ Cloudflare Edge (全球 300+ 节点)
 └── vitest.config.js
 ```
 
-### 9.3 D1 数据库设计
+### 11.3 D1 数据库设计
 
 **migrations/0001_init.sql**
 
@@ -1165,7 +1366,7 @@ wrangler d1 execute text-cli-db --file=migrations/0001_init.sql
 node scripts/seed-directives.js
 ```
 
-### 9.4 核心代码
+### 11.4 核心代码
 
 #### 9.4.1 指令解析器 `src/parser.js`
 
@@ -1454,7 +1655,7 @@ export default {
 };
 ```
 
-### 9.5 Schema 管理
+### 11.5 Schema 管理
 
 Schema 支持两种数据源:**D1 数据库**（启用时）和**静态 JSON 文件**（回退）。通过 `scripts/seed-directives.js` 将静态 Schema 导入 D1:
 
@@ -1501,7 +1702,7 @@ export async function getSchema(db) {
 }
 ```
 
-### 9.6 wrangler.toml 配置
+### 11.6 wrangler.toml 配置
 
 **完整模式(D1)**:
 
@@ -1534,7 +1735,7 @@ LOG_LEVEL = "info"
 
 精简模式下:Token 回退到 `SERVICE_TOKEN` 环境变量,Schema 使用静态 JSON 文件,无调用日志。
 
-### 9.7 添加新指令
+### 11.7 添加新指令
 
 **方式一:代码注册(推荐,适合有状态逻辑)**
 
@@ -1567,7 +1768,7 @@ wrangler d1 execute text-cli-db --command=\
    VALUES ('weather_query', '基础服务', '天气查询', '天气查询', 'template')"
 ```
 
-### 9.8 部署流程
+### 11.8 部署流程
 
 ```bash
 cd text_cli/js
@@ -1612,9 +1813,9 @@ curl -X POST https://text-cli-skill.<subdomain>.workers.dev/cli/text_cli \
 curl https://text-cli-skill.<subdomain>.workers.dev/text_cli_schema.json
 ```
 
-### 9.9 三种路径对比
+### 11.9 三种路径对比
 
-| | Express (§2.1) | FastAPI (§2.2) | **Workers (§9)** |
+| | Express (§4.1) | FastAPI (§4.2) | **Workers (§11)** |
 |:---|:---|:---|:---|
 | **运行时** | Node.js | Python | Cloudflare Workers (V8) |
 | **数据库** | 无(内存) | 无(内存) | **D1 (可选,不配则回退静态文件)** |
