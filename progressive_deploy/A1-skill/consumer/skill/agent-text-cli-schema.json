@@ -1,157 +1,681 @@
 {
-  "version": "1.0",
-  "updated_at": "2026-05-07T21:55:00+08:00",
-  "endpoints": {
+  "_note": "本躯体的指令→端点路由映射。英文主字段(domain/action)用于路由，_cn 变体用于人类展示。",
+  "_updated": "2026-05-14T15:40:00+08:00",
+  "_body": "OpenClaw on VM-4-2-ubuntu",
+  "_version": "2.0",
+  "locales": [
+    "cn",
+    "en"
+  ],
+  "tokens": {
     "TEXT_CLI_TOKEN_OFFICIAL": "${TEXT_CLI_TOKEN_OFFICIAL}",
     "TEXT_CLI_TOKEN_LOCAL": "${TEXT_CLI_TOKEN_LOCAL}"
   },
   "directives": {
-    "基础应用;天气查询": [
+    "weather;query": [
       {
-        "endpoint": "https://test.text-cli.com/cli/text_cli",
-        "token_env": "TEXT_CLI_TOKEN_OFFICIAL",
+        "source": "text-cli-service",
         "rank": 1,
-        "description": "查询指定城市和日期的天气",
         "params": [
-          "城市",
-          "日期"
+          "日期",
+          "城市"
         ],
-        "example": "指令:基础应用;天气查询,明天,威海"
+        "params_cn": [
+          "日期",
+          "城市"
+        ],
+        "note": "tideweather (node runtime)"
       }
     ],
-    "基础应用;穿衣标签": [
+    "key;register": [
       {
-        "endpoint": "https://test.text-cli.com/cli/text_cli",
-        "token_env": "TEXT_CLI_TOKEN_OFFICIAL",
+        "source": "text-cli-service",
         "rank": 1,
-        "description": "根据日期与城市返回穿衣建议标签",
         "params": [
-          "城市",
-          "日期"
+          "服务名",
+          "密钥值",
+          "密钥类型"
         ],
-        "example": "指令:基础应用;穿衣标签,明天,威海"
+        "note": "SQLite本地处理"
       }
     ],
-    "文件;读取": [
+    "key;revoke": [
       {
-        "endpoint": "http://localhost:20260/cli/text_cli",
-        "token_env": "TEXT_CLI_TOKEN_LOCAL",
+        "source": "text-cli-service",
         "rank": 1,
-        "description": "读取本地文件内容（UTF-8 编码）",
+        "params": [
+          "服务名"
+        ],
+        "note": "SQLite本地处理"
+      }
+    ],
+    "key;list": [
+      {
+        "source": "text-cli-service",
+        "rank": 1,
+        "params": [],
+        "note": "不暴露密钥值"
+      }
+    ],
+    "semantic;encode": [
+      {
+        "source": "text-cli-service",
+        "rank": 1,
+        "params": [
+          "文本",
+          "模式(可选,A/B/C/D)"
+        ],
+        "note": "embedding-3 API → 256-2048维向量"
+      }
+    ],
+    "semantic;similarity": [
+      {
+        "source": "text-cli-service",
+        "rank": 1,
+        "params": [
+          "文本A",
+          "文本B",
+          "模式(可选)"
+        ],
+        "note": "余弦相似度 0~1"
+      }
+    ],
+    "semantic;match": [
+      {
+        "source": "text-cli-service",
+        "rank": 1,
+        "params": [
+          "查询",
+          "候选1",
+          "候选2...",
+          "模式(可选)"
+        ],
+        "note": "最佳匹配 + 排名"
+      }
+    ],
+    "image;info": [
+      {
+        "source": "text-cli-service",
+        "rank": 1,
+        "params": [
+          "图片路径"
+        ],
+        "note": "Pillow — 宽高/格式/大小 + EXIF(GPS/时间/设备)"
+      }
+    ],
+    "image;encode": [
+      {
+        "source": "text-cli-service",
+        "rank": 1,
+        "params": [
+          "图片路径",
+          "最大尺寸(可选,默认1024)"
+        ],
+        "note": "Pillow缩放+JPEG+base64→缓存(cache:<key>)"
+      }
+    ],
+    "image;convert": [
+      {
+        "source": "text-cli-service",
+        "rank": 1,
+        "params": [
+          "路径",
+          "输出格式",
+          "质量(可选)"
+        ],
+        "note": "格式转换"
+      }
+    ],
+    "image;resize": [
+      {
+        "source": "text-cli-service",
+        "rank": 1,
+        "params": [
+          "路径",
+          "宽",
+          "高"
+        ],
+        "note": "缩放"
+      }
+    ],
+    "image-gen;generate": [
+      {
+        "source": "text-cli-service",
+        "rank": 1,
+        "params": [
+          "提示词",
+          "尺寸(可选)"
+        ],
+        "note": "CogView-3-Flash → 图片URL"
+      }
+    ],
+    "video;generate": [
+      {
+        "source": "text-cli-service",
+        "rank": 1,
+        "params": [
+          "提示词",
+          "尺寸(可选)",
+          "品质(可选)"
+        ],
+        "note": "CogVideoX-Flash → task_id(异步)"
+      }
+    ],
+    "video;status": [
+      {
+        "source": "text-cli-service",
+        "rank": 1,
+        "params": [
+          "task_id"
+        ],
+        "note": "轮询视频生成任务"
+      }
+    ],
+    "ai;reasoning": [
+      {
+        "source": "text-cli-service",
+        "rank": 1,
+        "params": [
+          "prompt",
+          "模式(可选,auto/fast/quality, +cache)"
+        ],
+        "note": "时段感知+回退链; cache:<key>自动替换; ,cache缓存输出"
+      }
+    ],
+    "ai;vision": [
+      {
+        "source": "text-cli-service",
+        "rank": 1,
+        "params": [
+          "prompt",
+          "图片(cache:<key>/URL/base64)",
+          "模式(可选)"
+        ],
+        "note": "VL: GLM-4.1V-Thinking-Flash→glm-4v-flash回退"
+      }
+    ],
+    "github;search_repos": [
+      {
+        "source": "text-cli-service",
+        "rank": 1,
+        "params": [
+          "关键词",
+          "页码(可选)",
+          "每页数量(可选)"
+        ],
+        "note": "MCP → GitHub API (runtime:mcp)"
+      }
+    ],
+    "github;get_file": [
+      {
+        "source": "text-cli-service",
+        "rank": 1,
+        "params": [
+          "owner",
+          "repo",
+          "path",
+          "分支(可选)"
+        ],
+        "note": "MCP → GitHub API"
+      }
+    ],
+    "github;list_commits": [
+      {
+        "source": "text-cli-service",
+        "rank": 1,
+        "params": [
+          "owner",
+          "repo",
+          "分支或SHA(可选)",
+          "页码(可选)"
+        ],
+        "note": "MCP → GitHub API"
+      }
+    ],
+    "github;search_issues": [
+      {
+        "source": "text-cli-service",
+        "rank": 1,
+        "params": [
+          "查询",
+          "排序(可选)",
+          "页码(可选)"
+        ],
+        "note": "MCP → GitHub API"
+      }
+    ],
+    "github;list_issues": [
+      {
+        "source": "text-cli-service",
+        "rank": 1,
+        "params": [
+          "owner",
+          "repo",
+          "状态(可选)",
+          "标签(可选)"
+        ],
+        "note": "MCP → GitHub API"
+      }
+    ],
+    "github;create_issue": [
+      {
+        "source": "text-cli-service",
+        "rank": 1,
+        "params": [
+          "owner",
+          "repo",
+          "标题",
+          "正文(可选)",
+          "负责人(可选)",
+          "标签(可选)",
+          "里程碑(可选)"
+        ],
+        "note": "MCP → GitHub API"
+      }
+    ],
+    "github;create_pr": [
+      {
+        "source": "text-cli-service",
+        "rank": 1,
+        "params": [
+          "owner",
+          "repo",
+          "标题",
+          "head分支",
+          "base分支(可选)",
+          "正文(可选)"
+        ],
+        "note": "MCP → GitHub API"
+      }
+    ],
+    "tencentmap;geocode": [
+      {
+        "source": "text-cli-service",
+        "rank": 1,
+        "params": [
+          "地址"
+        ],
+        "note": "MCP → 腾讯地图 — 地址→坐标"
+      }
+    ],
+    "tencentmap;weather": [
+      {
+        "source": "text-cli-service",
+        "rank": 1,
+        "params": [
+          "城市"
+        ],
+        "note": "MCP → 腾讯地图 — 天气查询"
+      }
+    ],
+    "tencentmap;search": [
+      {
+        "source": "text-cli-service",
+        "rank": 1,
+        "params": [
+          "关键词",
+          "区域(可选)"
+        ],
+        "note": "MCP → 腾讯地图 — POI搜索"
+      }
+    ],
+    "antvchart;area": [
+      {
+        "source": "text-cli-service",
+        "rank": 1,
+        "params": [
+          "数据JSON"
+        ],
+        "note": "MCP → AntV — 面积图"
+      }
+    ],
+    "antvchart;line": [
+      {
+        "source": "text-cli-service",
+        "rank": 1,
+        "params": [
+          "数据JSON"
+        ],
+        "note": "MCP → AntV — 折线图"
+      }
+    ],
+    "antvchart;column": [
+      {
+        "source": "text-cli-service",
+        "rank": 1,
+        "params": [
+          "数据JSON"
+        ],
+        "note": "MCP → AntV — 柱状图"
+      }
+    ],
+    "skill;照片分析": [
+      {
+        "source": "text-cli-service",
+        "rank": 1,
+        "params": [
+          "图片路径"
+        ],
+        "note": "复合技能 (runtime:composite) — image;info → encode → AI;vision → reasoning → 50字摘要"
+      }
+    ],
+    "text-cli;install": [
+      {
+        "source": "text-cli-service",
+        "rank": 1,
+        "params": [
+          "包名"
+        ],
+        "note": "安装能力包 (python/mcp/node/cmd runtime)"
+      }
+    ],
+    "text-cli;uninstall": [
+      {
+        "source": "text-cli-service",
+        "rank": 1,
+        "params": [
+          "包名"
+        ],
+        "note": "卸载能力包 (SYSTEM_DOMAINS保护)"
+      }
+    ],
+    "text-cli;path": [
+      {
+        "source": "text-cli-service",
+        "rank": 1,
+        "params": [
+          "路径文件",
+          "初始输入(可选) 或 --register"
+        ],
+        "note": "执行toolchain路径 或 --register注册为声明"
+      }
+    ],
+    "text-cli;pro": [
+      {
+        "source": "text-cli-service",
+        "rank": 1,
+        "params": [
+          "路径ID",
+          "domain=X",
+          "action=Y"
+        ],
+        "note": "发布已注册路径为可调用 skill 指令"
+      }
+    ],
+    "text-cli;query": [
+      {
+        "source": "text-cli-service",
+        "rank": 1,
+        "params": [
+          "关键词(可选)"
+        ],
+        "note": "查询已安装指令（元指令）"
+      }
+    ],
+    "media;load": [
+      {
+        "source": "text-cli-copilot",
+        "rank": 1,
+        "params": [
+          "文件路径或URL"
+        ],
+        "note": "公网透传/本地挂载→rst_types按扩展名自动设置"
+      }
+    ],
+    "media;download": [
+      {
+        "source": "text-cli-copilot",
+        "rank": 1,
+        "params": [
+          "URL",
+          "保存名(可选)"
+        ],
+        "note": "下载外部媒体→本地media目录"
+      }
+    ],
+    "resource;render": [
+      {
+        "source": "text-cli-copilot",
+        "rank": 1,
+        "params": [
+          "类型(picture/video/audio/file/text)",
+          "URL",
+          "描述(可选)"
+        ],
+        "note": "type+url→可渲染响应，alt缺失文件名兜底"
+      }
+    ],
+    "file;read": [
+      {
+        "source": "text-cli-copilot",
+        "rank": 1,
         "params": [
           "文件路径"
         ]
       }
     ],
-    "Git;状态": [
+    "file;write": [
       {
-        "endpoint": "http://localhost:20260/cli/text_cli",
-        "token_env": "TEXT_CLI_TOKEN_LOCAL",
+        "source": "text-cli-copilot",
         "rank": 1,
-        "description": "查看 Git 工作区状态",
-        "params": []
-      }
-    ],
-    "文件;写入": [
-      {
-        "endpoint": "http://localhost:20260/cli/text_cli",
-        "token_env": "TEXT_CLI_TOKEN_LOCAL",
-        "rank": 1,
-        "description": "写入内容到本地文件（自动创建父目录）",
         "params": [
           "文件路径",
           "内容"
         ]
       }
     ],
-    "文件;列表": [
+    "file;list": [
       {
-        "endpoint": "http://localhost:20260/cli/text_cli",
-        "token_env": "TEXT_CLI_TOKEN_LOCAL",
+        "source": "text-cli-copilot",
         "rank": 1,
-        "description": "列出目录内容，返回文件名、类型、大小、修改时间",
         "params": [
           "目录路径(可选)"
         ]
       }
     ],
-    "文件;移动": [
+    "file;move": [
       {
-        "endpoint": "http://localhost:20260/cli/text_cli",
-        "token_env": "TEXT_CLI_TOKEN_LOCAL",
+        "source": "text-cli-copilot",
         "rank": 1,
-        "description": "移动/重命名文件或目录（同目录=重命名，跨目录=移动）",
         "params": [
           "源路径",
           "目标路径"
         ]
       }
     ],
-    "Git;推送": [
+    "git;status": [
       {
-        "endpoint": "http://localhost:20260/cli/text_cli",
-        "token_env": "TEXT_CLI_TOKEN_LOCAL",
+        "source": "text-cli-copilot",
         "rank": 1,
-        "description": "推送本地提交到远程仓库（HTTPS/SSH 自动选择）",
+        "params": []
+      }
+    ],
+    "git;push": [
+      {
+        "source": "text-cli-copilot",
+        "rank": 1,
         "params": [
           "分支名"
         ]
       }
     ],
-    "邮件;发送": [
+    "email;send": [
       {
-        "endpoint": "http://localhost:20260/cli/text_cli",
-        "token_env": "TEXT_CLI_TOKEN_LOCAL",
+        "source": "text-cli-copilot",
         "rank": 1,
-        "description": "通过预配置 SMTP 发送邮件（支持附件）",
         "params": [
           "收件人",
           "主题",
           "正文",
           "附件路径(可选)"
-        ]
+        ],
+        "note": "经service注入密钥→copilot执行"
       }
     ],
-    "系统;健康": [
+    "system;health": [
       {
-        "endpoint": "http://localhost:20260/cli/text_cli",
-        "token_env": "TEXT_CLI_TOKEN_LOCAL",
+        "source": "text-cli-copilot",
         "rank": 1,
-        "description": "查看辅助服务器运行状态（运行时间、内存、配置状态）",
         "params": []
       }
     ],
-    "系统;状态": [
+    "system;status": [
       {
-        "endpoint": "http://localhost:20260/cli/text_cli",
-        "token_env": "TEXT_CLI_TOKEN_LOCAL",
+        "source": "text-cli-copilot",
         "rank": 1,
-        "description": "查看工作心情（请求统计、错误率、活跃度、心情）",
         "params": []
       }
     ],
-    "AI协作;状态": [
+    "ai;status": [
       {
-        "endpoint": "http://localhost:20260/cli/text_cli",
-        "token_env": "TEXT_CLI_TOKEN_LOCAL",
+        "source": "text-cli-copilot",
         "rank": 1,
-        "description": "查看 AI 协作者当前状态（上下文、压缩、Token 等，A=精简 B=要点）",
         "params": [
           "模式(可选,A/B)"
         ]
       }
     ],
-    "AI协作;消息": [
+    "encode;base64": [
       {
-        "endpoint": "http://localhost:20260/cli/text_cli",
-        "token_env": "TEXT_CLI_TOKEN_LOCAL",
+        "source": "text-cli-copilot",
         "rank": 1,
-        "description": "读取/推送 AI 协作者消息，读取时指定条数，推送时传入 JSON",
         "params": [
-          "条数(默认1) 或 '推送',消息JSON"
+          "模式(encode/decode)",
+          "内容"
         ]
+      }
+    ],
+    "encode;hex": [
+      {
+        "source": "text-cli-copilot",
+        "rank": 1,
+        "params": [
+          "模式(encode/decode)",
+          "内容"
+        ]
+      }
+    ],
+    "template;list": [
+      {
+        "source": "text-cli-service",
+        "rank": 1,
+        "params": [],
+        "note": "列出可用prompt模板"
+      }
+    ],
+    "template;use": [
+      {
+        "source": "text-cli-service",
+        "rank": 1,
+        "params": [
+          "模板ID",
+          "键=值...(可选)"
+        ],
+        "note": "填充模板→cache:key; 0 token"
+      }
+    ],
+    "sample;echo": [
+      {
+        "source": "text-cli-service",
+        "rank": 1,
+        "params": [
+          "文本"
+        ]
+      }
+    ],
+    "sample;greet": [
+      {
+        "source": "text-cli-service",
+        "rank": 1,
+        "params": [
+          "名字"
+        ]
+      }
+    ],
+    "sample;list": [
+      {
+        "source": "text-cli-service",
+        "rank": 1,
+        "params": []
       }
     ]
   },
-  "_note": "本文件由同步 Skill 维护。端点注册表: endpoints.json"
+  "paths": {
+    "photo-analysis": {
+      "id": "photo_analysis",
+      "name": "照片分析",
+      "name_en": "Photo Analysis",
+      "version": "1.0.0",
+      "type": "skill",
+      "mode": "toolchain",
+      "description": "图片→EXIF→编码→VL→摘要（4步流水线）",
+      "description_en": "Image→EXIF→encode→VL→summary (4-step pipeline)",
+      "params": [
+        "图片路径"
+      ],
+      "params_en": [
+        "image_path"
+      ],
+      "published": true,
+      "directive": "skill;照片分析",
+      "steps": [
+        "image;info",
+        "image;encode",
+        "AI;vision",
+        "AI;reasoning"
+      ],
+      "rank": 1,
+      "tags": [
+        "toolchain",
+        "vision",
+        "photo",
+        "ai",
+        "cache",
+        "summary",
+        "skill"
+      ],
+      "note": "已通过 text-cli;pro 发布为 skill;照片分析"
+    },
+    "local-photo-vision": {
+      "description": "加载本地图片，编码入库，视觉AI推理",
+      "params": [
+        "图片路径",
+        "编码尺寸(默认1024)",
+        "推理prompt"
+      ],
+      "instruction_chain": [
+        "image;encode",
+        "ai;vision"
+      ],
+      "rank": 1,
+      "tags": [
+        "toolchain",
+        "vision",
+        "ai"
+      ],
+      "note": "image;encode→cache:<key>, ai;vision→cache:<key>内部分辨"
+    },
+    "local-photo-render": {
+      "description": "加载本地图片，生成公网可访问的渲染URL",
+      "params": [
+        "图片路径",
+        "描述文本(可选)"
+      ],
+      "instruction_chain": [
+        "media;load",
+        "resource;render"
+      ],
+      "rank": 1,
+      "tags": [
+        "toolchain",
+        "media",
+        "render"
+      ]
+    }
+  },
+  "sourceMap": {
+    "text-cli-official": "https://test.text-cli.com/cli/text_cli",
+    "text-cli-service": "http://127.0.0.1:28050/cli/text_cli",
+    "text-cli-copilot": "http://127.0.0.1:20260/cli/text_cli"
+  }
 }
