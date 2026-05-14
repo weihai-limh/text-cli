@@ -1,0 +1,12 @@
+{
+  "runtime": "node",
+  "entry": "handler.js",
+  "deployments": {
+    "cloudflare": {
+      "wrangler_config": "../../new_weather/cloudflare/wrangler.toml",
+      "entry": "shells/cf-worker.js",
+      "note": "Deploy via 'npx wrangler deploy' from new_weather/cloudflare/"
+    }
+  },
+  "notes": "JS subprocess interface (stdin JSON → stdout text). Core weather logic shared with new_weather/cloudflare/ via core.js import once refactored."
+}

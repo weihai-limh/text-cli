@@ -13,7 +13,7 @@ import json
 import urllib.request
 import urllib.error
 
-API_URL = "https://open.bigmodel.cn/api/paas/v4/embeddings"
+API_URL = "${EMBEDDING_API_URL}"
 MODEL = "embedding-3"
 DEFAULT_DIMS = 512
 
