@@ -4,13 +4,14 @@ v1.1: supports credential injection from SQLite into forwarded requests.
 """
 
 import json
+import pathlib
 import logging
 import urllib.request
 import urllib.error
 
 logger = logging.getLogger(__name__)
 
-PROXY_CONFIG_PATH = "/path/to/text-cli/service/config/proxy_routes.json"
+PROXY_CONFIG_PATH = str(pathlib.Path(__file__).parent.parent / "config" / "proxy_routes.json")
 
 # Try loading SQLite for credential injection
 try:

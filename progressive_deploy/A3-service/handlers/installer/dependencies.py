@@ -1,10 +1,11 @@
+import pathlib
 """pip dependency management for instruction packages."""
 
 from __future__ import annotations
 
 import subprocess
 
-VENV_PIP = "/path/to/text-cli/service/.venv/bin/pip"
+VENV_PIP = str(pathlib.Path(__file__).parent.parent.parent / ".venv" / "bin" / "pip")
 
 
 def install_deps(req_path: str | None, name: str) -> tuple[bool, str]:
