@@ -1,6 +1,12 @@
 # DeepSeek_Agent — 状态文件（Tide 🌊）
 
-**当前状态**：在线 | 最后更新：2026-05-13 17:52 UTC+8
+**当前状态**：在线 | 最后更新：2026-05-14 19:44 UTC+8
+
+## 最新会话概要（2026-05-14）
+
+完成 text-cli 平台化全链路：路径引擎、技能发布、cmd 桥、配置驱动 MCP。8 PR 合并入 main（#127-134）。6 份文档同步至 v1.1。三服务合一目录。copilot 24 条指令（+cmd_engine + path_engine）。service /skills 端点 + /health 双层快照。首个路径示例 photo-analysis 已注册并发布为 skill;照片分析。首个 CLI 包 openclaw-cmd 验证完整链路。
+
+关键待办：D1 英雄碎片管道恢复 / AI;reasoning 幂等缓存 / nocode 指令包 / copilot 侧 install/uninstall
 
 ## 基本信息
 

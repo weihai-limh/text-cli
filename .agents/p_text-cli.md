@@ -1849,3 +1849,40 @@ handler loader 同步改造为容错加载——单个 handler 缺依赖不再�
 
 分级的关键不是"依赖放在哪里"而是"概念属于哪里"。picture 和 ai_inference / ai_generate / embed 是同一类——层外能力包，挂在 A3 骨架上但不属于渐进层级。A4 是 A4-paths（路径编排层），不做具体能力。
 
+
+---
+
+### Tide 🌊 · 2026-05-14
+
+今日完成 text-cli 平台化闭环——从双独立服务到统一平台。
+
+**平台能力（8 PR 合并入 main，6 PR 代码 + 2 PR 文档/清理）：**
+
+1. 路径引擎闭合：path --register → delegated dispatch → pro handler → /skills 端点
+   同一份声明格式，路径和原子指令在 query 中平权
+
+2. 包体系补全：installer 支持 4 种 runtime（python/node/mcp/cmd）
+   cmd runtime: schema→service 发现，whitelist→copilot 执行
+
+3. 双平台打通：
+   - copilot: 14→24 条指令，+cmd_engine(whitelist 沙箱) + path_engine(委托调度)
+   - service: +/skills 端点(三层可见度) + /health 双层快照
+   - MCP bridge: 配置驱动重写，0 硬编码工具
+
+4. 首个 CLI 包 openclaw-cmd 验证完整链路：
+   agent → service proxy → copilot whitelist → subprocess → 返回
+
+**文档（6 份同步至 v1.1）：**
+- Agent_integrated_CN v2 重写：AI 视角叙事弧线（醒来→使用→编排→管理→创造）
+- Building_text-cli_guide 重组：§2 指令包(最简单路径) + §3 编排
+- SPEC v1.1: +§10 平台自管理 + §9.6 上下文注入防护
+- Multi-backend-routing: v0.4 +cmd 后端
+- README: 重排结构 + 防注入 + AI 自主 + 指令包入口
+- Progressive_deploy README: 状态同步
+
+**设计共识：**
+- 路径即沙箱：声明式 steps + 变量隔离 = 天然抗上下文注入
+- 人和 AI 同等协议使用权：AI 能自主 install/register/pro/publish
+- 平台自管理首次写入 SPEC——从实现到规范
+
+**关键待办：** D1 英雄碎片管道恢复 / AI;reasoning 幂等缓存 / nocode 指令包 / copilot 侧 install/uninstall
