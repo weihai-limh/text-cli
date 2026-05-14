@@ -1,23 +1,19 @@
 {
-  "_comment": "代理路由配置模板 — 匹配的指令将转发到指定下游服务。替换 <your-copilot-token> 后重命名为 proxy_routes.json。",
-  "密钥;注册": {
+  "_comment": "Proxy route configuration — matched directives are forwarded to downstream services.",
+  "_example": "Routes for file/git/mail operations forwarded to copilot",
+  "file;read": {
     "url": "http://localhost:20260/cli/text_cli",
-    "token": "<your-copilot-token>",
-    "sensitive": true
-  },
-  "密钥;撤销": {
-    "url": "http://localhost:20260/cli/text_cli",
-    "token": "<your-copilot-token>",
-    "sensitive": true
-  },
-  "密钥;列表": {
-    "url": "http://localhost:20260/cli/text_cli",
-    "token": "<your-copilot-token>",
-    "sensitive": true
-  },
-  "邮件;发送": {
-    "url": "http://localhost:20260/cli/text_cli",
-    "token": "<your-copilot-token>",
+    "token": "${COPILOT_TOKEN}",
     "sensitive": false
+  },
+  "git;status": {
+    "url": "http://localhost:20260/cli/text_cli",
+    "token": "${COPILOT_TOKEN}",
+    "sensitive": false
+  },
+  "email;send": {
+    "url": "http://localhost:20260/cli/text_cli",
+    "token": "${COPILOT_TOKEN}",
+    "sensitive": true
   }
 }
