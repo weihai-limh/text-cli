@@ -1,11 +1,3 @@
-"""
-text-cli-service — A3 directive service skeleton.
-Minimal runnable service: parse → register → authenticate → proxy forward.
-Zero external dependencies (no SQLite / MCP / AI).
-
-Start: PORT=28050 SERVICE_TOKEN=your-token python3 main.py
-"""
-
 import json
 import logging
 import os
@@ -19,6 +11,11 @@ from fastapi.responses import JSONResponse, Response
 project_root = Path(__file__).parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
+
+# text-cli-modules 路径（与 service 同级）
+_modules_root = Path(__file__).resolve().parent / "text_cli_modules"
+if str(_modules_root.parent) not in sys.path:
+    sys.path.append(str(_modules_root.parent))
 
 from core.parser import parse_directive, DirectiveParseError
 from core.auth import verify_service_token
@@ -35,6 +32,43 @@ SCHEMA_PATH = os.getenv(
     str(project_root / "config" / "text_cli_schema.json"),
 )
 
+# SQLite 模块检测
+SQLITE_DB_PATH: dict | None = None
+SQLITE_DB_FILE = os.getenv(
+    "SQLITE_DB_PATH",
+    str(_modules_root / "sqlite" / "service.db"),
+)
+
+try:
+    from text_cli_modules.sqlite import init_db
+    db_dir = Path(SQLITE_DB_FILE).parent
+    db_dir.mkdir(parents=True, exist_ok=True)
+    init_db(SQLITE_DB_FILE)
+    SQLITE_DB_PATH = {'config': SQLITE_DB_FILE}
+
+    # 通知各 handler SQLite 路径
+    try:
+        from handlers.key import init_key_handler
+        init_key_handler(SQLITE_DB_FILE)
+    except Exception:
+        pass
+    try:
+        from handlers.embed import init_embed_handler
+        init_embed_handler(SQLITE_DB_FILE)
+    except Exception:
+        pass
+    try:
+        from handlers.ai_inference import init_ai_handler
+        init_ai_handler(SQLITE_DB_FILE)
+    except Exception:
+        pass
+
+    logger.info("SQLite 模块已初始化: %s", SQLITE_DB_FILE)
+except ImportError:
+    logger.info("SQLite 模块未安装")
+except Exception as e:
+    logger.warning("SQLite 初始化失败: %s", e)
+
 _schema: dict[str, dict] = {}
 _copilot_token: str = ""
 
@@ -48,6 +82,9 @@ def _load_schema():
     with open(SCHEMA_PATH, "r", encoding="utf-8") as f:
         _schema = json.load(f)
     logger.info("Loaded %d directives from %s", len(_schema), SCHEMA_PATH)
+    # 从 schema 派生 MCP 路由表（与 copilot _build_mcp_registry 同构）
+    from core.mcp_dispatch import init_from_schema
+    init_from_schema(_schema)
 
 
 def _load_copilot_token():
@@ -56,6 +93,7 @@ def _load_copilot_token():
         route_path = os.path.join(os.path.dirname(__file__), "config", "proxy_routes.json")
         with open(route_path, "r") as f:
             routes = json.load(f)
+        # 从任一路由取 copilot token
         for route in routes.values():
             if isinstance(route, dict) and route.get("token"):
                 _copilot_token = route["token"]
@@ -77,8 +115,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="text-cli Directive Service (A3 Skeleton)",
-    description="Standard directive service template — parse + auth + registry + proxy. Layer on A5/A6/A7 as needed.",
+    title="text-cli 示例指令服务",
+    description="text-cli 标准指令服务模板，可被 Service_endpoint 集成",
     version="0.1.0",
     lifespan=lifespan,
 )
@@ -89,10 +127,80 @@ async def get_schema():
     return JSONResponse(content=_schema)
 
 
+@app.get("/cache/{key}")
+async def image_cache_retrieve(key: str):
+    """获取缓存的 base64 图片数据"""
+    from handlers.image import cache_get
+    data = cache_get(key)
+    if data is None:
+        return JSONResponse(
+            status_code=410,
+            content={"rst_types": "text", "rst_data": {"text": "缓存已过期或不存在"},
+                      "rst_err": "cache_expired"},
+        )
+    return Response(content=data, media_type="text/plain; charset=utf-8")
+
+
 @app.get("/health")
-async def health():
+async def health(request: Request):
     directives = get_registered_directives()
-    return {"status": "ok", "directives": directives}
+
+    # Check if authenticated (for extended capabilities view)
+    service_token = request.headers.get("Service-token")
+    auth = verify_service_token(service_token)
+
+    if auth.allowed:
+        # Authenticated: full capabilities snapshot
+        from handlers.skill_endpoint import _load_path_schemas, _load_exposure, _filter_exposed
+        packages = [s.get("id", "") for s in _load_path_schemas() if s.get("id")]
+        # Also collect installed packages from schema dir
+        installed = []
+        schema_dir = __import__('pathlib').Path(__file__).parent / "handlers" / "schema"
+        for sf in sorted(schema_dir.glob("*_schema.json")):
+            try:
+                s = __import__('json').loads(sf.read_text(encoding="utf-8"))
+                installed.append(s.get("id", sf.stem.replace("_schema", "")))
+            except Exception:
+                pass
+
+        return {
+            "status": "ok",
+            "body": "vm-4-2",
+            "version": "1.0.0",
+            "capabilities": {
+                "packages": [p for p in installed if p not in ("sample",)],
+                "domains": sorted(directives.keys()),
+                "runtimes": ["python", "node", "mcp", "cmd"],
+            },
+            "endpoints": {
+                "skills": "/text-cli/skills",
+                "stct": "/text-cli/stct",
+            },
+            "sqlite": "enabled" if SQLITE_DB_PATH else None,
+        }
+
+    # Public: minimal info
+    from handlers.skill_endpoint import _load_exposure
+    exposure = _load_exposure()
+    public_count = sum(
+        1 for v in exposure.values()
+        if isinstance(v, dict) and v.get("visibility") == "public"
+    )
+
+    return {
+        "status": "ok",
+        "body": "vm-4-2",
+        "version": "1.0.0",
+        "public_skills": public_count,
+    }
+
+
+@app.get("/text-cli/stct")
+async def stct():
+    """暖空间 — 动态指令目录（纯文本，供 Agent 消费）"""
+    from handlers.schema_query import schema_query
+    text = schema_query([])  # 默认全量纯文本
+    return Response(content=text, media_type="text/plain; charset=utf-8")
 
 
 @app.post("/cli/text_cli")
@@ -110,14 +218,14 @@ async def handle_directive(request: Request):
     except Exception:
         return JSONResponse(
             status_code=400,
-            content=error("Request body is not valid JSON"),
+            content=error("请求体不是有效 JSON"),
         )
 
     prompt = body.get("prompt")
     if not prompt:
         return JSONResponse(
             status_code=400,
-            content=error("Missing prompt field"),
+            content=error("缺少 prompt 字段"),
         )
 
     try:
@@ -129,28 +237,150 @@ async def handle_directive(request: Request):
         )
 
     logger.info(
-        "Directive received: %s;%s, params: %s",
+        "收到指令: %s;%s, 参数: %s",
         parsed.domain, parsed.action, parsed.params,
     )
 
-    # 1. Local dispatch
+    # 1. MCP 优先路由（显式偏好 mcp 时优先）
+    from core.mcp_dispatch import decide_backend, get_mcp_route, adapt_params
+    backend = decide_backend(parsed.domain, parsed.action)
+
+    if backend == "mcp":
+        mcp_route = get_mcp_route(parsed.domain, parsed.action)
+        if mcp_route:
+            try:
+                from handlers.mcp_handler import call_mcp_tool, format_mcp_result
+                args = adapt_params(parsed.params, mcp_route)
+                mcp_result = call_mcp_tool(
+                    mcp_route["server"], mcp_route["tool"],
+                    args, timeout_ms=mcp_route.get("timeout_ms", 30000)
+                )
+                if mcp_result["ok"]:
+                    return ok(format_mcp_result(mcp_result))
+                else:
+                    return JSONResponse(
+                        status_code=502,
+                        content=error(f"MCP 调用失败: {mcp_result['error']}"),
+                    )
+            except ImportError:
+                return JSONResponse(
+                    status_code=500,
+                    content=error("MCP handler 不可用"),
+                )
+        else:
+            return JSONResponse(
+                status_code=400,
+                content=error(f"该指令无 MCP 路由配置: {parsed.domain};{parsed.action}"),
+            )
+
+    # 2. 本地 dispatch
     result = dispatch(parsed.domain, parsed.action, parsed.params)
-    if result and 'No matching directive' not in result:
+    local_handled = bool(result) and '未找到匹配的指令' not in result and 'No matching directive' not in result
+
+    if local_handled:
         return ok(result)
 
-    # 2. Proxy forward
+    # 3. 本地未匹配 → 尝试 MCP（作为后备路由）
+    mcp_route = get_mcp_route(parsed.domain, parsed.action)
+    if mcp_route:
+        try:
+            from handlers.mcp_handler import call_mcp_tool, format_mcp_result
+            args = adapt_params(parsed.params, mcp_route)
+            mcp_result = call_mcp_tool(
+                mcp_route["server"], mcp_route["tool"],
+                args, timeout_ms=mcp_route.get("timeout_ms", 30000)
+            )
+            if mcp_result["ok"]:
+                return ok(format_mcp_result(mcp_result))
+        except ImportError:
+            pass
+
+    # 4. 本地和 MCP 都没匹配 → 尝试代理转发
     proxy_result = proxy_dispatch(parsed.domain, parsed.action,
-                                  parsed.params, raw_prompt=prompt)
+                                  parsed.params, raw_prompt=prompt,
+                                  db_path=SQLITE_DB_PATH)
     if proxy_result is not None:
         return JSONResponse(content=proxy_result)
 
-    # 3. No match
+    # 5. 都没有 → 返回本地结果
     return ok(result)
+
+
+# ── Skills 发现与执行端点 ──
+
+@app.get("/text-cli/skills")
+async def skills_list():
+    """列出所有对外暴露的技能（public + restricted）"""
+    from handlers.skill_endpoint import list_skills
+    return JSONResponse(content=list_skills())
+
+
+@app.get("/text-cli/skills/{skill_id}")
+async def skills_detail(skill_id: str):
+    """获取单个技能的完整详情"""
+    from handlers.skill_endpoint import get_skill_detail
+    detail = get_skill_detail(skill_id)
+    if detail is None:
+        return JSONResponse(
+            status_code=404,
+            content={"status": "error", "error": "not_found",
+                      "message": f"技能 '{skill_id}' 不存在或未对外暴露"},
+        )
+    return JSONResponse(content=detail)
+
+
+@app.post("/text-cli/skills/{skill_id}")
+async def skills_execute(skill_id: str, request: Request):
+    """执行一个技能（需鉴权）"""
+    # Auth
+    auth_header = request.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return JSONResponse(
+            status_code=401,
+            content={"status": "error", "error": "unauthorized",
+                      "message": "需要 Bearer Token"},
+        )
+
+    # Basic token validation (same as cli endpoint)
+    access_token = auth_header[7:]
+    # For now: accept service token or the local copilot token
+    service_token = request.headers.get("Service-token")
+    auth = verify_service_token(service_token)
+    if not auth.allowed and access_token != os.environ.get("COPILOT_TOKEN", ""):
+        return JSONResponse(
+            status_code=401,
+            content={"status": "error", "error": "unauthorized",
+                      "message": "Token 无效"},
+        )
+
+    # Parse body
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse(
+            status_code=400,
+            content={"status": "error", "error": "bad_request",
+                      "message": "请求体非有效 JSON"},
+        )
+
+    from handlers.skill_endpoint import execute_skill
+    result = execute_skill(skill_id, body)
+
+    if result.get("status") == "error":
+        status_code = {
+            "not_found": 404,
+            "unauthorized": 403,
+            "skill_not_exposed": 404,
+            "not_published": 400,
+        }.get(result.get("error", ""), 500)
+        return JSONResponse(status_code=status_code, content=result)
+
+    return JSONResponse(content=result)
 
 
 @app.api_route("/text-cli-copilot/{rest:path}", methods=["GET", "POST"])
 async def copilot_proxy(request: Request, rest: str):
-    """Wildcard proxy — forward all requests to copilot:20260."""
+    """通配代理 — 透传所有请求到 copilot:20260"""
     import urllib.request
     import urllib.error
 
@@ -180,7 +410,7 @@ async def copilot_proxy(request: Request, rest: str):
         logger.error("copilot proxy error: %s -> %d", rest, e.code)
         return JSONResponse(
             status_code=e.code,
-            content={"rst_types": "text", "rst_data": {"text": f"[proxy] copilot returned {e.code}"},
+            content={"rst_types": "text", "rst_data": {"text": f"[proxy] copilot 返回 {e.code}"},
                       "rst_err": "proxy_error"},
         )
     except Exception as e:

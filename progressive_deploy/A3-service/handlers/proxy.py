@@ -10,7 +10,7 @@ import urllib.error
 
 logger = logging.getLogger(__name__)
 
-PROXY_CONFIG_PATH = "/root/text-cli-service/config/proxy_routes.json"
+PROXY_CONFIG_PATH = "/path/to/text-cli/service/config/proxy_routes.json"
 
 # Try loading SQLite for credential injection
 try:
