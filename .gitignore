@@ -1,3 +1,11 @@
 
 # Cloudflare Wrangler
 .wrangler/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Workspace artifacts
+memory/
