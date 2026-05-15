@@ -47,6 +47,7 @@ from core.registry import directive, dispatch, get_registered_directives
 
 logger = logging.getLogger(__name__)
 VAR_RE = re.compile(r'\$\{(\w+)\}')
+INLINE_RE = re.compile(r'\{(\w+)\.(\w+)(?:\.(\d+))?\}')
 
 # Path schema output directory
 _SCHEMA_DIR = pathlib.Path(__file__).parent / "schema"
@@ -65,12 +66,70 @@ def _resolve_var(text: str, variables: dict[str, str]) -> str:
     return VAR_RE.sub(_repl, text)
 
 
-def _parse_directive(raw: str) -> tuple[str, str, list[str]]:
-    """Parse 'domain;action,param1,param2' into (domain, action, [params]).
+def _split_params(params_str: str) -> list[str]:
+    """Split comma-separated params, respecting single-quoted segments."""
+    result = []
+    buf = []
+    in_quote = False
+    for ch in params_str:
+        if ch == "'":
+            in_quote = not in_quote
+            continue
+        if ch == ',' and not in_quote:
+            result.append(''.join(buf).strip())
+            buf = []
+        else:
+            buf.append(ch)
+    if buf:
+        result.append(''.join(buf).strip())
+    return result
 
-    Handles the text-cli directive format: 指令:域;动作,参数1,参数2
-    Strips the optional 'AI:' prefix.
-    """
+
+def _interpolate_params(params: list[str], variables: dict[str, str]) -> list[str]:
+    """Replace {step.field.index} in params with JSON values from step outputs."""
+    if not params:
+        return params
+    result = []
+    for param in params:
+        result.append(INLINE_RE.sub(
+            lambda m: _interpolate_match(m, variables), param
+        ))
+    return result
+
+
+def _interpolate_match(m, variables: dict[str, str]) -> str:
+    """Resolve a single {step.field.index} match from a step's JSON output."""
+    step_name = m.group(1)
+    field = m.group(2)
+    idx = m.group(3)
+    raw = variables.get(step_name, '')
+    if not raw:
+        return m.group(0)
+    try:
+        obj = json.loads(raw)
+    except (json.JSONDecodeError, ValueError):
+        return m.group(0)
+    if not isinstance(obj, dict):
+        return m.group(0)
+    val = obj.get(field)
+    if val is None:
+        return m.group(0)
+    if idx is not None and isinstance(val, list):
+        try:
+            val = val[int(idx)]
+        except (IndexError, ValueError):
+            return m.group(0)
+    if isinstance(val, (int, float)):
+        return str(val)
+    if isinstance(val, str):
+        return val
+    if isinstance(val, list):
+        return ','.join(str(v) for v in val)
+    return str(val)
+
+
+def _parse_directive(raw: str) -> tuple[str, str, list[str]]:
+    """Parse 'domain;action,param1,param2' with single-quote support."""
     d = raw.strip()
     if ':' in d and not d.startswith('AI:'):
         pass
@@ -78,9 +137,8 @@ def _parse_directive(raw: str) -> tuple[str, str, list[str]]:
         d = d[3:]
 
     if ',' in d:
-        parts = d.split(',', 1)
-        head = parts[0]
-        params = [p.strip() for p in parts[1:]]
+        head, rest = d.split(',', 1)
+        params = _split_params(rest)
     else:
         head = d
         params = []
@@ -106,6 +164,8 @@ def _execute_step(step: dict, variables: dict[str, str], step_index: int) -> tup
 
     resolved = _resolve_var(raw_directive, variables)
     domain, action, params = _parse_directive(resolved)
+    # P1: inline interpolation on params
+    params = _interpolate_params(params, variables)
 
     if not domain:
         return "error", f"[step {step_index}] Cannot parse directive: {raw_directive} → {resolved}", ""
@@ -120,6 +180,16 @@ def _execute_step(step: dict, variables: dict[str, str], step_index: int) -> tup
         return "delegated", f"{domain};{action}", step.get("output_as", "")
 
     output_as = step.get("output_as", f"_step{step_index}")
+
+    # L0: detect handler error response — circuit break
+    if isinstance(result, str):
+        try:
+            parsed = json.loads(result)
+            if isinstance(parsed, dict) and parsed.get("status") == "error":
+                return "error", f"[step {step_index}] {domain};{action}: {parsed.get('reason', 'unknown error')}", output_as
+        except (json.JSONDecodeError, ValueError):
+            pass
+
     return "ok", result, output_as
 
 
@@ -231,8 +301,8 @@ def _execute_path(path_def: dict, initial_input: str) -> str:
             })
             lines.append(f"  [{i}] {step.get('directive', '?')} ⤴ delegated")
 
-        else:  # error
-            lines.append(result)
+        else:  # error — L0 circuit break
+            lines.append(f"  [{i}] {step.get('directive', '?')} ✗ {result}")
             return "\n".join(lines)
 
     # Build result
