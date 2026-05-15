@@ -22,7 +22,7 @@ from core import error, ok
 
 logger = logging.getLogger("copilot.path")
 
-VAR_RE = re.compile(r'\$\{(\w+)\}')
+INLINE_RE = re.compile(r'\{(\w+)\.(\w+)(?:\.(\d+))?\}')
 
 # Copilot's own paths directory (separate from service)
 COPILOT_PATHS_DIR = pathlib.Path("/path/to/text-cli/copilot/paths")
@@ -37,8 +37,69 @@ def _resolve_var(text: str, variables: dict[str, str]) -> str:
     return VAR_RE.sub(_repl, text)
 
 
+def _split_params(params_str: str) -> list[str]:
+    """Split comma-separated params, respecting single-quoted segments."""
+    result = []
+    buf = []
+    in_quote = False
+    for ch in params_str:
+        if ch == "'":
+            in_quote = not in_quote
+            continue
+        if ch == ',' and not in_quote:
+            result.append(''.join(buf).strip())
+            buf = []
+        else:
+            buf.append(ch)
+    if buf:
+        result.append(''.join(buf).strip())
+    return result
+
+
+def _interpolate_params(params: list[str], variables: dict[str, str]) -> list[str]:
+    """P1: inline interpolation — {step.field.index} in params."""
+    if not params:
+        return params
+    result = []
+    for param in params:
+        result.append(INLINE_RE.sub(
+            lambda m: _interpolate_match(m, variables), param
+        ))
+    return result
+
+
+def _interpolate_match(m, variables: dict[str, str]) -> str:
+    step_name = m.group(1)
+    field = m.group(2)
+    idx = m.group(3)
+    raw = variables.get(step_name, '')
+    if not raw:
+        return m.group(0)
+    try:
+        obj = json.loads(raw)
+    except (json.JSONDecodeError, ValueError):
+        return m.group(0)
+    if not isinstance(obj, dict):
+        return m.group(0)
+    val = obj.get(field)
+    if val is None:
+        return m.group(0)
+    if idx is not None and isinstance(val, list):
+        try:
+            val = val[int(idx)]
+        except (IndexError, ValueError):
+            return m.group(0)
+    if isinstance(val, (int, float)):
+        return str(val)
+    if isinstance(val, str):
+        return val
+    if isinstance(val, list):
+        return ','.join(str(v) for v in val)
+    return str(val)
+
+
 def _parse_directive(raw: str) -> tuple[str, str, list[str]]:
-    """Parse 'domain;action,param1,param2'."""
+    """Parse 'domain;action,param1,param2' with single-quote support."""
     d = raw.strip()
     if ':' in d and not d.startswith('AI:'):
         pass
@@ -46,9 +107,8 @@ def _parse_directive(raw: str) -> tuple[str, str, list[str]]:
         d = d[3:]
 
     if ',' in d:
-        parts = d.split(',', 1)
-        head = parts[0]
-        params = [p.strip() for p in parts[1:]]
+        head, rest = d.split(',', 1)
+        params = _split_params(rest)
     else:
         head = d
         params = []
@@ -176,6 +236,8 @@ class PathHandlers:
 
             resolved = _resolve_var(raw, variables)
             domain, action, params = _parse_directive(resolved)
+            # P1: inline interpolation on params
+            params = _interpolate_params(params, variables)
 
             if not domain:
                 return error("path_step_error", f"[步骤 {i}] 无法解析: {resolved}")
@@ -209,6 +271,17 @@ class PathHandlers:
 
             output_text = result.get("rst_data", {}).get("text", "")
             variables[output_as] = output_text
+
+            # L0: detect handler error in response — circuit break
+            try:
+                parsed = json.loads(output_text)
+                if isinstance(parsed, dict) and parsed.get("status") == "error":
+                    err_msg = f"[步骤 {i}] {domain};{action}: {parsed.get('reason', 'unknown error')}"
+                    log_lines.append(f"  [{i}] {raw} ✗ {err_msg}")
+                    return error("path_step_error", err_msg)
+            except (json.JSONDecodeError, ValueError):
+                pass
+
             short = output_text[:80] + ("…" if len(output_text) > 80 else "")
             completed.append({"step": i, "directive": raw, "output_as": output_as})
             log_lines.append(f"  [{i}] {raw} ✓ ({output_as})")

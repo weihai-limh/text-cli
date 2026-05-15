@@ -5,6 +5,8 @@ Isomorphic with copilot's mcp_handler — same mcporter subprocess pattern.
 """
 
 import json
+import os
+from pathlib import Path
 import logging
 import subprocess
 
@@ -13,6 +15,10 @@ logger = logging.getLogger(__name__)
 # mcporter working directory (where config lives)
 MCWD = "/root/.openclaw/workspace"
 
+
+# MCP quota config
+_QUOTA_CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "mcp_quota.json"
+_mcp_quota_config: dict | None = None
 
 def call_mcp_tool(server: str, tool: str, arguments: dict,
                   timeout_ms: int = 30000) -> dict:
