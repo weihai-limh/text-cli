@@ -122,6 +122,16 @@ def _get_api_keys() -> dict[str, str]:
         except Exception:
             pass
 
+    # 3. Fallback to environment variables (A3 bare-metal)
+    for svc in _KEY_SERVICES:
+        if svc not in keys:
+            env_var = svc.upper().replace("-", "_") + "_API_KEY"
+            env_val = os.environ.get(env_var, "")
+            if not env_val:
+                env_val = os.environ.get(svc.upper().replace("-", "_"), "")
+            if env_val:
+                keys[svc] = env_val
+
     return keys
 
 

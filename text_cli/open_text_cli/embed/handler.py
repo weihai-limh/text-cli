@@ -3,7 +3,7 @@ Semantic embedding handler — service edition
 
 Directives:
   semantic;encode,<text>[,mode]
-  semantic;similarity,<textA>,<textB>[,mode]
+  semantic;similar,<textA>,<textB>[,mode]
   semantic;match,<query>,<candidate1>,<candidate2>,...[,mode]
 
 Modes: A=256 B=512(default) C=1024 D=2048
@@ -35,9 +35,19 @@ def init_embed_handler(db_path: str):
 
 
 def _get_api_key() -> str:
-    if not DB_PATH:
-        return ''
-    return key_get(DB_PATH, API_KEY_SERVICE) or ''
+    if DB_PATH:
+        try:
+            val = key_get(DB_PATH, API_KEY_SERVICE)
+            if val and isinstance(val, str):
+                return val
+        except Exception:
+            pass
+
+    # Fallback to environment (A3)
+    import os
+    env_val = os.environ.get(API_KEY_SERVICE.upper().replace("-", "_"), "")
+    env_val = env_val or os.environ.get(API_KEY_SERVICE.upper().replace("-", "_") + "_API_KEY", "")
+    return env_val
 
 
 @directive("semantic", "encode", domain_alias="语义", action_aliases={"encode": "编码"})
@@ -63,13 +73,13 @@ def sem_encode(params: list[str]) -> str:
         return f'Encode failed: {e}'
 
 
-@directive("semantic", "similarity", domain_alias="语义", action_aliases={"similarity": "相似"})
+@directive("semantic", "similar", domain_alias="语义", action_aliases={"similar": "相似"})
 def sem_similarity(params: list[str]) -> str:
     if not EMBED_ENABLED:
         return 'Embedding module not installed'
 
     if len(params) < 2:
-        return 'Missing params: semantic;similarity,<textA>,<textB>[,mode]'
+        return 'Missing params: semantic;similar,<textA>,<textB>[,mode]'
 
     api_key = _get_api_key()
     if not api_key:

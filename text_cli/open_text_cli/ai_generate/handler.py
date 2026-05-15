@@ -59,17 +59,23 @@ _load_gen_config()
 
 
 def _get_api_key() -> str | None:
-    """Obtain API key from AI inference handler's key registry."""
+    """Obtain API key with three-tier fallback:
+    1. AI inference handler (SQLite key_registry, A6)
+    2. Copilot JSON (via ai_inference)
+    3. Environment variable (A3 bare-metal)
+    """
     try:
         from handlers.ai_inference import _get_api_keys
         keys = _get_api_keys()
-        # Return the first available key (provider-agnostic)
         for key in keys.values():
             if key:
                 return key
-        return None
     except Exception:
-        return None
+        pass
+
+    # Fallback to environment
+    import os
+    return os.environ.get("ZHIPU_API_KEY") or os.environ.get("ZHIPU", "") or None
 
 
 def _http_post(url: str, body: dict, timeout: int = 120) -> dict:

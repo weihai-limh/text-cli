@@ -130,13 +130,16 @@ def ok(text: str, type: str = 'text', url: str = None, **extra) -> dict:
     }
 
 
-def error(code: str, detail: str) -> dict:
-    """text-cli 标准错误响应"""
-    return {
+def error(code: str, detail: str, **extra) -> dict:
+    """text-cli 标准错误响应 (v2 — supports __delegated__ marker)"""
+    result = {
         'rst_types': 'text',
         'rst_data': {'text': f'[{code}] {detail}'},
         'rst_err': code,
     }
+    if extra:
+        result.update(extra)
+    return result
 
 
 # ═══════════════════════════════════════════════════════════════

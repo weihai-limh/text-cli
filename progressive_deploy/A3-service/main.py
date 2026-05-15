@@ -63,6 +63,33 @@ try:
         init_ai_handler(SQLITE_DB_FILE)
     except Exception:
         pass
+    try:
+        from handlers.quota_handler import init_quota_handler
+        quota_db = str(_modules_root / "sqlite" / "quota.db")
+        init_quota_handler(quota_db)
+    except Exception:
+        pass
+
+    # Inject key_registry dispatch callback (for quota check in key.get)
+    try:
+        from core.registry import dispatch as _reg_dispatch
+        from text_cli_modules.key.key_registry import set_dispatch as _set_key_dispatch
+
+        def _internal_dispatch(domain: str, action: str, params: list) -> dict | None:
+            try:
+                result_str = _reg_dispatch(domain, action, params)
+            except Exception:
+                return None
+            try:
+                result = json.loads(result_str)
+                return result if isinstance(result, dict) else None
+            except (json.JSONDecodeError, TypeError):
+                return None
+
+        _set_key_dispatch(_internal_dispatch)
+        logger.info("key_registry dispatch callback injected")
+    except Exception as e:
+        logger.warning("Failed to inject key_registry dispatch: %s", e)
 
     logger.info("SQLite 模块已初始化: %s", SQLITE_DB_FILE)
 except ImportError:

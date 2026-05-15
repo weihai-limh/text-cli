@@ -47,9 +47,14 @@ def _get_zhipu_key() -> str | None:
     try:
         from handlers.ai_inference import _get_api_keys
         keys = _get_api_keys()
-        return keys.get('zhipu')
+        if keys.get('zhipu'):
+            return keys['zhipu']
     except Exception:
-        return None
+        pass
+
+    # Fallback to environment (A3)
+    import os
+    return os.environ.get("ZHIPU_API_KEY") or os.environ.get("ZHIPU", "") or None
 
 
 def _http_post(url: str, body: dict, timeout: int = 120) -> dict:
@@ -72,9 +77,9 @@ def _http_post(url: str, body: dict, timeout: int = 120) -> dict:
         return {"error": str(e)}
 
 
-@directive("image", "generate", domain_alias="图像", action_aliases={"generate": "生成"})
+@directive("image-gen", "generate", domain_alias="图像", action_aliases={"generate": "生成"})
 def image_generate(params: list[str]) -> str:
-    """image;generate (alias: 图像;生成),<prompt>[,size] → URL"""
+    """image-gen;generate (alias: 图像;生成),<prompt>[,size] → URL"""
     if not params:
         return "Missing parameter: prompt [,size]"
 

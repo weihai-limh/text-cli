@@ -185,31 +185,51 @@
         "sensitive": true,
         "log_policy": "no_body",
         "aliases": ["key;register", "密钥;注册"],
-        "description": "注册服务密钥（XOR 传输加密 + 本地加密存储）",
-        "description_en": "Register service key (XOR transport encrypt + local encrypt storage)",
-        "parameters": ["服务名", "密文(hex)", "密钥类型"],
-        "parameters_en": ["service_name", "cipher_hex", "key_type"],
-        "returns": "rst_data.text = registration confirmation, rst_data.service, rst_data.key_type"
+        "description": "注册密钥 → ⤴ delegated 到 service",
+        "description_en": "Register key → ⤴ delegated to service",
+        "parameters": ["服务名", "凭据值1", "凭据值2(可选)", "密钥类型"],
+        "parameters_en": ["service_name", "value1", "value2(optional)", "key_type"],
+        "returns": "rst_data.text = delegated confirmation"
       },
       "key;revoke": {
         "level": "write",
         "sensitive": true,
         "aliases": ["key;revoke", "密钥;撤销"],
-        "description": "撤销已注册的服务密钥",
-        "description_en": "Revoke a registered service key",
+        "description": "撤销密钥 → ⤴ delegated 到 service",
+        "description_en": "Revoke key → ⤴ delegated to service",
         "parameters": ["服务名"],
         "parameters_en": ["service_name"],
-        "returns": "rst_data.text = revoke confirmation"
+        "returns": "rst_data.text = delegated confirmation"
       },
       "key;list": {
         "level": "read",
         "sensitive": true,
         "aliases": ["key;list", "密钥;列表"],
-        "description": "列出已注册密钥（不返回密钥值）",
-        "description_en": "List registered keys (values not returned)",
+        "description": "列出密钥 → ⤴ delegated 到 service",
+        "description_en": "List keys → ⤴ delegated to service",
         "parameters": [],
         "parameters_en": [],
-        "returns": "rst_data.text = key list, rst_data.count, rst_data.keys"
+        "returns": "rst_data.text = delegated, rst_data.count, rst_data.keys"
+      },
+      "key;get": {
+        "level": "read",
+        "sensitive": true,
+        "log_policy": "no_body",
+        "aliases": ["key;get", "密钥;获取"],
+        "description": "获取密钥值。路由: key_routing.json → env 直取 或 ⤴ delegated",
+        "description_en": "Get key value. Routed: key_routing.json → env direct or ⤴ delegated",
+        "parameters": ["服务名"],
+        "parameters_en": ["service_name"],
+        "returns": "rst_data.value (env), or delegated to service"
+      },
+      "key;quota-track": {
+        "level": "write",
+        "aliases": ["key;quota-track", "密钥;配额追踪"],
+        "description": "设置/清除配额追踪 → ⤴ delegated 到 service",
+        "description_en": "Set/clear quota tracking → ⤴ delegated to service",
+        "parameters": ["服务名", "追踪目标(可选,多个)"],
+        "parameters_en": ["service_name", "targets(optional,multiple)"],
+        "returns": "rst_data.text = delegated confirmation"
       },
       "ai;json;query": {
         "level": "read",

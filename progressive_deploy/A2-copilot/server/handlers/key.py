@@ -1,19 +1,22 @@
 """
-Key management handler mixin.
+密钥管理 handler — copilot 路由层 v2
 
-Directives:
-  密钥;注册,<service>,<cipher_hex>,<key_type> (alias: key;register)
-  密钥;撤销,<service> (alias: key;revoke)
-  密钥;列表 (alias: key;list)
+copilot 不存储密钥。key 获取路径由 key_routing.json 配置决定:
+  source=env     → 从环境变量直接读取
+  source=service → ⤴ delegated 到 service 处理
 
-Security model:
-  - XOR transport encryption: caller encrypts plaintext with XOR_KEY_<service> → cipher_hex
-  - Local encryption: key_registry.json is further encrypted with KEY_REGISTRY_SECRET
-  - List does not return key values
-  - Existing keys → reject overwrite (must revoke first)
+指令:
+  密钥;获取,<service>         → 按路由返回 (env 读取 / delegated)
+  密钥;注册 / 撤销 / 列表     → ⤴ delegated (全部由 service 处理)
+  密钥;配额追踪               → ⤴ delegated
+
+与 service 层的关系:
+  copilot 是 thin client — key 操作全部委托 service
+  仅 env 变量直读不走 service (给最小化单机部署留出口)
+
+Author: Tide 🌊 — v2 2026-05-15
 """
 
-import hashlib
 import json
 import os
 import time
@@ -21,227 +24,136 @@ from pathlib import Path
 from core import ok, error
 
 
-# ═══════════════════════════════════════════════════════════════
-# XOR utilities
-# ═══════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════
+# Key routing (from key_routing.json)
+# ═══════════════════════════════════════════════════════════
 
-def xor_encrypt_decrypt(data: bytes, key: str) -> bytes:
-    """XOR encrypt/decrypt (symmetric, encrypt == decrypt)"""
-    key_bytes = key.encode('utf-8')
-    return bytes(data[i] ^ key_bytes[i % len(key_bytes)] for i in range(len(data)))
+class KeyRouter:
+    """按配置决定 key 的来源: 环境变量 或 delegated service"""
 
-def xor_decrypt_hex(cipher_hex: str, key: str) -> str:
-    """hex → XOR decrypt → plaintext"""
-    cipher_bytes = bytes.fromhex(cipher_hex)
-    plain = xor_encrypt_decrypt(cipher_bytes, key)
-    return plain.decode('utf-8', errors='replace')
+    def __init__(self, config_dir: Path):
+        self.config_path = config_dir / 'key_routing.json'
+        self.routes: dict = {}
+        self._load()
 
-def xor_encrypt_hex(plain: str, key: str) -> str:
-    """plaintext → XOR encrypt → hex"""
-    plain_bytes = plain.encode('utf-8')
-    cipher = xor_encrypt_decrypt(plain_bytes, key)
-    return cipher.hex()
+    def _load(self):
+        if self.config_path.exists():
+            try:
+                with open(self.config_path, 'r', encoding='utf-8') as f:
+                    self.routes = json.load(f)
+            except (json.JSONDecodeError, FileNotFoundError):
+                self.routes = {}
 
+    def resolve(self, service: str) -> dict:
+        """
+        返回: {"source": "env", "value": "xxx"}
+               {"source": "service"}
+               {"source": "not_found"}
+        """
+        route = self.routes.get(service)
+        if not route:
+            return {"source": "not_found", "service": service}
 
-# ═══════════════════════════════════════════════════════════════
-# Local encryption (key_registry.json double encryption)
-# ═══════════════════════════════════════════════════════════════
+        if route.get("source") == "env":
+            var = route.get("var", "")
+            if var:
+                val = os.environ.get(var, "")
+                if val:
+                    return {"source": "env", "value": val}
+            return {"source": "env", "value": None,
+                    "error": f"环境变量 {var or '?'} 未设置"}
 
-def _local_key() -> str:
-    """Local storage encryption key"""
-    return os.environ.get('KEY_REGISTRY_SECRET', '')
+        if route.get("source") == "service":
+            return {"source": "service"}
 
-def _local_encrypt(plain: str) -> str:
-    """Encrypt with KEY_REGISTRY_SECRET"""
-    key = _local_key()
-    if not key:
-        return plain  # plaintext storage without KEY_REGISTRY_SECRET (insecure!)
-    return xor_encrypt_hex(plain, key)
-
-def _local_decrypt(cipher_hex: str) -> str:
-    """Decrypt with KEY_REGISTRY_SECRET"""
-    key = _local_key()
-    if not key:
-        return cipher_hex
-    return xor_decrypt_hex(cipher_hex, key)
-
-
-# ═══════════════════════════════════════════════════════════════
-# KeyRegistry — key registry CRUD
-# ═══════════════════════════════════════════════════════════════
-
-class KeyRegistry:
-    """Local key registry (JSON file + double encryption)"""
-
-    def __init__(self, data_dir: Path):
-        self.registry_path = data_dir / 'key_registry.json'
-        self._ensure_registry()
-
-    def _ensure_registry(self):
-        if not self.registry_path.exists():
-            self._write({})
-
-    def _read(self) -> dict:
-        try:
-            with open(self.registry_path, 'r', encoding='utf-8') as f:
-                raw = json.load(f)
-        except (json.JSONDecodeError, FileNotFoundError):
-            raw = {}
-
-        # Decrypt all stored_value
-        registry = {}
-        for service_name, entry in raw.items():
-            entry_copy = dict(entry)
-            if 'encrypted_value' in entry_copy:
-                entry_copy['plain_value'] = _local_decrypt(entry_copy['encrypted_value'])
-            registry[service_name] = entry_copy
-        return registry
-
-    def _write(self, registry: dict):
-        # Encrypt all plain_value → encrypted_value
-        out = {}
-        for service_name, entry in registry.items():
-            entry_copy = dict(entry)
-            if 'plain_value' in entry_copy:
-                entry_copy['encrypted_value'] = _local_encrypt(entry_copy.pop('plain_value'))
-            # Don't store plain_value
-            entry_copy.pop('plain_value', None)
-            out[service_name] = entry_copy
-
-        self.registry_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.registry_path, 'r' if self.registry_path.exists() else 'w', encoding='utf-8') as f:
-            pass  # just ensure file exists
-        with open(self.registry_path, 'w', encoding='utf-8') as f:
-            json.dump(out, f, ensure_ascii=False, indent=2)
-
-    def register(self, service_name: str, plain_value: str, key_type: str) -> dict:
-        registry = self._read()
-        if service_name in registry:
-            return error('key_exists',
-                        f'Key {service_name} already exists, revoke first')
-        registry[service_name] = {
-            'service': service_name,
-            'plain_value': plain_value,
-            'key_type': key_type,
-            'registered_at': time.time(),
-            'registered_at_iso': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
-        }
-        self._write(registry)
-        return ok(f'Key registered: {service_name}',
-                 service=service_name, key_type=key_type)
-
-    def revoke(self, service_name: str) -> dict:
-        registry = self._read()
-        if service_name not in registry:
-            return error('key_not_found',
-                        f'Key {service_name} not found')
-        del registry[service_name]
-        self._write(registry)
-        return ok(f'Key revoked: {service_name}',
-                 service=service_name)
-
-    def list_keys(self) -> dict:
-        registry = self._read()
-        entries = []
-        for svc, entry in registry.items():
-            entries.append({
-                'service': svc,
-                'key_type': entry.get('key_type', 'unknown'),
-                'registered_at': entry.get('registered_at_iso', 'unknown'),
-            })
-        return entries
-
-    def get(self, service_name: str) -> str | None:
-        """Get plaintext key value"""
-        registry = self._read()
-        entry = registry.get(service_name)
-        if not entry:
-            return None
-        return entry.get('plain_value')
-
-    def get_xor_key(self, service_name: str) -> str:
-        """Get XOR transport key for the given service"""
-        env_var = f'XOR_KEY_{service_name.replace("-", "_")}'
-        return os.environ.get(env_var, '')
+        return {"source": "not_found", "service": service}
 
 
-# ═══════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════
 # KeyHandlers mixin
-# ═══════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════
 
 class KeyHandlers:
-    """key;register (alias: 密钥;注册) / key;revoke (alias: 密钥;撤销) / key;list (alias: 密钥;列表)"""
+    """密钥指令 — copilot 路由层"""
 
-    _key_registry: KeyRegistry | None = None
+    _key_router: KeyRouter | None = None
 
     @property
-    def key_registry(self) -> KeyRegistry:
-        if self._key_registry is None:
+    def key_router(self) -> KeyRouter:
+        if self._key_router is None:
             data_dir = Path(self.config.get('_config_dir',
-                            str(Path(__file__).resolve().parent.parent / 'data')))
-            self._key_registry = KeyRegistry(data_dir)
-        return self._key_registry
+                            str(Path(__file__).resolve().parent.parent / 'config')))
+            self._key_router = KeyRouter(data_dir)
+        return self._key_router
+
+    # ── key;get (新增: 路由分派) ──
+
+    def _handle_key_get(self, params: list) -> dict:
+        """密钥;获取,<service> → 按路由返回"""
+        if not params:
+            return error('missing_param', '缺少参数: 服务名')
+
+        service = params[0]
+        result = self.key_router.resolve(service)
+
+        if result["source"] == "env":
+            if result.get("value"):
+                self._log_call('KEY_GET', service=service, source='env',
+                               detail='ok')
+                return ok(f'key:{service}', service=service,
+                         source='env', value=result["value"])
+            self._log_call('KEY_GET', service=service, source='env',
+                           detail='empty')
+            return error('env_not_set',
+                        f'环境变量未设置: {service}')
+
+        if result["source"] == "service":
+            self._log_call('KEY_GET', service=service, source='delegated')
+            return error('delegated', f'密钥 {service} 由 service 管理',
+                        __delegated__=True)
+
+        self._log_call('KEY_GET', service=service, source='not_found',
+                       detail='not_in_routing')
+        return error('not_found',
+                    f'密钥 {service} 不在路由表中。编辑 config/key_routing.json 添加。')
+
+    # ── 注册 / 撤销 / 列表 → 全部 delegated ──
 
     def _handle_key_register(self, params: list) -> dict:
-        """key;register (alias: 密钥;注册),<service>,<cipher_hex>,<key_type>
-
-        service: service identifier (e.g. smtp-tide, bigmodel-embedding-3)
-        cipher_hex: XOR-encrypted key as hex string
-        key_type: key type (e.g. smtp_password, api_key, github_token)
-        """
-        if len(params) < 3:
-            return error('missing_param',
-                        'Missing parameter: service_name, cipher_hex, key_type')
-
-        service_name = params[0]
-        cipher_hex = params[1]
-        key_type = params[2]
-
-        # Get XOR transport key
-        xor_key = self.key_registry.get_xor_key(service_name)
-        if not xor_key:
-            return error('missing_xor_key',
-                        f'Env var XOR_KEY_{service_name} not set, '
-                        f'cannot decrypt transport ciphertext')
-
-        # XOR decrypt
-        try:
-            plain_value = xor_decrypt_hex(cipher_hex, xor_key)
-        except (ValueError, UnicodeDecodeError) as e:
-            return error('decrypt_failed',
-                        f'Decrypt failed: {e}')
-
-        if not plain_value:
-            return error('empty_value', 'Decrypted key is empty')
-
-        # Write to local encrypted registry
-        result = self.key_registry.register(service_name, plain_value, key_type)
-
-        # Audit log
-        self._log_call('KEY_REGISTER', service=service_name, key_type=key_type)
-
-        return result
+        """密钥;注册 → ⤴ delegated"""
+        self._log_call('KEY_REGISTER', delegated=True,
+                       detail=f'params={params}')
+        return error('delegated',
+                    '密钥注册由 service 处理',
+                    __delegated__=True)
 
     def _handle_key_revoke(self, params: list) -> dict:
-        """key;revoke (alias: 密钥;撤销),<service>"""
-        if not params:
-            return error('missing_param', 'Missing parameter: service_name')
-
-        service_name = params[0]
-        result = self.key_registry.revoke(service_name)
-        self._log_call('KEY_REVOKE', service=service_name)
-        return result
+        """密钥;撤销 → ⤴ delegated"""
+        self._log_call('KEY_REVOKE', delegated=True,
+                       detail=f'params={params}')
+        return error('delegated',
+                    '密钥撤销由 service 处理',
+                    __delegated__=True)
 
     def _handle_key_list(self, params: list) -> dict:
-        """key;list (alias: 密钥;列表) — return service+type+time, no key values"""
-        entries = self.key_registry.list_keys()
-        if not entries:
-            return ok('Registered keys: (empty)', count=0, keys=[])
-        return ok(f'Registered keys: {len(entries)}',
-                 count=len(entries), keys=entries)
+        """密钥;列表 → ⤴ delegated"""
+        self._log_call('KEY_LIST', delegated=True)
+        return error('delegated',
+                    '密钥列表由 service 管理',
+                    __delegated__=True)
+
+    def _handle_key_quota_track(self, params: list) -> dict:
+        """密钥;配额追踪 → ⤴ delegated"""
+        self._log_call('KEY_QUOTA_TRACK', delegated=True,
+                       detail=f'params={params}')
+        return error('delegated',
+                    '配额追踪由 service 管理',
+                    __delegated__=True)
+
+    # ── 审计 ──
 
     def _log_call(self, action: str, **kwargs):
-        """Write to call_log.jsonl (audit trail)"""
+        """写入 call_log.jsonl (审计轨迹)"""
         data_dir = Path(self.config.get('_config_dir',
                         str(Path(__file__).resolve().parent.parent / 'data')))
         log_path = data_dir / 'call_log.jsonl'
