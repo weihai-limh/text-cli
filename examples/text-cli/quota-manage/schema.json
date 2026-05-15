@@ -1,0 +1,81 @@
+{
+  "id": "quota-manage",
+  "name": "Quota Manager",
+  "name_cn": "配额管理",
+  "runtime": "python",
+  "category": "基础应用",
+  "locales": ["cn", "en"],
+  "description": "Function-level API quota tracker: check, register, reset access limits with daily/weekly/monthly/yearly cycles. SQLite-backed (A6).",
+  "description_cn": "函数级 API 配额追踪：日/周/月/年/永久周期的访问限额检查、注册、重置。SQLite 持久化（A6）。",
+  "trust": "internal",
+  "directives": [
+    {
+      "domain": "quota",
+      "domain_cn": "配额",
+      "action": "check",
+      "action_cn": "检查",
+      "usage": "quota;check,<target>",
+      "usage_cn": "配额;检查,<追踪目标>",
+      "description": "Check and consume one quota unit for target. Returns ok with remaining count, or stop when exhausted. Atomic: cycle-reset + consume in one SQL statement.",
+      "description_cn": "检查并消耗目标的一次配额。返回 ok（含剩余次数）或 stop（已耗尽）。原子操作：周期翻转检测+消耗一步完成。",
+      "params": ["target"],
+      "params_desc": {
+        "target": "Quota target identifier, e.g. AI:inference / zhipu_key / image;generate"
+      }
+    },
+    {
+      "domain": "quota",
+      "domain_cn": "配额",
+      "action": "register",
+      "action_cn": "注册",
+      "usage": "quota;register,<target>,<cycle>,<limit>",
+      "usage_cn": "配额;注册,<追踪目标>,<周期>,<限额>",
+      "description": "Register a new quota tracking rule. Cycle: day(日)/week(周)/month(月)/year(年)/forever(永久).",
+      "description_cn": "注册新的配额追踪规则。周期：日/周/月/年/永久。",
+      "params": ["target", "cycle", "limit"],
+      "params_desc": {
+        "target": "Quota target identifier",
+        "cycle": "Reset cycle: day(日) / week(周) / month(月) / year(年) / forever(永久)",
+        "limit": "Maximum calls per cycle (integer, > 0)"
+      }
+    },
+    {
+      "domain": "quota",
+      "domain_cn": "配额",
+      "action": "list",
+      "action_cn": "列表",
+      "usage": "quota;list",
+      "usage_cn": "配额;列表",
+      "description": "List all registered quota rules with current usage and remaining counts.",
+      "description_cn": "列出所有已注册配额规则及其当前使用量和剩余次数。"
+    },
+    {
+      "domain": "quota",
+      "domain_cn": "配额",
+      "action": "reset",
+      "action_cn": "重置",
+      "usage": "quota;reset,<target>",
+      "usage_cn": "配额;重置,<追踪目标>",
+      "description": "Manually reset the usage counter for a target. Admin-only operation.",
+      "description_cn": "手动重置目标的当前使用计数。管理员操作。",
+      "params": ["target"],
+      "params_desc": {
+        "target": "Quota target identifier to reset"
+      }
+    },
+    {
+      "domain": "quota",
+      "domain_cn": "配额",
+      "action": "unregister",
+      "action_cn": "注销",
+      "usage": "quota;unregister,<target>",
+      "usage_cn": "配额;注销,<追踪目标>",
+      "description": "Remove a quota tracking rule. Does not delete historical data.",
+      "description_cn": "移除配额追踪规则，不删除历史数据。",
+      "params": ["target"],
+      "params_desc": {
+        "target": "Quota target identifier to remove"
+      }
+    }
+  ]
+}

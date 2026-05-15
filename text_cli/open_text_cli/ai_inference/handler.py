@@ -2,8 +2,8 @@
 AI inference handler — service edition
 
 Directives:
-  AI;reasoning,<prompt>[,mode]
-  AI;vision,<prompt>,<image>[,mode]
+  ai;infer,<prompt>[,mode]
+  ai;vision,<prompt>,<image>[,mode]
 
 Modes:
   auto(default)   — time-aware smart model chain
@@ -122,6 +122,16 @@ def _get_api_keys() -> dict[str, str]:
         except Exception:
             pass
 
+    # 3. Fallback to environment variables (A3 bare-metal)
+    for svc in _KEY_SERVICES:
+        if svc not in keys:
+            env_var = svc.upper().replace("-", "_") + "_API_KEY"
+            env_val = os.environ.get(env_var, "")
+            if not env_val:
+                env_val = os.environ.get(svc.upper().replace("-", "_"), "")
+            if env_val:
+                keys[svc] = env_val
+
     return keys
 
 
@@ -133,7 +143,7 @@ def _mode_help() -> str:
     )
 
 
-@directive("AI辅助", "推理")
+@directive("ai", "infer", domain_alias="AI辅助", action_aliases={"infer": "推理"})
 def ai_text_reasoning(params: list[str]) -> str:
     """
     AI;reasoning,<prompt>[,mode]
@@ -191,7 +201,7 @@ def ai_text_reasoning(params: list[str]) -> str:
         return f'Inference failed: {result["error"]}'
 
 
-@directive("AI辅助", "视觉")
+@directive("ai", "vision", domain_alias="AI辅助", action_aliases={"vision": "视觉"})
 def ai_vision_reasoning(params: list[str]) -> str:
     """
     AI;vision,<prompt>,<image>[,mode]

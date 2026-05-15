@@ -104,6 +104,19 @@ def get_sql_by_datas(types: str, datas: dict) -> str:
     return sql
 
 
+
+def _migrate_key_registry(cursor):
+    """Add v2 columns if missing (safe on repeated runs)."""
+    existing = {row[1] for row in cursor.execute("PRAGMA table_info(key_registry)").fetchall()}
+    for col, col_def in [
+        ("value2",      "TEXT"),
+        ("cred_count",  "INTEGER DEFAULT 1"),
+        ("quota_track", "TEXT"),
+    ]:
+        if col not in existing:
+            cursor.execute(f"ALTER TABLE key_registry ADD COLUMN {col} {col_def}")
+
+
 def init_db(db_path: str) -> None:
     """Initialize SQLite database and table schemas."""
     conn = sqlite3.connect(db_path)
@@ -129,5 +142,6 @@ def init_db(db_path: str) -> None:
         )
     """)
 
+    _migrate_key_registry(cursor)
     conn.commit()
     conn.close()

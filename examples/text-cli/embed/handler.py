@@ -35,9 +35,18 @@ def init_embed_handler(db_path: str):
 
 
 def _get_api_key() -> str:
-    if not DB_PATH:
-        return ''
-    return key_get(DB_PATH, API_KEY_SERVICE) or ''
+    if DB_PATH:
+        try:
+            val = key_get(DB_PATH, API_KEY_SERVICE)
+            if val and isinstance(val, str):
+                return val
+        except Exception:
+            pass
+
+    # Fallback to environment (A3)
+    env_val = os.environ.get(API_KEY_SERVICE.upper().replace("-", "_"), "")
+    env_val = env_val or os.environ.get(API_KEY_SERVICE.upper().replace("-", "_") + "_API_KEY", "")
+    return env_val
 
 
 @directive("semantic", "encode", domain_alias="语义", action_aliases={"encode": "编码"})

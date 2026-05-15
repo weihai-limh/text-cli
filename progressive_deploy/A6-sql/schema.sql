@@ -2,7 +2,10 @@
 CREATE TABLE IF NOT EXISTS key_registry (
     service TEXT PRIMARY KEY,
     value TEXT NOT NULL,
+    value2 TEXT,
+    cred_count INTEGER DEFAULT 1,
     key_type TEXT NOT NULL,
+    quota_track TEXT,
     registered_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
