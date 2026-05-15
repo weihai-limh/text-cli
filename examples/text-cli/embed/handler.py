@@ -63,11 +63,15 @@ def sem_encode(params: list[str]) -> str:
 
     text = params[0]
     mode = params[1] if len(params) > 1 else 'B'
+    full_output = "--full" in params
     try:
         vec = encode(text, api_key, mode)
         dims = len(vec)
         preview = [round(v, 6) for v in vec[:8]]
-        return f'Encoded ({dims} dims)\nPreview: {preview}...'
+        result = f'Encoded ({dims} dims)\nPreview: {preview}...'
+        if full_output:
+            result += f'\nFull: {vec}'
+        return result
     except Exception as e:
         return f'Encode failed: {e}'
 
