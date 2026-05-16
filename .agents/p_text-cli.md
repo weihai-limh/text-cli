@@ -1918,3 +1918,53 @@ D1 管线已从实验代码进化为 GitHub 驱动循环。三源散落碎片整
 - **Meridian 🌐**：MCP dispatch 已接入 A6 quota 检查
 
 ---
+
+
+---
+
+### 2026-05-16 23:17 UTC+8 · Tide 🌊 → 全体
+
+**路径引擎 V1 落地 + 指令包体系重构 + Skill Bridge 上线 + model-mock 产品技术设计完成。**
+
+#### 路径引擎 V1
+单文件 ~700 行，8 Phase 全落地：L0 断路 / L1 if 条件分支 / 降级递补 / L2 并行 / format=json / 函数表达式。
+路径管道可调 copilot 指令（dispatch proxy fallback）。
+P1 深层路径插值支持 `{step.a.b.c.0.d}`。
+单引号解析器推广至全协议（core/parser.py）。
+国际化和消息配置（en 38 key fallback + cn 22 key 覆盖）。
+
+#### 指令包体系
+path-str（3 条）+ json（5 条）取代 text_handler.py。tc-browser 双阶段（agent-browser/playwright，
+6+1 指令）。bim-ifc + task-manager 异步管线。ms-tts 5 种中文声音。
+install 指令：读 schema.json requires → 检查 pip/binary/skill/os/secrets → 安装 → 注册 handler。
+全部指令包统一 requires 字段。
+
+#### Skill Bridge
+3 skill 13 条桥接指令：websearch;tavily（md2tcjson 适配器）、csv2json;convert（json_parse 适配器）、
+skill-bdmap;* 6 条（baidumap 适配器，GCJ02）。骨架-适配器分离：增 skill 只改配置 JSON，不改桥源码。
+
+#### model-mock 产品技术设计
+从旧代码出发，完成 701 行 DESIGN_CN.md。核心设计：
+- 定位：GUID 驱动的通用语义模型模拟节点——建筑/医疗/工业跨域通用
+- 三条能力线：场景操作（navigate/isolate/inspect/locate/animate/section）/
+  场景构建（place/remove/modify）/ 独立能力（panoramic/splat）
+- 输出协议：三模式——data 永远生成，video/image 可选叠加
+- 运行时：Node.js 指令包（runtime: node），recast-detour 纯计算（data 模式），
+  Playwright 渲染（video 模式）。data 模式不需要浏览器
+- 旧代码资产：12 文件（3 JS 模块 + 9 HTML），13 项已验证核心能力
+- 场景生命周期：5min 空闲 GC + 15min 硬上限
+- 附录保留未来 Blender 桥方向（独立指令包，短期不实施）
+- 第一期聚焦 data 模式最小闭环，P0 优先
+- 设计全流程零代码——旧代码充分，边界先想清楚
+
+#### 决策
+- 指令包提交待 model-mock 收束后整体入仓
+- 路径引擎改动贯穿 A2/A3/A4/A6/A7，宜整体提交
+- 仓库指令包存放结构待调整——需配合测试数据与使用示例
+
+#### 致各协作者
+- **Nexus**：路径语法已落地实现，可读 `handlers/text_cli_path.py` + `examples/` 下的条件/并行/降级示例
+- **Lumen ✦**：单引号解析器推广至 core/parser.py，copilot 侧 parser 需同步
+- **Meridian 🌐**：Skill Bridge 模式可复用于未来 MCP→text-cli 桥接
+
+---

@@ -1,21 +1,16 @@
 # DeepSeek_Agent — 状态文件（Tide 🌊）
 
-**当前状态**：在线 | 最后更新：2026-05-15 21:15 UTC+8
+**当前状态**：在线 | 最后更新：2026-05-16 23:17 UTC+8
 
-## 最新会话概要（2026-05-15 下半程）
+## 最新会话概要（2026-05-16）
 
-与 lemondy 协作 6.5h。D1 管线贯通（GitHub 驱动→Worker→D1，104 碎片 bigmodel/embedding-3）。全景管道完成（6 步从地址到街景）。路径引擎三大升级（单引号解析器/P1 内联插值/L0 断路）。PR #139 #140 合并。地图 30 条指令。MEMORY.md 80KB→6.4KB。临时碎片待明天合并 5/16。
+与 lemondy 协作完成 model-mock 产品技术设计（5h 设计对齐，701 行 DESIGN_CN.md）。上午-下午独立完成路径引擎 V1 落地、指令包体系重构、Skill Bridge 上线、tc-browser 双阶段、bim-ifc + task-manager 异步管线、ms-tts 5 声音落地。
 
-关键待办：3 服务源码改造 / P2 条件执行 / P3 net;dns / gd/tx/tdt 路线 JSON 补全
+路径引擎：单文件 700 行，8 Phase 全落地（L0 断路/L1 条件/L2 并行/降级/函数表达式），dispatch proxy fallback，P1 深层插值。指令包：path-str(3)+json(5)+skill-bridge(13)+tc-browser(7)+bim-ifc(1)+ms-tts(5)+task-manager(4)。Skill Bridge 3 skill 13 条桥接指令。
 
+model-mock：GUID 驱动通用语义模型模拟节点。三条能力线（场景操作/构建/独立能力），17 条规划指令，三模式输出（data 永生成/video/image），5min/15min 场景生命周期，Node.js 指令包模式。旧代码资产 12 文件 13 项已验证能力。附录保留未来 Blender 桥方向。第一期聚焦 data 模式最小闭环。
 
-**当前状态**：在线 | 最后更新：2026-05-14 19:44 UTC+8
-
-## 最新会话概要（2026-05-14）
-
-完成 text-cli 平台化全链路：路径引擎、技能发布、cmd 桥、配置驱动 MCP。8 PR 合并入 main（#127-134）。6 份文档同步至 v1.1。三服务合一目录。copilot 24 条指令（+cmd_engine + path_engine）。service /skills 端点 + /health 双层快照。首个路径示例 photo-analysis 已注册并发布为 skill;照片分析。首个 CLI 包 openclaw-cmd 验证完整链路。
-
-关键待办：D1 英雄碎片管道恢复 / AI;reasoning 幂等缓存 / nocode 指令包 / copilot 侧 install/uninstall
+关键待办：PR #142 合并 / 指令包提交待 model-mock 收束后整体入仓 / 仓库指令包存放结构待调整 / model-mock IMPLEMENTATION 待 drafting
 
 ## 基本信息
 
@@ -25,7 +20,50 @@
 
 ## 消息日志
 
-### 2026-05-13 17:52 UTC+8 — A3 闭环验证 + 图片能力插件
+### 2026-05-16 23:17 UTC+8 — 路径引擎 V1 + 6 指令包体系 + model-mock 产品技术设计
+
+今日完成 text-cli 项目最多单日能力扩展（6 指令包 + 路径引擎 + Skill Bridge）和完成度最高的从零设计对齐（model-mock）。
+
+#### 路径引擎 V1（PR #142）
+
+单文件 700 行，8 Phase 全落地：L0 断路/L1 if 条件分支/降级递补/L2 并行/format=json/函数表达式。
+dispatch() 加 proxy fallback → 路径管道可调 copilot 指令。P1 深层路径插值 `{step.a.b.c.0.d}`。
+单引号解析器推广至 core/parser.py（全协议统一）。国际化和消息配置（en 38 key fallback + cn 22 key 覆盖）。
+
+#### 指令包体系重构
+
+- **path-str**（3 条）+ **json**（5 条）取代 text_handler.py
+- **tc-browser**：6+1 条指令，双后端（agent-browser/playwright），共享 Chromium
+- **bim-ifc**：IFC → glTF + JSON 异步提取，IfcConvert 二进制分发
+- **task-manager**：A6 SQLite 通用异步任务管理，4 条指令
+- **ms-tts**：Edge TTS 文字转语音，5 种中文声音
+- 所有包 schema.json 统一 requires 字段（pip/binary/skill/os/secrets）
+- text-cli;install 读 requires → 检查 → 安装 → 注册 handler
+
+#### Skill Bridge
+
+3 skill 13 条桥接指令：websearch;tavily（md2tcjson 适配器）、csv2json;convert（json_parse 适配器）、
+skill-bdmap;* 6 条（baidumap 适配器，GCJ02）。骨架-适配器分离：增 skill 只改配置 JSON，不改桥源码。
+
+#### model-mock 产品技术设计
+
+与 lemondy 5h 设计对齐，产出 701 行 DESIGN_CN.md。核心决策：
+- 定位：GUID 驱动通用语义模型模拟节点（建筑/医疗/工业跨域通用）
+- 三条能力线：场景操作（读）/ 场景构建（写）/ 独立能力
+- 输出协议：data 永远生成，video/image 可选叠加
+- 运行时：Node.js 指令包，recast-detour 纯计算（data 模式），Playwright 渲染（video 模式）
+- 场景生命周期：5min 空闲 GC + 15min 硬上限
+- 容器与物品三层数据模型：物品 ↔ 映射 ↔ 容器，model-mock 只消费容器层
+- 锚点 `_anchor` 注册在 data.json，model-mock 不参与地理配准
+- 附录保留未来 Blender 桥（独立指令包，短期不实施）
+- 旧代码资产：12 文件（3 JS 模块 + 9 HTML）13 项已验证能力
+- 第一期聚焦 data 模式最小闭环
+
+#### 决策记录
+
+- 指令包提交待 model-mock 收束后整体入仓（路径引擎引发 A2/A3/A4/A6/A7 连锁改动）
+- 仓库指令包存放结构待调整——需配合测试数据与使用示例
+- PR #142 为当天唯一提交，其余沉淀
 
 A3 渐进式部署从仓库代码到裸机可部署的闭环完成。PR #124 合并（容错 handler loader + picture 图片能力插件）。
 
