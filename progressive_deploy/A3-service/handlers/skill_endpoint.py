@@ -31,12 +31,26 @@ logger = logging.getLogger("text-cli.skills")
 
 SCHEMA_DIR = pathlib.Path(__file__).parent / "schema"
 EXPOSURE_PATH = pathlib.Path(__file__).parent.parent / "config" / "skills_exposure.json"
+MANIFEST_PATH = pathlib.Path(__file__).parent.parent / "config" / "service_manifest.json"
 
 # Simple in-memory idempotency cache
 _idempotency_cache: dict[str, dict] = {}
 _IDEMPOTENCY_TTL = 300  # seconds
 
 
+def _load_manifest() -> dict:
+    """Load service manifest whitelist."""
+    try:
+        with open(MANIFEST_PATH, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+def _get_whitelist() -> list[str]:
+    """Get whitelist directives. Empty = expose all (backward compatible)."""
+    manifest = _load_manifest()
+    return manifest.get("public_directives", [])
 def _load_exposure() -> dict:
     """Load skills exposure configuration."""
     try:
@@ -127,11 +141,45 @@ def _cache_idempotency(key: str, result: dict):
 
 
 def list_skills(exposure: dict = None) -> dict:
-    """Build skills list for GET /text-cli/skills."""
+    """Build skills list for GET /text-cli/skills (paths + aggregates)."""
     if exposure is None:
         exposure = _load_exposure()
+    whitelist = _get_whitelist()
     paths = _load_path_schemas()
     exposed = _filter_exposed(paths, exposure)
+
+    # Add aggregate directives in whitelist
+    from core.registry import get_registered_directives
+    directives = get_registered_directives()
+    seen_ids = {s["id"] for s in exposed}
+
+    for directive_str in whitelist:
+        parts = directive_str.split(";", 1)
+        if len(parts) != 2:
+            continue
+        domain, action = parts
+        agg_id = f"{domain}-{action}"
+        if agg_id in seen_ids:
+            continue
+        seen_ids.add(agg_id)
+        # Determine type — aggregate if domain has an aggregate config
+        try:
+            from main import _aggregates
+            domain_type = "aggregate" if _aggregates.get(domain) else "native"
+        except (ImportError, AttributeError):
+            domain_type = "aggregate" if domain in ("map", "weather", "web") else "native"
+        exposed.append({
+            "id": agg_id,
+            "name": directive_str,
+            "name_en": directive_str,
+            "version": "1.0.0",
+            "type": domain_type,
+            "description": f"{domain} {action}",
+            "visibility": "public",
+            "input_schema": {"type": "string"},
+            "output_schema": {},
+            "requires": [],
+        })
     return {
         "skills": exposed,
         "count": len(exposed),
@@ -190,14 +238,14 @@ def execute_skill(skill_id: str, params: dict, token_scope: list[str] = None) ->
 
     if visibility not in ("public", "restricted"):
         return {"status": "error", "error": "skill_not_exposed",
-                "message": f"Skill not externally exposed"}
+                "message": f"技能 '{skill_id}' 未对外暴露"}
 
     # Auth check for restricted skills
     if visibility == "restricted":
         allowed = exp.get("allowed_scopes", [])
         if not token_scope or not any(s in allowed for s in token_scope):
             return {"status": "error", "error": "unauthorized",
-                    "message": f"技能 '{skill_id}' requires scope: {', '.join(allowed)}"}
+                    "message": f"技能 '{skill_id}' 需要 scope: {', '.join(allowed)}"}
 
     # Idempotency check
     idem_key = params.get("idempotency_key", "")
@@ -210,11 +258,11 @@ def execute_skill(skill_id: str, params: dict, token_scope: list[str] = None) ->
     schema = _find_skill(skill_id)
     if not schema:
         return {"status": "error", "error": "not_found",
-                "message": f"技能 '{skill_id}' not registered"}
+                "message": f"技能 '{skill_id}' 未注册"}
 
     if not schema.get("directives"):
         return {"status": "error", "error": "not_published",
-                "message": f"Skill registered but not published (text-cli;pro)"}
+                "message": f"技能 '{skill_id}' 已注册但未发布 (text-cli;pro)"}
 
     # Execute
     from .text_cli_path import _execute_path
