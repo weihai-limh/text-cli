@@ -1,11 +1,11 @@
 """
-text-cli;uninstall — Platform self-management: uninstall instruction package。
+text-cli;uninstall — 平台自管理：卸载指令包。
 
-Remove handler.py + schema.json, retain audit log。
-Protected system domain (text-cli) cannot be uninstalled。
+移除 handler.py + schema.json，保留审计记录。
+受保护的系统域（text-cli）不可卸载。
 
 Directives:
-    AI:text-cli;uninstall,<包名>     → Uninstall specified package
+    AI:text-cli;uninstall,<包名>     → 卸载指定包
     AI:文本指令;卸载,<包名>           → 中文别名
 
 Author: Tide 🌊
@@ -19,6 +19,10 @@ from .installer.validate import SYSTEM_DOMAINS
 from .installer.filesystem import remove_files
 from .installer.dependencies import check_deps_shared
 from .installer.audit import log_uninstall
+from .package_manifest import remove as manifest_remove
+from pathlib import Path
+
+_INITS_PATH = Path(__file__).resolve().parent.parent / "config" / "handler_inits.py"
 
 
 @directive("text-cli", "uninstall")
@@ -27,31 +31,50 @@ def text_cli_uninstall(params: list[str]) -> str:
     """Uninstall an instruction package by name."""
     if not params:
         return "用法: AI:text-cli;uninstall,<包名>\n\n" \
-               "Use AI:text-cli;query to see installed packages。"
+               "使用 AI:text-cli;query 查看已安装的包。"
 
     name = params[0].strip()
 
     # 1. System domain protection
     if name in SYSTEM_DOMAINS:
         log_uninstall(name, False, f"rejected: system domain")
-        return f"\"{name}\" is a system domain and cannot be uninstalled。"
+        return f"\"{name}\" 是系统保留域，不可卸载。"
 
     # 2. Remove files
     ok, msg = remove_files(name)
     if not ok:
         log_uninstall(name, False, msg)
-        return f"Uninstall failed: {msg}"
+        return f"卸载失败: {msg}"
 
     # 3. Build result
     lines = [
-        f"Uninstalled: {name}",
+        f"已卸载: {name}",
         f"  {msg}",
         "",
-        "  pip dependencies not removed (may be shared by other packages)。",
-        "  If confirmed unused, clean up manually:",
-        f"    /path/to/text-cli/service/.venv/bin/pip uninstall <pkg>",
+        "  pip 依赖未移除（可能被其他包共用）。",
+        "  如确认不再需要，手动清理:",
+        f"    /root/text-cli/service/.venv/bin/pip uninstall <pkg>",
     ]
 
     result = "\n".join(lines)
     log_uninstall(name, True, "uninstalled")
+    try:
+        manifest_remove(name)
+        _remove_handler_init(name)
+    except Exception:
+        pass
     return result
+
+
+def _remove_handler_init(pkg_name: str):
+    """Remove an entry from handler_inits.py."""
+    try:
+        content = _INITS_PATH.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return
+
+    mod_path = f"handlers.{pkg_name}_handler"
+    lines = content.split('\n')
+    new_lines = [l for l in lines if mod_path not in l]
+    if len(new_lines) != len(lines):
+        _INITS_PATH.write_text('\n'.join(new_lines), encoding="utf-8")

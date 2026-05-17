@@ -26,8 +26,6 @@ text_cli/python/
     └── sample.py                    # 示例指令（回显 / 问候 / 列表）
 ```
 
----
-
 ## 核心模块职责
 
 | 模块 | 职责 |
@@ -38,8 +36,6 @@ text_cli/python/
 | `core/response.py` | `ok(text)` / `error(text)` 统一响应格式 |
 | `handlers/` | 新增指令只需在此目录加 `.py` 文件并用 `@directive` 装饰——`__init__.py` 自动发现 |
 
----
-
 ## 快速启动
 
 ```bash
@@ -48,12 +44,7 @@ pip install -r requirements.txt
 uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
-启动后访问：
-- `GET /health` — 查看已注册指令
-- `GET /text_cli_schema.json` — 查看 Schema
-- `POST /cli/text_cli` — 发送文本指令
-
-## 注册新指令
+### 注册新指令
 
 ```python
 # handlers/my_handler.py
@@ -67,16 +58,59 @@ def weather(params: list[str]) -> str:
 
 无需修改任何其他文件——`handlers/__init__.py` 启动时自动导入。
 
-### 鉴权
-
-设置环境变量 `SERVICE_TOKEN` 开启鉴权，调用方需携带：
-
-```
-Service-token: your-service-token
-```
-
 ### Docker
 
 ```bash
 docker compose up --build -d
 ```
+
+---
+
+## handler_inits 自动加载
+
+不再为每个包在 main.py 里写 try/except 块。所有 handler 的初始化收束到 `config/handler_inits.py` 清单：
+
+```python
+HANDLER_INITS = [
+    ("handlers.key", "init_key_handler", "db", None),
+    ("handlers.quota_handler", "init_quota_handler", "quota", None),
+    ...
+]
+```
+
+`text-cli;install` 安装包后自动追加条目，`text-cli;uninstall` 卸载时自动移除。重启服务后新包自动加载——加包不再改 main.py。
+
+## manifest 包生命周期
+
+每个已安装的包在 `config/installed_packages.json` 中有记录：
+
+```json
+{
+  "tx-cloud": {
+    "id": "tx-cloud", "domain": "tx-cloud", "type": "native",
+    "source": "/root/text-cli-package/tx-cloud/",
+    "files": {"handler": "handlers/tx_cloud_handler.py"},
+    "directives": ["tx-cloud;translation", "tx-cloud;asr", ...],
+    "installed_at": "2026-05-17T10:28:00"
+  }
+}
+```
+
+manifest 支撑三个操作：
+- **export**：读 manifest → 按 type 重组文件 → 输出到 `text-cli-package/<id>/`
+- **packages**：列出已安装包及指令清单
+- **uninstall**：删文件 + 清理 manifest 条目
+
+## nocode 指令包
+
+非代码经验成为一等指令包类型。花店老板的六篇 Markdown + 一份症状索引 + 一条路径声明——不需要 handler.py。平台通过 `tc-markdown;read` 读取经验文件，AI 推理做诊断。
+
+## 指令包导出
+
+```
+text-cli;export,<id>      → 单包导出到 text-cli-package/
+text-cli;export-all       → 全量导出
+text-cli;packages         → 列出已安装包
+```
+
+导出的包结构与安装格式一致，可被 `text-cli;install` 直接消费。
