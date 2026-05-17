@@ -1,11 +1,11 @@
 """
-text-cli;install — Platform self-management: install instruction package。
+text-cli;install — 平台自管理：安装指令包。
 
-Search package source → validate structure → deploy files → install deps → audit。
-Package source limited to local text-cliV1/ directory。
+从注册源搜索包 → 验证结构 → 部署文件 → 安装依赖 → 审计记录。
+包来源限定为本地 text-cliV1/ 目录，不接受任意 URL。
 
 Directives:
-    AI:text-cli;install,<包名>           → Install specified package
+    AI:text-cli;install,<包名>           → 安装指定包
     AI:text-cli;install,<包名>,--force   → 强制覆盖已安装的包
     AI:文本指令;安装,<包名>              → 中文别名
 
@@ -20,6 +20,12 @@ from .installer.validate import validate_package
 from .installer.filesystem import install_files
 from .installer.dependencies import install_deps
 from .installer.audit import log_install
+from .package_manifest import register as manifest_register
+
+import ast
+from pathlib import Path
+
+_INITS_PATH = Path(__file__).resolve().parent.parent / "config" / "handler_inits.py"
 
 
 @directive("text-cli", "install")
@@ -28,7 +34,7 @@ def text_cli_install(params: list[str]) -> str:
     """Install an instruction package by name."""
     if not params:
         return "用法: AI:text-cli;install,<包名>\n\n" \
-               "Use AI:text-cli;query,category to see available categories。"
+               "使用 AI:text-cli;query,category 查看可用分类。"
 
     name = params[0].strip()
     force = len(params) > 1 and params[1].strip() == "--force"
@@ -37,7 +43,7 @@ def text_cli_install(params: list[str]) -> str:
     ok, msg, meta = validate_package(name)
     if not ok:
         log_install(name, {}, False, msg)
-        return msg if msg.startswith("Install failed") else f"Install failed: {msg}"
+        return msg if msg.startswith("安装失败") else f"安装失败: {msg}"
 
     schema = meta["schema"]
 
@@ -46,19 +52,20 @@ def text_cli_install(params: list[str]) -> str:
     ok, msg = install_files(name, meta, runtime=runtime, force=force)
     if not ok:
         log_install(name, meta, False, msg)
-        return msg if msg.startswith("Install failed") else f"Install failed: {msg}"
+        return msg if msg.startswith("安装失败") else f"安装失败: {msg}"
 
     # 3. Install dependencies (Python only)
     if runtime == "python":
-        ok_deps, dep_msg = install_deps(meta.get("req_path"), name)
+        requires = schema.get("requires", {})
+        ok_deps, dep_msg = install_deps(meta.get("req_path"), name, requires=requires)
     else:
-        ok_deps, dep_msg = True, "no pip dependencies"
+        ok_deps, dep_msg = True, "无 pip 依赖"
 
     # 4. Format result
     directives = schema.get("directives", [])
     mcp_server = schema.get("mcp_server", "")
     lines = [
-        f"Install complete: {name} ({schema.get('name_cn', '')})",
+        f"安装完成: {name} ({schema.get('name_cn', '')})",
         f"  runtime: {runtime}",
     ]
     if mcp_server:
@@ -66,7 +73,7 @@ def text_cli_install(params: list[str]) -> str:
     lines += [
         f"  {dep_msg}",
         "",
-        f"  {len(directives)} directive(s):",
+        f"  {len(directives)} 条指令:",
     ]
     for d in directives:
         usage = d.get("usage", f"{d.get('domain','')};{d.get('action','')}")
@@ -77,10 +84,52 @@ def text_cli_install(params: list[str]) -> str:
 
     if not ok_deps:
         lines.append("")
-        lines.append(f"  ⚠ pip 依赖Install failed: {dep_msg}")
-        lines.append("    Directives deployed but may fail due to missing dependencies。")
-        lines.append(f"    Manual install: {meta.get('req_path', 'N/A')}")
+        lines.append(f"  ⚠ pip 依赖安装失败: {dep_msg}")
+        lines.append("    指令已部署，但可能因缺少依赖而无法执行。")
+        lines.append(f"    手动安装: {meta.get('req_path', 'N/A')}")
 
     result = "\n".join(lines)
     log_install(name, meta, True, "installed")
+
+    # Write manifest for export tracking
+    try:
+        pkg_source = str(meta["path"])
+        pkg_domain = schema.get("directives", [{}])[0].get("domain", name)
+        pkg_type = schema.get("type", "native")
+        manifest_register(
+            name, pkg_domain, pkg_type, pkg_source,
+            files={
+                "handler": f"handlers/{name}_handler.py",
+                "schema": f"handlers/schema/{name}_schema.json",
+            },
+            directives=[f"{d.get('domain',name)};{d.get('action','')}" for d in schema.get("directives", [])]
+        )
+
+        # Append to handler_inits.py for auto-load on restart
+        _append_handler_init(f"handlers.{name}_handler", f"init_{name}_handler")
+    except Exception:
+        pass  # manifest/init optional, don't block install
+
     return result
+
+
+def _append_handler_init(mod_path: str, fn_name: str, arg_key: str = None):
+    """Append an entry to handler_inits.py for auto-load on restart."""
+    try:
+        content = _INITS_PATH.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return
+
+    # Check if already registered
+    entry_pattern = f'("{mod_path}", "{fn_name}"'
+    if entry_pattern in content:
+        return
+
+    # Insert before the closing bracket of HANDLER_INITS
+    new_entry = f'    ("{mod_path}", "{fn_name}", {arg_key or "None"}, None),\n'
+    if "HANDLER_INITS = [" in content:
+        # Insert before the closing ]
+        last_bracket = content.rfind("]")
+        if last_bracket > 0:
+            content = content[:last_bracket] + new_entry + "]" + content[last_bracket + 1:]
+            _INITS_PATH.write_text(content, encoding="utf-8")

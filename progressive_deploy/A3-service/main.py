@@ -1,5 +1,4 @@
 import json
-import socket
 import logging
 import os
 import sys
@@ -33,6 +32,90 @@ SCHEMA_PATH = os.getenv(
     str(project_root / "config" / "text_cli_schema.json"),
 )
 
+# ── 聚合指令加载 ──────────────────────────────
+
+_aggregates: dict[str, dict] = {}
+_AGGREGATE_DIR = Path(os.environ.get("AGGREGATE_DIR",
+    str(project_root.parent / "A8-discovery" / "aggregate")))
+
+
+def _load_aggregates():
+    """启动时扫描 aggregate/*.json，加载聚合路由表。"""
+    global _aggregates
+    if not _AGGREGATE_DIR.exists():
+        return
+    for f in _AGGREGATE_DIR.glob("*.json"):
+        try:
+            agg = json.loads(f.read_text(encoding="utf-8"))
+            if agg.get("type") != "aggregate":
+                continue
+            domain = agg["domain"]
+            _aggregates[domain] = agg
+            logger.info("聚合已加载: %s (%d providers)", domain, len(agg.get("providers", {})))
+        except Exception as e:
+            logger.warning("Failed to load aggregate %s: %s", f.name, e)
+
+
+def _aggregate_dispatch(domain: str, action: str, params: list) -> str | None:
+    """聚合指令降级链调度。返回结果字符串或 None(未命中)。"""
+    agg = _aggregates.get(domain)
+    if not agg:
+        return None
+
+    # 检查 action 是否有 provider 映射
+    providers_order = list(agg.get("default", []))
+
+    # 用户显性指定提供方？(末参数匹配 provider 名)
+    if params and params[-1] in agg.get("providers", {}):
+        providers_order = [params.pop()]
+
+    for provider_name in providers_order:
+        provider = agg["providers"].get(provider_name, {})
+        directive = provider.get(action)
+        if not directive:
+            continue  # 此提供方不支持此 action
+        # directive 格式: "tx-map;geocode" 或 "tencent-maps;geocode"
+        parts = directive.split(";", 1)
+        if len(parts) != 2:
+            continue
+        p_domain, p_action = parts
+        try:
+            result = dispatch(p_domain, p_action, list(params))
+            if result and "未找到匹配的指令" not in result and "No matching directive" not in result:
+                # 检查是否配额耗尽或其他软错误
+                try:
+                    rj = json.loads(result)
+                    if rj.get("status") == "stop":
+                        logger.info("聚合降级: %s;%s 配额耗尽, 尝试下一个", p_domain, p_action)
+                        continue
+                    if rj.get("status") == "error":
+                        logger.info("聚合降级: %s;%s 返回错误, 尝试下一个", p_domain, p_action)
+                        continue
+                except (json.JSONDecodeError, TypeError):
+                    pass
+                logger.info("聚合命中: %s → %s;%s", domain, p_domain, p_action)
+                return result
+        except Exception as e:
+            logger.info("聚合降级: %s;%s 异常 %s, 尝试下一个", p_domain, p_action, e)
+            continue
+
+    return None
+
+# ── 内部 dispatch (供 key_registry 和 mcp_handler 配额检查调用) ──
+
+def _internal_dispatch(domain: str, action: str, params: list) -> dict | None:
+    """框架内 dispatch → JSON 结果解析 → dict 返回。"""
+    try:
+        result_str = dispatch(domain, action, params)
+    except Exception:
+        return None
+    try:
+        result = json.loads(result_str)
+        return result if isinstance(result, dict) else None
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+
 # SQLite 模块检测
 SQLITE_DB_PATH: dict | None = None
 SQLITE_DB_FILE = os.getenv(
@@ -48,54 +131,47 @@ try:
     SQLITE_DB_PATH = {'config': SQLITE_DB_FILE}
 
     # 通知各 handler SQLite 路径
-    try:
-        from handlers.key import init_key_handler
-        init_key_handler(SQLITE_DB_FILE)
-    except Exception:
-        pass
-    try:
-        from handlers.embed import init_embed_handler
-        init_embed_handler(SQLITE_DB_FILE)
-    except Exception:
-        pass
-    try:
-        from handlers.ai_inference import init_ai_handler
-        init_ai_handler(SQLITE_DB_FILE)
-    except Exception:
-        pass
-    try:
-        from handlers.quota_handler import init_quota_handler
-        quota_db = str(_modules_root / "sqlite" / "quota.db")
-        init_quota_handler(quota_db)
-    except Exception:
-        pass
+    _ARG_MAP = {
+        "db": SQLITE_DB_FILE,
+        "quota": str(_modules_root / "sqlite" / "quota.db"),
+        "db_dict": SQLITE_DB_PATH,
+        "project_root": str(project_root),
+    }
 
-    # Inject key_registry dispatch callback (for quota check in key.get)
     try:
-        from core.registry import dispatch as _reg_dispatch
-        from text_cli_modules.key.key_registry import set_dispatch as _set_key_dispatch
+        from config.handler_inits import HANDLER_INITS, DISPATCH_INJECTS
+    except ImportError:
+        HANDLER_INITS, DISPATCH_INJECTS = [], []
 
-        def _internal_dispatch(domain: str, action: str, params: list) -> dict | None:
-            try:
-                result_str = _reg_dispatch(domain, action, params)
-            except Exception:
-                return None
-            try:
-                result = json.loads(result_str)
-                return result if isinstance(result, dict) else None
-            except (json.JSONDecodeError, TypeError):
-                return None
+    for mod_path, fn_name, arg_key, _ in HANDLER_INITS:
+        try:
+            mod = __import__(mod_path, fromlist=[fn_name])
+            init_fn = getattr(mod, fn_name)
+            if arg_key:
+                init_fn(_ARG_MAP[arg_key])
+            else:
+                init_fn()
+            logger.info("%s initialised", mod_path)
+        except Exception as e:
+            logger.warning("Failed to init %s: %s", mod_path, e)
 
-        _set_key_dispatch(_internal_dispatch)
-        logger.info("key_registry dispatch callback injected")
-    except Exception as e:
-        logger.warning("Failed to inject key_registry dispatch: %s", e)
+    for mod_path, setter_fn in DISPATCH_INJECTS:
+        try:
+            mod = __import__(mod_path, fromlist=[setter_fn])
+            fn = getattr(mod, setter_fn)
+            fn(_internal_dispatch)
+            logger.info("%s dispatch injected", mod_path)
+        except Exception as e:
+            logger.warning("Failed to inject dispatch for %s: %s", mod_path, e)
 
     logger.info("SQLite 模块已初始化: %s", SQLITE_DB_FILE)
 except ImportError:
     logger.info("SQLite 模块未安装")
 except Exception as e:
     logger.warning("SQLite 初始化失败: %s", e)
+
+# ── 聚合指令加载（平台级，不依赖 SQLite）──
+_load_aggregates()
 
 _schema: dict[str, dict] = {}
 _copilot_token: str = ""
@@ -193,7 +269,7 @@ async def health(request: Request):
 
         return {
             "status": "ok",
-            "body": os.environ.get("BODY_NAME", socket.gethostname()),
+            "body": "vm-4-2",
             "version": "1.0.0",
             "capabilities": {
                 "packages": [p for p in installed if p not in ("sample",)],
@@ -217,7 +293,7 @@ async def health(request: Request):
 
     return {
         "status": "ok",
-        "body": os.environ.get("BODY_NAME", socket.gethostname()),
+        "body": "vm-4-2",
         "version": "1.0.0",
         "public_skills": public_count,
     }
@@ -269,13 +345,28 @@ async def handle_directive(request: Request):
         parsed.domain, parsed.action, parsed.params,
     )
 
+    # 0. 聚合指令优先（降级链多提供方调度）
+    agg_result = _aggregate_dispatch(parsed.domain, parsed.action, parsed.params)
+    if agg_result is not None:
+        return ok(agg_result)
+
     # 1. MCP 优先路由（显式偏好 mcp 时优先）
     from core.mcp_dispatch import decide_backend, get_mcp_route, adapt_params
+    from handlers.mcp_handler import check_mcp_quota
     backend = decide_backend(parsed.domain, parsed.action)
 
     if backend == "mcp":
         mcp_route = get_mcp_route(parsed.domain, parsed.action)
         if mcp_route:
+            # Quota check before MCP call
+            quota_block = check_mcp_quota(
+                mcp_route["server"], tool=mcp_route.get("tool", ""), dispatch_fn=_internal_dispatch
+            )
+            if quota_block:
+                return JSONResponse(
+                    status_code=429,
+                    content=ok(json.dumps({"status": "quota_exceeded", **quota_block}, ensure_ascii=False)),
+                )
             try:
                 from handlers.mcp_handler import call_mcp_tool, format_mcp_result
                 args = adapt_params(parsed.params, mcp_route)
@@ -311,6 +402,15 @@ async def handle_directive(request: Request):
     # 3. 本地未匹配 → 尝试 MCP（作为后备路由）
     mcp_route = get_mcp_route(parsed.domain, parsed.action)
     if mcp_route:
+        # Quota check before MCP fallback call
+        quota_block = check_mcp_quota(
+            mcp_route["server"], tool=mcp_route.get("tool", ""), dispatch_fn=_internal_dispatch
+        )
+        if quota_block:
+            return JSONResponse(
+                status_code=429,
+                content=ok(json.dumps({"status": "quota_exceeded", **quota_block}, ensure_ascii=False)),
+            )
         try:
             from handlers.mcp_handler import call_mcp_tool, format_mcp_result
             args = adapt_params(parsed.params, mcp_route)
@@ -374,7 +474,7 @@ async def skills_execute(skill_id: str, request: Request):
     # For now: accept service token or the local copilot token
     service_token = request.headers.get("Service-token")
     auth = verify_service_token(service_token)
-    if not auth.allowed and access_token != os.environ.get("COPILOT_TOKEN", ""):
+    if not auth.allowed and access_token != "<public-access-token-if-any>":
         return JSONResponse(
             status_code=401,
             content={"status": "error", "error": "unauthorized",
