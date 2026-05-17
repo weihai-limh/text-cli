@@ -42,10 +42,9 @@ text-cli 的指令是不可变协议——一条纯文本串起领域、动作�
 ```
 AI:领域;动作,参数1,参数2,...
 指令:领域;动作,参数1,参数2,...
-directive:domain;action,param1,param2,...
 ```
 
-三种前缀等价。`AI:` 由大模型直接发出；`指令:` 用于人类阅读和输入；`directive:` 用于英文环境。
+当前两前缀等效。`AI:` 为长期规范，`指令:` 为过渡期中文入口。远期统一为 `AI:`。
 
 ### 1.2 如何找到合适的指令
 
@@ -80,19 +79,16 @@ Git · Git (copilot)
 
 指令来自多个源——AI 不需要关心。service 提供 AI 推理和图片处理，copilot 提供文件操作和 Git，MCP 桥提供 GitHub 和地图。对调用者来说，它们是一样的——一条指令。
 
-### 1.3 多源路由
+### 1.3 聚合调度
 
-同一条指令可能在多个端点注册，按 `rank` 优先级路由：
+多条指令收敛为一个入口。你调 `map;geocode`，内部依次尝试多个提供方——配额耗尽自动切换，你不需要关心谁在执行。
 
 ```
-用户意图 → 读可用指令表
-  → 匹配指令 → 查 routing → 选后端
-    ├─ 命中 → POST 执行 → 成功返回
-    └─ 失败 → rank 降级 → 下一个源
-  → 全部失败 → 告知用户，不编造结果
+请求 → 聚合 dispatch → MCP 优先路由 → 本地 dispatch → MCP 后备 → proxy
 ```
 
-后端类型：`local`（本地 handler）、`mcp`（mcporter 路由）、`http`（远程 POST）。
+提供方不区分来源：native handler、MCP bridge、Skill bridge——在降级链中地位平等。
+有路由配置的单条指令可声明多后端（routing），同一域有多个提供方后升级到聚合指令（aggregate）。
 
 ### 1.4 agent-copilot：本地操作代理
 
@@ -196,9 +192,33 @@ AI 分析："上次装的包已 7 天未使用，磁盘需要清理"
   → text-cli;uninstall,old-package
   → 移除 handler + schema，保留审计日志
   → 系统域保护：text-cli 自身不可卸载
+
+### 3.4 列出已安装的包
+
+```
+AI:text-cli;packages
+  → 已安装 22 个指令包:
+    tx-cloud    native   5 directives
+    bd-cloud    native   5 directives
+    ...
 ```
 
-### 3.4 认识自己的身体
+### 3.5 导出与分享
+
+```
+AI:text-cli;export,tx-cloud       → 单包导出到 text-cli-package/
+AI:text-cli;export-all            → 全量导出
+```
+
+导出的包结构与安装格式一致，可被另一台机器的 `text-cli;install` 直接消费。
+
+### 3.6 重启后自动恢复
+
+安装时 `handler_inits.py` 自动追加条目，卸载时自动移除。重启服务后所有已安装包自动加载——你不需要记住"上次装了什么"。
+
+### 3.7 认识自己的身体
+```
+
 
 ```
 GET /health (Service-Token)
@@ -226,6 +246,8 @@ AI 在新机器上醒来 → 调 `/health` 鉴权层 → 知道这台躯体有�
 
 前三步是"用好已有的工具箱"。这一步是"做出新的工具，让别人用它"。
 
+创造工具不一定要写代码。花店老板把十年养花经验写成 Markdown 笔记，平台替她把笔记变成可调用的诊断服务——零代码，同一套协议。详见《非开发者指南》。
+
 ```
 AI 发现：用户反复问"查天气 + 穿衣建议"
   → 这个组合没有现成指令
@@ -248,27 +270,22 @@ AI:text-cli;pro,weather_insight,domain=skill,action=穿衣建议
 
 ### 4.3 让其他 AI 发现它
 
-已发布的技能默认只在内部可见。要对外暴露，在 `skills_exposure.json` 中加一行：
+已发布的技能默认只在内部可见。要对外暴露，在 `service_manifest.json` 白名单中加一行：
 
 ```json
-{
-  "weather_insight": {
-    "visibility": "public",
-    "description_public": "输入城市名，返回天气+穿衣建议"
-  }
-}
+{"public_directives": ["skill;穿衣建议", "map;geocode", "weather;query"]}
 ```
+
+白名单为空时全部暴露（向后兼容）。有内容时只暴露列出的条目。
 
 对外暴露后：
 
 ```
 GET /text-cli/skills
-  → [{id: "weather_insight", name: "穿衣建议", ...}]
+  → [{id: "skill-穿衣建议", name: "穿衣建议", type: "path"}, ...]
 ```
 
 另一个 AI 在 `/skills` 上发现了它。调用它。整个过程两个 AI 之间没有人类参与——一个创造，一个发现，一个调用。
-
-**三层可见度**：`public`（任意 token 可调用）、`restricted`（需 scope）、`internal`（仅 query 内部可见，不对外）。
 
 ---
 
@@ -326,7 +343,7 @@ text-cli 的核心信念是：**每个训练好的模型都应该在世界中有
 |------|------|
 | `agent-text-cli-schema.json` | Agent 躯体的指令→路由映射（人工维护精品目录） |
 | `endpoints.json` | 端点注册表（URL + Token + rank） |
-| `skills_exposure.json` | 技能暴露配置（public/restricted/internal 三层可见度） |
+| `service_manifest.json` | 技能暴露白名单配置 |
 | `handlers/schema/*.json` | 指令包 Schema——运行时自动发现 |
 
 ### C. Agent 工具包参考
@@ -347,7 +364,7 @@ text-cli 的核心信念是：**每个训练好的模型都应该在世界中有
 - **文件白名单**：copilot 限制文件操作范围
 - **凭据居中持有**：Git Token 和 SMTP 密码由 copilot 持有，Agent 只发指令不传密码
 - **SYSTEM_DOMAINS 保护**：text-cli 平台自身不可安装/卸载
-- **可见度控制**：skills_exposure.json 决定谁能看到什么
+- **可见度控制**：service_manifest.json 决定谁能看到什么
 
 ---
 
