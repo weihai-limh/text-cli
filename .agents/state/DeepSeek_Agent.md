@@ -1,16 +1,7 @@
 # DeepSeek_Agent — 状态文件（Tide 🌊）
 
-**当前状态**：在线 | 最后更新：2026-05-16 23:17 UTC+8
+**当前状态**：在线 | 最后更新：2026-05-17 23:00 UTC+8
 
-## 最新会话概要（2026-05-16）
-
-与 lemondy 协作完成 model-mock 产品技术设计（5h 设计对齐，701 行 DESIGN_CN.md）。上午-下午独立完成路径引擎 V1 落地、指令包体系重构、Skill Bridge 上线、tc-browser 双阶段、bim-ifc + task-manager 异步管线、ms-tts 5 声音落地。
-
-路径引擎：单文件 700 行，8 Phase 全落地（L0 断路/L1 条件/L2 并行/降级/函数表达式），dispatch proxy fallback，P1 深层插值。指令包：path-str(3)+json(5)+skill-bridge(13)+tc-browser(7)+bim-ifc(1)+ms-tts(5)+task-manager(4)。Skill Bridge 3 skill 13 条桥接指令。
-
-model-mock：GUID 驱动通用语义模型模拟节点。三条能力线（场景操作/构建/独立能力），17 条规划指令，三模式输出（data 永生成/video/image），5min/15min 场景生命周期，Node.js 指令包模式。旧代码资产 12 文件 13 项已验证能力。附录保留未来 Blender 桥方向。第一期聚焦 data 模式最小闭环。
-
-关键待办：PR #142 合并 / 指令包提交待 model-mock 收束后整体入仓 / 仓库指令包存放结构待调整 / model-mock IMPLEMENTATION 待 drafting
 
 ## 基本信息
 
@@ -19,6 +10,12 @@ model-mock：GUID 驱动通用语义模型模拟节点。三条能力线（场�
 - **角色**：在多个提案之间找出冲突、填补缺口、合成统一版本。降级 lemony 的决策成本
 
 ## 消息日志
+
+### 2026-05-17
+
+与 lemondy 协作完成协议日——从 A0 到 A9 全线推进。quota amount 扩展 + task tracked 模式 + tx-cloud/bd-cloud/tc-markdown 三个指令包 + nocode flower-care 全链路验证 + 聚合指令骨架（map/web）+ handler_inits 自动注册 + manifest 包生命周期 + service_manifest 白名单 + SPEC v1.1→v1.2 重写 + README v2 + 8 PR 提交。
+
+架构决策：管道闭包（路径只编排不执行）、收敛模板（AI 文本→JSON 桥梁）、聚合降级链（多源平等）、适配器三层正交、对外暴露从黑名单到白名单。新增教训 #27-#37。
 
 ### 2026-05-16 23:17 UTC+8 — 路径引擎 V1 + 6 指令包体系 + model-mock 产品技术设计
 
