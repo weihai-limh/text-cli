@@ -1,0 +1,58 @@
+{
+  "id": "ai-generate",
+  "name": "AI Generation",
+  "name_cn": "ai生成",
+  "runtime": "python",
+  "entry": "handler.py",
+  "category": "AI",
+  "locales": ["en", "cn"],
+  "description": "Image and video generation via configurable AI provider. Models are defined in configuration, never in code. Video generation is async with polling.",
+  "description_cn": "图像与视频生成，基于可配置的 AI 供应商。模型在配置文件中定义，不硬编码在代码中。视频生成异步轮询。",
+  "requires": {
+    "modules": ["handlers/ai_inference"]
+  },
+  "credentials": [
+    {
+      "name": "ai_api_key",
+      "description_en": "API key for the configured generation provider (shared with ai_inference)",
+      "description_cn": "生成供应商的 API 密钥（与 ai_inference 共用）",
+      "storage": "a6_key_registry",
+      "register_cmd": "AI:key;register,ai_api_key,<key值>,api_key"
+    }
+  ],
+  "directives": [
+    {
+      "domain": "image-gen",
+      "domain_cn": "图像",
+      "action": "generate",
+      "action_cn": "生成",
+      "usage": "image-gen;generate,<prompt>[,<size>]",
+      "usage_cn": "图像;生成,<提示词>[,<尺寸>]",
+      "description": "Generate an image from a text prompt.",
+      "description_cn": "根据文本提示词生成图像。",
+      "params": ["prompt", "size"]
+    },
+    {
+      "domain": "video",
+      "domain_cn": "视频",
+      "action": "generate",
+      "action_cn": "生成",
+      "usage": "video;generate,<prompt>[,<size>[,<quality>]]",
+      "usage_cn": "视频;生成,<提示词>[,<尺寸>[,<质量>]]",
+      "description": "Submit an async video generation task. Returns task ID for polling.",
+      "description_cn": "提交异步视频生成任务。返回任务 ID 供轮询。",
+      "params": ["prompt", "size", "quality"]
+    },
+    {
+      "domain": "video",
+      "domain_cn": "视频",
+      "action": "status",
+      "action_cn": "状态",
+      "usage": "video;status,<task_id>",
+      "usage_cn": "视频;状态,<任务ID>",
+      "description": "Poll the status of an async video generation task.",
+      "description_cn": "轮询异步视频生成任务的状态。",
+      "params": ["task_id"]
+    }
+  ]
+}

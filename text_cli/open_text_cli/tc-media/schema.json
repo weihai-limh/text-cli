@@ -1,0 +1,70 @@
+{
+  "id": "tc-media",
+  "name": "Media Handler",
+  "name_cn": "tc媒体",
+  "runtime": "python",
+  "category": "基础应用",
+  "locales": ["en", "cn"],
+  "description": "Load and download media files. Public URLs are passed through directly. Local files validated against a configured whitelist.",
+  "description_cn": "加载和下载媒体文件。公网 URL 直接透传，本地文件经白名单校验。",
+  "requires": {
+    "pip": ["requests"]
+  },
+  "directives": [
+    {
+      "domain": "image",
+      "domain_cn": "图片",
+      "action": "load",
+      "action_cn": "加载",
+      "usage": "image;load,<URL or path>",
+      "usage_cn": "图片;加载,<URL或路径>",
+      "description": "Load image from URL or local path.",
+      "description_cn": "从 URL 或本地路径加载图片。",
+      "params": ["url_or_path"]
+    },
+    {
+      "domain": "video",
+      "domain_cn": "视频",
+      "action": "load",
+      "action_cn": "加载",
+      "usage": "video;load,<URL or path>",
+      "usage_cn": "视频;加载,<URL或路径>",
+      "description": "Load video from URL or local path.",
+      "description_cn": "从 URL 或本地路径加载视频。",
+      "params": ["url_or_path"]
+    },
+    {
+      "domain": "audio",
+      "domain_cn": "音频",
+      "action": "load",
+      "action_cn": "加载",
+      "usage": "audio;load,<URL or path>",
+      "usage_cn": "音频;加载,<URL或路径>",
+      "description": "Load audio from URL or local path.",
+      "description_cn": "从 URL 或本地路径加载音频。",
+      "params": ["url_or_path"]
+    },
+    {
+      "domain": "file",
+      "domain_cn": "文件",
+      "action": "load",
+      "action_cn": "加载",
+      "usage": "file;load,<URL or path>",
+      "usage_cn": "文件;加载,<URL或路径>",
+      "description": "Load file from URL or local path.",
+      "description_cn": "从 URL 或本地路径加载文件。",
+      "params": ["url_or_path"]
+    },
+    {
+      "domain": "media",
+      "domain_cn": "媒体",
+      "action": "download",
+      "action_cn": "下载",
+      "usage": "media;download,<URL>[,<save_name>]",
+      "usage_cn": "媒体;下载,<URL>[,<保存名>]",
+      "description": "Download media from URL to local storage.",
+      "description_cn": "从 URL 下载媒体文件到本地存储。",
+      "params": ["url", "save_name"]
+    }
+  ]
+}
