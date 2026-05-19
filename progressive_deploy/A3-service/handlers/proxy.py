@@ -12,8 +12,18 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-_PROJECT = Path(os.environ.get("TEXT_CLI_HOME", "/root/text-cli"))
+_PROJECT = Path(os.environ.get("TEXT_CLI_HOME", str(Path.home() / "text-cli")))
 PROXY_CONFIG_PATH = str(_PROJECT / "service" / "config" / "proxy_routes.json")
+
+
+def _resolve_config(path: str) -> str:
+    if os.path.exists(path):
+        return path
+    example_path = path.replace('.json', '.example.json')
+    if os.path.exists(example_path):
+        logger.info("Using example config: %s", example_path)
+        return example_path
+    return path
 
 # Try loading SQLite for credential injection
 try:

@@ -10,7 +10,7 @@ import os
 import pathlib
 import time
 
-_PROJECT = pathlib.Path(os.environ.get("TEXT_CLI_HOME", "/root/text-cli"))
+_PROJECT = pathlib.Path(os.environ.get("TEXT_CLI_HOME", str(pathlib.Path.home() / "text-cli")))
 AUDIT_PATH = _PROJECT / "service" / ".install_audit.jsonl"
 
 

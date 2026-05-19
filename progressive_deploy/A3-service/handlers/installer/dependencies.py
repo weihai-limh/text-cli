@@ -10,7 +10,7 @@ import pathlib
 import subprocess
 import sys
 
-_PROJECT = pathlib.Path(os.environ.get("TEXT_CLI_HOME", "/root/text-cli"))
+_PROJECT = pathlib.Path(os.environ.get("TEXT_CLI_HOME", str(pathlib.Path.home() / "text-cli")))
 VENV_PIP = str(_PROJECT / "service" / ".venv" / "bin" / "pip")
 
 

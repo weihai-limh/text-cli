@@ -6,7 +6,7 @@ import os
 import pathlib
 import shutil
 
-_PROJECT = pathlib.Path(os.environ.get("TEXT_CLI_HOME", "/root/text-cli"))
+_PROJECT = pathlib.Path(os.environ.get("TEXT_CLI_HOME", str(pathlib.Path.home() / "text-cli")))
 HANDLERS_DIR = _PROJECT / "service" / "handlers"
 SCHEMA_DIR = HANDLERS_DIR / "schema"
 COPILOT_WHITELIST_DIR = _PROJECT / "copilot" / "whitelists"
@@ -42,6 +42,8 @@ def install_files(name: str, meta: dict, runtime: str = "python", force: bool = 
         return False, f"文件复制失败: {e}"
 
     # Copy handler only for Python packages
+    lines = []
+    pkg_dir = pathlib.Path(meta.get("path", ""))
     if runtime == "python":
         handler_src = pathlib.Path(meta["handler_path"])
         handler_dst = HANDLERS_DIR / f"{name}.py"
@@ -49,13 +51,12 @@ def install_files(name: str, meta: dict, runtime: str = "python", force: bool = 
             shutil.copy2(handler_src, handler_dst)
         except OSError as e:
             return False, f"handler 复制失败: {e}"
-        return True, f"文件部署完成: {name}.py + {name}_schema.json"
+        lines.append(f"文件部署完成: {name}.py + {name}_schema.json")
 
     elif runtime == "mcp":
-        return True, f"MCP schema 注册完成: {name}_schema.json"
+        lines.append(f"MCP schema 注册完成: {name}_schema.json")
 
     elif runtime == "node":
-        # JS package: copy handler.js + schema.json
         handler_src = pathlib.Path(meta["handler_path"])
         handler_dst = HANDLERS_DIR / f"{name}.js"
         if handler_dst.exists() and not force:
@@ -65,10 +66,9 @@ def install_files(name: str, meta: dict, runtime: str = "python", force: bool = 
             shutil.copy2(schema_src, schema_dst)
         except OSError as e:
             return False, f"文件复制失败: {e}"
-        return True, f"文件部署完成: {name}.js + {name}_schema.json"
+        lines.append(f"文件部署完成: {name}.js + {name}_schema.json")
 
     elif runtime == "cmd":
-        # cmd package: schema → service discovery, whitelist → copilot execution dir
         COPILOT_WHITELIST_DIR.mkdir(parents=True, exist_ok=True)
         wl_src = pathlib.Path(meta["whitelist_path"])
         wl_dst = COPILOT_WHITELIST_DIR / f"{name}_whitelist.json"
@@ -77,9 +77,103 @@ def install_files(name: str, meta: dict, runtime: str = "python", force: bool = 
             shutil.copy2(wl_src, wl_dst)
         except OSError as e:
             return False, f"文件复制失败: {e}"
-        return True, f"文件部署完成: {name}_schema.json + whitelists/{name}_whitelist.json"
+        lines.append(f"文件部署完成: {name}_schema.json + whitelists/{name}_whitelist.json")
 
-    return True, "文件部署完成"
+    else:
+        lines.append("文件部署完成")
+
+    # Deploy runtime modules (text_cli_modules/)
+    if pkg_dir.is_dir():
+        ok_mod, mod_msg = _deploy_runtime_modules(pkg_dir, name)
+        if mod_msg:
+            lines.append(mod_msg)
+
+        # Deploy auxiliary files
+        ok_aux, aux_msg = _deploy_aux_files(pkg_dir, name, runtime)
+        if aux_msg:
+            lines.append(aux_msg)
+
+        # Check binaries
+        ok_bin, bin_msg = _check_binary(pkg_dir, meta)
+        if bin_msg:
+            lines.append(bin_msg)
+
+    return True, "\n".join(lines)
+
+
+def _deploy_runtime_modules(pkg_dir: pathlib.Path, name: str) -> tuple[bool, str]:
+    """Deploy package's text_cli_modules/ runtime dependencies to service."""
+    modules_src = pkg_dir / "text_cli_modules"
+    if not modules_src.is_dir():
+        return True, ""
+
+    modules_dst = _PROJECT / "service" / "text_cli_modules"
+    modules_dst.mkdir(parents=True, exist_ok=True)
+
+    copied = []
+    for item in modules_src.rglob("*"):
+        if item.name.startswith("__pycache__"):
+            continue
+        rel = item.relative_to(modules_src)
+        dst = modules_dst / rel
+        if item.is_dir():
+            dst.mkdir(parents=True, exist_ok=True)
+            continue
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(str(item), str(dst))
+        copied.append(str(rel))
+
+    if copied:
+        return True, f"  runtime modules: {', '.join(copied)}"
+    return True, ""
+
+
+def _deploy_aux_files(pkg_dir: pathlib.Path, name: str, runtime: str) -> tuple[bool, str]:
+    """Deploy auxiliary files (binaries, JS files with non-standard names)."""
+    pkg_dir = pathlib.Path(pkg_dir)
+    extra = []
+
+    if runtime == "node":
+        for js_file in sorted(pkg_dir.glob("*.js")):
+            handler_name = f"{name}.js"
+            if js_file.name != handler_name:
+                dst = HANDLERS_DIR / js_file.name
+                shutil.copy2(str(js_file), str(dst))
+                extra.append(js_file.name)
+
+    if runtime == "python":
+        for py_file in sorted(pkg_dir.glob("*.py")):
+            if py_file.name != "handler.py":
+                dst = HANDLERS_DIR / py_file.name
+                shutil.copy2(str(py_file), str(dst))
+                extra.append(py_file.name)
+
+    if extra:
+        return True, f"  auxiliary: {', '.join(extra)}"
+    return True, ""
+
+
+def _check_binary(pkg_dir: pathlib.Path, meta: dict) -> tuple[bool, str]:
+    """Check binary dependencies declared in schema.requires.binary."""
+    import stat
+    schema = meta.get("schema", {})
+    requires = schema.get("requires", {})
+    binaries = requires.get("binary", {})
+    if not binaries:
+        return True, ""
+
+    warnings = []
+    for bin_name, bin_info in binaries.items():
+        bin_path = pkg_dir / bin_name
+        if not bin_path.is_file():
+            warnings.append(f"{bin_name}: 未找到")
+            continue
+        if not (bin_path.stat().st_mode & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)):
+            warnings.append(f"{bin_name}: 不可执行")
+
+    if warnings:
+        return True, f"  ⚠ binary: {'; '.join(warnings)}"
+    return True, "  ✓ binaries ok"
 
 
 def remove_files(name: str) -> tuple[bool, str]:

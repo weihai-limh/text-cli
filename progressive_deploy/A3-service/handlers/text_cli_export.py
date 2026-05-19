@@ -21,7 +21,7 @@ from .package_manifest import get, list_all, register as manifest_register, MANI
 
 logger = logging.getLogger(__name__)
 
-PACKAGE_DIR = Path(os.environ.get("TEXT_CLI_PACKAGE_DIR", str(Path(os.environ.get("TEXT_CLI_HOME", "/root/text-cli")) / ".." / "text-cli-package")))
+PACKAGE_DIR = Path(os.environ.get("TEXT_CLI_PACKAGE_DIR", str(Path(os.environ.get("TEXT_CLI_HOME", str(Path.home() / "text-cli"))) / ".." / "text-cli-package")))
 HANDLERS_DIR = Path(__file__).resolve().parent
 SERVICE_ROOT = HANDLERS_DIR.parent
 

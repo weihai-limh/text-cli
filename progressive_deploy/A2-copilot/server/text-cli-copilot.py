@@ -24,7 +24,7 @@ from pathlib import Path
 from core import CopilotCore, parse_instruction, error
 from handlers import (
     CodecHandlers, KeyHandlers,
-    SkillBridgeHandlers,
+    SkillBridgeHandlers, PackageManagerHandlers,
 )
 
 # 包 mixin（FileHandlers/GitHandlers/MailHandlers 等）
@@ -39,6 +39,7 @@ class Copilot(
     CodecHandlers,
     KeyHandlers,
     SkillBridgeHandlers,
+    PackageManagerHandlers,
     CopilotCore,
 ):
     """指令辅助服务器 — 骨架 mixin + 核心引擎"""

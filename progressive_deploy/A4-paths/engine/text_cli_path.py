@@ -969,8 +969,8 @@ def text_cli_path(params: list[str]) -> str:
     # 1. Load path — by file path or by name
     p = pathlib.Path(path_file)
     if not p.is_file():
-        # Name-based discovery: scan /root/text-cli/paths/*.json
-        _paths_dir = pathlib.Path("/root/text-cli/paths")
+        # Name-based discovery: scan $TEXT_CLI_HOME/paths/*.json
+        _paths_dir = pathlib.Path(os.environ.get("TEXT_CLI_HOME", str(pathlib.Path.home() / "text-cli"))) / "paths"
         if _paths_dir.is_dir():
             for _pf in sorted(_paths_dir.glob("*.json")):
                 try:
