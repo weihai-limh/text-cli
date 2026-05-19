@@ -54,7 +54,10 @@ def text_cli_install(params: list[str]) -> str:
         log_install(name, meta, False, msg)
         return msg if msg.startswith("安装失败") else f"安装失败: {msg}"
 
-    # 3. Install dependencies (Python only)
+    # 3. Check required secrets
+    secrets_warnings = _check_secrets(schema, skip_check="--skip-secrets-check" in params)
+
+    # 4. Install dependencies (Python only)
     if runtime == "python":
         requires = schema.get("requires", {})
         ok_deps, dep_msg = install_deps(meta.get("req_path"), name, requires=requires)
@@ -89,6 +92,11 @@ def text_cli_install(params: list[str]) -> str:
         lines.append(f"    手动安装: {meta.get('req_path', 'N/A')}")
 
     result = "\n".join(lines)
+
+    # Append secrets warnings
+    if secrets_warnings:
+        result += "\n\n" + secrets_warnings
+
     log_install(name, meta, True, "installed")
 
     # Write manifest for export tracking
@@ -133,3 +141,45 @@ def _append_handler_init(mod_path: str, fn_name: str, arg_key: str = None):
         if last_bracket > 0:
             content = content[:last_bracket] + new_entry + "]" + content[last_bracket + 1:]
             _INITS_PATH.write_text(content, encoding="utf-8")
+
+
+def _check_secrets(schema: dict, skip_check: bool = False) -> str:
+    """Check that required secrets are registered in key_registry.
+
+    Returns a warning string if secrets are missing, empty string otherwise.
+    """
+    if skip_check:
+        return ""
+
+    secrets = schema.get("requires", {}).get("secrets", [])
+    if not secrets:
+        return ""
+
+    # Try to access key_registry
+    missing = []
+    try:
+        from text_cli_modules.key.key_registry import get as key_get
+        # We need DB_PATH — try common locations
+        import os
+        db_path = os.environ.get("TEXT_CLI_DB", str(Path(os.environ.get("TEXT_CLI_HOME", "/root/text-cli")) / "service" / "text_cli.db"))
+        for secret_name in secrets:
+            val = key_get({"config": db_path}, secret_name)
+            if not val:
+                missing.append(secret_name)
+    except ImportError:
+        # key_registry not available — all secrets missing
+        missing = list(secrets)
+    except Exception:
+        missing = list(secrets)
+
+    if not missing:
+        return ""
+
+    lines = [
+        "⚠ 缺少所需凭据:",
+    ]
+    for s in missing:
+        lines.append(f"  • {s} — 使用 AI:key;register,{s},<值>,api_key 注册")
+    lines.append("")
+    lines.append("  跳过检查: AI:text-cli;install,<包名>,--skip-secrets-check")
+    return "\n".join(lines)

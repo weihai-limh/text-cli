@@ -14,8 +14,10 @@ import pkgutil
 logger = logging.getLogger("text-cli.handlers")
 
 package_dir = pathlib.Path(__file__).parent
+packages_dir = package_dir.parent / "packages"
 degraded: list[str] = []
 
+# ── Skeleton handlers ──
 for _, module_name, _ in pkgutil.iter_modules([str(package_dir)]):
     if module_name == "__init__":
         continue
@@ -29,6 +31,28 @@ for _, module_name, _ in pkgutil.iter_modules([str(package_dir)]):
     except Exception:
         logger.exception("Handler failed to load — %s", module_name)
 
+# ── Package handlers (service/packages/<id>/handler.py) ──
+if packages_dir.is_dir():
+    for pkg_dir in sorted(packages_dir.iterdir()):
+        if not pkg_dir.is_dir():
+            continue
+        handler_file = pkg_dir / "handler.py"
+        if not handler_file.is_file():
+            continue
+        pkg_id = pkg_dir.name
+        # Build dotted import path: service.packages.<pkg_id>.handler
+        import_path = f"packages.{pkg_id}.handler"
+        try:
+            importlib.import_module(import_path)
+            logger.debug("Package loaded: %s", pkg_id)
+        except ImportError as exc:
+            degraded.append(pkg_id)
+            logger.warning(
+                "Package degraded — %s (missing: %s)", pkg_id, exc.name
+            )
+        except Exception:
+            logger.exception("Package failed to load — %s", pkg_id)
+
 if degraded:
     logger.info("Degraded handlers: %s", ", ".join(degraded))
 
@@ -41,20 +65,32 @@ try:
     from core.registry import directive as _register
     from .js_bridge import make_js_handler
 
-    _schema_dir = _Path(__file__).parent / "schema"
     _js_registered = 0
 
-    for _sf in sorted(_schema_dir.glob("*_schema.json")):
+    # ── Scan schemas: handlers/schema/ (legacy) + packages/*/schema.json ──
+    _schema_paths: list[_Path] = []
+    _legacy_schema_dir = _Path(__file__).parent / "schema"
+    if _legacy_schema_dir.is_dir():
+        _schema_paths.extend(sorted(_legacy_schema_dir.glob("*_schema.json")))
+    _packages_schema_dir = _Path(__file__).parent.parent / "packages"
+    if _packages_schema_dir.is_dir():
+        _schema_paths.extend(sorted(_packages_schema_dir.glob("*/schema.json")))
+
+    for _sf in _schema_paths:
         try:
             _schema = _json.loads(_sf.read_text(encoding="utf-8"))
         except (_json.JSONDecodeError, OSError):
+            continue
+
+        if not isinstance(_schema, dict):
             continue
 
         if _schema.get("runtime") != "node":
             continue
 
         _js_file = f"{_schema['id']}.js"
-        if not (_Path(__file__).parent / _js_file).exists():
+        _js_handler_dir = _Path(__file__).parent.parent / "packages" / _schema['id']
+        if not (_js_handler_dir / _js_file).exists() and not (_Path(__file__).parent / _js_file).exists():
             logger.warning("JS handler file missing: %s", _js_file)
             continue
 
