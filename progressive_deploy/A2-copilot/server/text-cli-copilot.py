@@ -1,19 +1,17 @@
 #!/usr/bin/env python3
 """
-text-cli-copilot — directive copilot server
-Encapsulates local file I/O, Git operations, mail sending, and skill terminal proxy as text-cli directives.
-Zero dependencies, Python stdlib only. localhost:20260.
+text-cli-copilot — 指令辅助服务器骨架
 
 Architecture:
     core.py          — config loading, instruction parser, dispatch engine
-    handlers/files   — File;read, File;write
-    handlers/git     — Git;status, Git;push
-    handlers/mail    — Mail;send
-    handlers/system  — System;health, System;status
-    handlers/ai      — AI;status, AI;message
-    handlers/oc_terminal — Terminal;weather (depends on OpenClaw Skill)
+    handlers/codec   — Codec;encode, Codec;decode
+    handlers/key     — 密钥路由层
+    handlers/skill_bridge — 通用 Skill 桥
 
-Adding a new domain = adding handlers/xxx.py + one line in config. Zero routing changes.
+包 handler（files/git/mail/system/media/render/mcp/terminal/browser）
+由包安装时注入。
+
+Author: Tide 🌊
 """
 
 import json
@@ -25,12 +23,12 @@ from pathlib import Path
 
 from core import CopilotCore, parse_instruction, error
 from handlers import (
-    FileHandlers, GitHandlers, MailHandlers,
-    SystemHandlers, AIHandlers, TerminalHandlers,
-    CodecHandlers, KeyHandlers, MediaHandlers,
-    JsonProcHandlers,
+    CodecHandlers, KeyHandlers,
+    SkillBridgeHandlers,
 )
-# TerminalHandlers comes from handlers.oc_terminal (depends on OpenClaw Skill)
+
+# 包 mixin（FileHandlers/GitHandlers/MailHandlers 等）
+# 由包安装时通过 manifest 注入，不出现在骨架中。
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -38,19 +36,12 @@ from handlers import (
 # ═══════════════════════════════════════════════════════════════
 
 class Copilot(
-    FileHandlers,
-    GitHandlers,
-    MailHandlers,
-    SystemHandlers,
-    AIHandlers,
-    TerminalHandlers,
     CodecHandlers,
     KeyHandlers,
-    MediaHandlers,
-    JsonProcHandlers,
+    SkillBridgeHandlers,
     CopilotCore,
 ):
-    """Directive copilot server — inherits all handler mixins + core engine"""
+    """指令辅助服务器 — 骨架 mixin + 核心引擎"""
     pass
 
 
