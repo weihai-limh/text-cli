@@ -1,7 +1,8 @@
-import pathlib
 """pip dependency management for instruction packages."""
 
 from __future__ import annotations
+
+import pathlib
 
 import subprocess
 

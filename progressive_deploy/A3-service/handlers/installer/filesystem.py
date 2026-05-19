@@ -1,4 +1,3 @@
-import os
 """File operations for package install/uninstall."""
 
 from __future__ import annotations
@@ -9,10 +8,7 @@ import shutil
 HANDLERS_DIR = pathlib.Path(__file__).parent.parent
 SCHEMA_DIR = HANDLERS_DIR / "schema"
 # Shared directory for cmd runtime whitelists (copilot reads from here)
-COPILOT_WHITELIST_DIR = pathlib.Path(os.environ.get(
-    "COPILOT_WHITELIST_DIR",
-    str(pathlib.Path(__file__).parent.parent.parent / "copilot" / "whitelists")
-))
+COPILOT_WHITELIST_DIR = pathlib.Path(__file__).parent.parent.parent / "copilot" / "whitelists"
 
 
 def install_files(name: str, meta: dict, runtime: str = "python", force: bool = False) -> tuple[bool, str]:
