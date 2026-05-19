@@ -1,0 +1,103 @@
+{
+  "id": "geo-grid",
+  "name": "Geospatial Grid Tools",
+  "name_cn": "地理网格工具",
+  "runtime": "python",
+  "category": "地理服务",
+  "locales": ["cn", "en"],
+  "description": "Geospatial grid mathematics: H3 hexagonal indexing, center/zoom calculation, distance-to-resolution, radius-to-bounding-box. H3 operations require pip install h3 (graceful fallback).",
+  "description_cn": "地理空间网格数学工具：H3 六边形索引、中心点/缩放计算、距离→分辨率、半径→边界框。H3 操作需 pip install h3（优雅降级）。",
+  "requires": {
+    "pip": ["h3"]
+  },
+  "directives": [
+    {
+      "domain": "geo-grid",
+      "domain_cn": "地理网格",
+      "action": "h3",
+      "action_cn": "六边形网格",
+      "usage": "geo-grid;h3,<lon>,<lat>[,<resolution>]",
+      "usage_cn": "地理网格;六边形网格,<经度>,<纬度>[,<分辨率>]",
+      "description": "Convert WGS84 coordinate to H3 cell. Returns cell ID + hexagonal boundary polygon. Resolution: 0-15 (default 10).",
+      "description_cn": "将 WGS84 坐标转为 H3 六边形格子。返回格子 ID + 六边形边界多边形。分辨率 0-15（默认10）。",
+      "params": ["lon", "lat", "resolution"]
+    },
+    {
+      "domain": "geo-grid",
+      "domain_cn": "地理网格",
+      "action": "center",
+      "action_cn": "中心点",
+      "usage": "geo-grid;center,<lon1>,<lat1>,<lon2>,<lat2>",
+      "usage_cn": "地理网格;中心点,<经度1>,<纬度1>,<经度2>,<纬度2>",
+      "description": "Calculate the midpoint between two coordinates.",
+      "description_cn": "计算两点之间的地理中心点。",
+      "params": ["lon1", "lat1", "lon2", "lat2"]
+    },
+    {
+      "domain": "geo-grid",
+      "domain_cn": "地理网格",
+      "action": "zoom",
+      "action_cn": "缩放计算",
+      "usage": "geo-grid;zoom,<lon1>,<lat1>,<lon2>,<lat2>",
+      "usage_cn": "地理网格;缩放计算,<经度1>,<纬度1>,<经度2>,<纬度2>",
+      "description": "Calculate optimal map zoom level to fit two points on screen.",
+      "description_cn": "计算两点间的最佳地图缩放级别。",
+      "params": ["lon1", "lat1", "lon2", "lat2"]
+    },
+    {
+      "domain": "geo-grid",
+      "domain_cn": "地理网格",
+      "action": "zoom-from-distance",
+      "action_cn": "距离转缩放",
+      "usage": "geo-grid;zoom-from-distance,<meters>",
+      "usage_cn": "地理网格;距离转缩放,<米>",
+      "description": "Convert distance in meters to optimal map zoom level.",
+      "description_cn": "将距离（米）转换为最佳地图缩放级别。",
+      "params": ["meters"]
+    },
+    {
+      "domain": "geo-grid",
+      "domain_cn": "地理网格",
+      "action": "h3-resolution",
+      "action_cn": "H3分辨率",
+      "usage": "geo-grid;h3-resolution,<meters>",
+      "usage_cn": "地理网格;H3分辨率,<米>",
+      "description": "Convert distance/area size in meters to optimal H3 resolution level.",
+      "description_cn": "将距离/面积（米）转换为最佳 H3 分辨率。",
+      "params": ["meters"]
+    },
+    {
+      "domain": "geo-grid",
+      "domain_cn": "地理网格",
+      "action": "radius-bbox",
+      "action_cn": "半径边界框",
+      "usage": "geo-grid;radius-bbox,<lon>,<lat>,<meters>",
+      "usage_cn": "地理网格;半径边界框,<经度>,<纬度>,<米>",
+      "description": "Convert center point + radius (meters) to a bounding polygon.",
+      "description_cn": "将中心点 + 半径（米）转为边界多边形。",
+      "params": ["lon", "lat", "meters"]
+    },
+    {
+      "domain": "geo-grid",
+      "domain_cn": "地理网格",
+      "action": "offset",
+      "action_cn": "偏移",
+      "usage": "geo-grid;offset,<lon>,<lat>,<bearing>,<dist_km>",
+      "usage_cn": "地理网格;偏移,<经度>,<纬度>,<方位角>,<距离_km>",
+      "description": "Calculate target coordinate from origin, bearing (0=N,90=E,180=S,270=W) and distance in km.",
+      "description_cn": "从原点按方位角和距离计算目标坐标。方位角：0=北,90=东,180=南,270=西。",
+      "params": ["lon", "lat", "bearing", "dist_km"]
+    },
+    {
+      "domain": "geo-grid",
+      "domain_cn": "地理网格",
+      "action": "route-parse",
+      "action_cn": "路线解析",
+      "usage": "geo-grid;route-parse,<json>,<source>,<mode>[,<n>]",
+      "usage_cn": "地理网格;路线解析,<JSON>,<来源>,<模式>[,<N>]",
+      "description": "Parse route JSON and extract named road coordinates. Source: bd-map/tx-map/gd-map. Mode: tail (last N named roads).",
+      "description_cn": "解析路线 JSON 并提取有名道路坐标。来源：bd-map/tx-map/gd-map。模式：tail（最后 N 条有名道路）。",
+      "params": ["json", "source", "mode", "n"]
+    }
+  ]
+}

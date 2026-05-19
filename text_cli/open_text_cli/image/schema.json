@@ -1,0 +1,60 @@
+{
+  "id": "image",
+  "name": "Image Processing",
+  "name_cn": "图片处理",
+  "runtime": "python",
+  "entry": "handler.py",
+  "category": "基础应用",
+  "locales": ["en", "cn"],
+  "description": "Image inspection, base64 encoding, format conversion, and resizing via Pillow.",
+  "description_cn": "图片信息读取、base64 编码、格式转换与缩放（基于 Pillow）。",
+  "requires": {
+    "pip": ["Pillow"]
+  },
+  "directives": [
+    {
+      "domain": "image",
+      "domain_cn": "图片",
+      "action": "info",
+      "action_cn": "信息",
+      "usage": "image;info,<path>",
+      "usage_cn": "图片;信息,<路径>",
+      "description": "Read image metadata: dimensions, format, EXIF.",
+      "description_cn": "读取图片元数据：尺寸、格式、EXIF。",
+      "params": ["path"]
+    },
+    {
+      "domain": "image",
+      "domain_cn": "图片",
+      "action": "encode",
+      "action_cn": "编码",
+      "usage": "image;encode,<path>[,<max_size>]",
+      "usage_cn": "图片;编码,<路径>[,<最大尺寸>]",
+      "description": "Base64-encode image and store in cache for VL pipeline use.",
+      "description_cn": "将图片 base64 编码并存入缓存，供 VL 管道使用。",
+      "params": ["path", "max_size"]
+    },
+    {
+      "domain": "image",
+      "domain_cn": "图片",
+      "action": "convert",
+      "action_cn": "转换",
+      "usage": "image;convert,<in_path>,<fmt>[,<quality>]",
+      "usage_cn": "图片;转换,<输入路径>,<格式>[,<质量>]",
+      "description": "Convert image format. Supported output: png/jpg/webp/bmp.",
+      "description_cn": "转换图片格式。支持输出：png/jpg/webp/bmp。",
+      "params": ["in_path", "format", "quality"]
+    },
+    {
+      "domain": "image",
+      "domain_cn": "图片",
+      "action": "resize",
+      "action_cn": "缩放",
+      "usage": "image;resize,<in_path>,<w>,<h>",
+      "usage_cn": "图片;缩放,<输入路径>,<宽>,<高>",
+      "description": "Proportional resize to fit within the given dimensions.",
+      "description_cn": "等比缩放至指定尺寸范围内。",
+      "params": ["in_path", "width", "height"]
+    }
+  ]
+}

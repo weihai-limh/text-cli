@@ -1,0 +1,28 @@
+{
+  "id": "tideweather",
+  "name": "Tide Weather",
+  "name_cn": "tide天气",
+  "runtime": "node",
+  "entry": "tideweather.js",
+  "category": "基础应用",
+  "locales": ["en", "cn"],
+  "description": "Weather forecast query via dual-source fallback (Open-Meteo primary, wttr.in backup).",
+  "description_cn": "天气预报查询，双源降级（Open-Meteo 优先，wttr.in 备选）。",
+  "directives": [
+    {
+      "domain": "tideweather",
+      "domain_cn": "天气",
+      "action": "query",
+      "action_cn": "查询",
+      "usage": "tideweather;query,<date>,<city>",
+      "usage_cn": "天气;查询,<日期>,<城市>",
+      "description": "Query weather forecast for a city on a specific date",
+      "description_cn": "查询指定城市和日期的天气预报",
+      "params": ["date", "city"],
+      "params_desc": {
+        "date": "Date keyword: today/tomorrow/day after tomorrow, or 今天/明天/后天",
+        "city": "City name in Chinese or English: 威海/Beijing/London/東京"
+      }
+    }
+  ]
+}

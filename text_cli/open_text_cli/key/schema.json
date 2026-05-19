@@ -1,0 +1,69 @@
+{
+  "id": "key",
+  "name": "Key Management",
+  "name_cn": "密钥管理",
+  "runtime": "python",
+  "category": "基础设施",
+  "description": "Register, revoke, and list API keys with encrypted storage. Supports single and dual credentials, XOR-encrypted transport, and quota tracking integration.",
+  "description_cn": "注册、撤销和列出 API 密钥，支持加密存储、单双凭据、XOR 加密传输和配额追踪集成。",
+  "requires": {
+    "modules": ["text_cli_modules/key/", "text_cli_modules/sqlite/"]
+  },
+  "directives": [
+    {
+      "domain": "key",
+      "domain_cn": "密钥",
+      "action": "register",
+      "action_cn": "注册",
+      "usage": "key;register,<service>,<value>[,<value2>],<key_type>",
+      "usage_cn": "密钥;注册,<服务名>,<值1>[,<值2>],<密钥类型>",
+      "description": "Register a service key with encrypted local storage. Supports single and dual credentials.",
+      "description_cn": "注册服务密钥，支持单凭据和双凭据模式。密钥加密存储。",
+      "params": ["service", "value1", "value2(optional)", "key_type"]
+    },
+    {
+      "domain": "key",
+      "domain_cn": "密钥",
+      "action": "revoke",
+      "action_cn": "撤销",
+      "usage": "key;revoke,<service>",
+      "usage_cn": "密钥;撤销,<服务名>",
+      "description": "Remove a registered key from local storage.",
+      "description_cn": "从本地存储中移除已注册的密钥。",
+      "params": ["service"]
+    },
+    {
+      "domain": "key",
+      "domain_cn": "密钥",
+      "action": "list",
+      "action_cn": "列表",
+      "usage": "key;list",
+      "usage_cn": "密钥;列表",
+      "description": "List all registered keys (values not exposed).",
+      "description_cn": "列出所有已注册的密钥（不暴露密钥值）。",
+      "params": []
+    },
+    {
+      "domain": "key",
+      "domain_cn": "密钥",
+      "action": "quota-track",
+      "action_cn": "配额追踪",
+      "usage": "key;quota-track,<service>[,<target1>,<target2>,...]",
+      "usage_cn": "密钥;配额追踪,<服务名>[,<目标1>,<目标2>,...]",
+      "description": "Set or clear quota tracking targets for a service key.",
+      "description_cn": "为服务密钥设置或清除配额追踪目标。",
+      "params": ["service", "targets(optional)"]
+    },
+    {
+      "domain": "key",
+      "domain_cn": "密钥",
+      "action": "export-xor",
+      "action_cn": "导出加密",
+      "usage": "key;export-xor,<service>",
+      "usage_cn": "密钥;导出加密,<服务名>",
+      "description": "Read plaintext from key_registry, XOR-encrypt, and return hex cipher. For secure credential injection into external systems.",
+      "description_cn": "从密钥库读取明文，XOR 加密后返回 hex 密文。用于向外部系统安全注入凭据。",
+      "params": ["service"]
+    }
+  ]
+}
