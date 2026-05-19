@@ -12,8 +12,8 @@ project_root = Path(__file__).parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-# 基础设施模块路径（跨层级共享，由环境变量指定）
-_modules_root = Path(os.environ.get("TEXT_CLI_MODULES_DIR", Path(__file__).resolve().parent.parent / "text_cli_modules"))
+# text-cli-modules 路径（与 service 同级）
+_modules_root = Path(__file__).resolve().parent.parent / "text_cli_modules"
 if str(_modules_root.parent) not in sys.path:
     sys.path.append(str(_modules_root.parent))
 
@@ -212,6 +212,8 @@ async def lifespan(app: FastAPI):
     import handlers  # noqa: F401 — triggers auto-registration
     _load_copilot_token()
     _load_schema()
+    from core.stream_subscriber_registry import init_subscribers
+    init_subscribers()
     registered = get_registered_directives()
     logger.info("Registered handlers: %s", registered)
     yield
@@ -234,7 +236,10 @@ async def get_schema():
 @app.get("/cache/{key}")
 async def image_cache_retrieve(key: str):
     """获取缓存的 base64 图片数据"""
-    from packages.image.handler import cache_get
+    try:
+        from packages.image.handler import cache_get
+    except ImportError:
+        return JSONResponse(content={"status": "error", "reason": "image package not installed"}, status_code=503)
     data = cache_get(key)
     if data is None:
         return JSONResponse(
@@ -284,12 +289,15 @@ async def health(request: Request):
         }
 
     # Public: minimal info
-    from packages.skill_endpoint.handler import _load_exposure
-    exposure = _load_exposure()
-    public_count = sum(
-        1 for v in exposure.values()
-        if isinstance(v, dict) and v.get("visibility") == "public"
-    )
+    try:
+        from packages.skill_endpoint.handler import _load_exposure
+        exposure = _load_exposure()
+        public_count = sum(
+            1 for v in exposure.values()
+            if isinstance(v, dict) and v.get("visibility") == "public"
+        )
+    except (ImportError, Exception):
+        public_count = 0
 
     return {
         "status": "ok",
@@ -316,6 +324,10 @@ async def handle_directive(request: Request):
             status_code=403,
             content=error(auth.message),
         )
+
+    # 注入 auth_name 到线程上下文 (供 ai-im handler 读取)
+    import threading
+    threading.current_thread()._ai_im_auth_name = auth.client_name
 
     try:
         body = await request.json()
@@ -352,7 +364,10 @@ async def handle_directive(request: Request):
 
     # 1. MCP 优先路由（显式偏好 mcp 时优先）
     from core.mcp_dispatch import decide_backend, get_mcp_route, adapt_params
-    from packages.mcp.handler import check_mcp_quota
+    try:
+        from packages.mcp.handler import check_mcp_quota
+    except ImportError:
+        check_mcp_quota = None
     backend = decide_backend(parsed.domain, parsed.action)
 
     if backend == "mcp":
@@ -428,6 +443,23 @@ async def handle_directive(request: Request):
                                   parsed.params, raw_prompt=prompt,
                                   db_path=SQLITE_DB_PATH)
     if proxy_result is not None:
+        # 旁路通知 stream subscriber
+        from core.stream_subscriber_registry import STREAM_SUBSCRIBERS
+        if STREAM_SUBSCRIBERS:
+            try:
+                text = proxy_result.get("rst_data", {}).get("text", "")
+                if isinstance(text, dict):
+                    text = json.dumps(text, ensure_ascii=False)
+                im_target = body.get("_im_to_user", "")
+                im_session = body.get("_im_session", "")
+                if im_target and text and im_session:
+                    for sub in STREAM_SUBSCRIBERS:
+                        try:
+                            await sub.on_end(im_session, im_target, str(text))
+                        except Exception:
+                            pass
+            except Exception:
+                pass
         return JSONResponse(content=proxy_result)
 
     # 5. 都没有 → 返回本地结果
@@ -474,7 +506,7 @@ async def skills_execute(skill_id: str, request: Request):
     # For now: accept service token or the local copilot token
     service_token = request.headers.get("Service-token")
     auth = verify_service_token(service_token)
-    if not auth.allowed and access_token != "<public-access-token-if-any>":
+    if not auth.allowed and access_token != "a712478cd1c64e2b9052ee2162e814b4":
         return JSONResponse(
             status_code=401,
             content={"status": "error", "error": "unauthorized",
@@ -548,6 +580,12 @@ async def copilot_proxy(request: Request, rest: str):
             content={"rst_types": "text", "rst_data": {"text": f"[proxy] {e}"},
                       "rst_err": "proxy_error"},
         )
+
+
+# ── Webhook 路由 ──
+
+from webhook import router as webhook_router
+app.include_router(webhook_router, prefix="/webhook")
 
 
 if __name__ == "__main__":
