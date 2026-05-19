@@ -1,0 +1,62 @@
+{
+  "id": "embed",
+  "name": "Semantic Embedding",
+  "name_cn": "语义嵌入",
+  "runtime": "python",
+  "entry": "handler.py",
+  "category": "AI",
+  "locales": ["en", "cn"],
+  "description": "Text embedding, similarity comparison, and semantic matching via configurable embedding provider. Provider names and models are in configuration, never in code.",
+  "description_cn": "文本嵌入、相似度比较与语义匹配，基于可配置的嵌入供应商。所有供应商名和模型在配置文件中，不硬编码在代码中。",
+  "requires": {
+    "modules": ["text_cli_modules/embed/"]
+  },
+  "credentials": [
+    {
+      "name": "embedding_api_key",
+      "description_en": "API key for the configured embedding provider",
+      "description_cn": "嵌入供应商的 API 密钥",
+      "storage": "a6_key_registry",
+      "register_cmd": "AI:key;register,embedding_api_key,<key值>,api_key"
+    }
+  ],
+  "directives": [
+    {
+      "domain": "semantic",
+      "domain_cn": "语义",
+      "action": "encode",
+      "action_cn": "编码",
+      "usage": "semantic;encode,<text>[,<mode>]",
+      "usage_cn": "语义;编码,<文本>[,<模式>]",
+      "description": "Encode text into an embedding vector (256-2048 dimensions)",
+      "description_cn": "将文本编码为嵌入向量（256-2048 维）",
+      "params": ["text", "mode"],
+      "params_desc": {
+        "text": "Input text to encode",
+        "mode": "Dimension mode: A=256, B=512 (default), C=1024, D=2048"
+      }
+    },
+    {
+      "domain": "semantic",
+      "domain_cn": "语义",
+      "action": "similarity",
+      "action_cn": "相似",
+      "usage": "semantic;similarity,<textA>,<textB>[,<mode>]",
+      "usage_cn": "语义;相似,<文本A>,<文本B>[,<模式>]",
+      "description": "Compute pairwise semantic similarity between two texts",
+      "description_cn": "计算两个文本之间的语义相似度",
+      "params": ["textA", "textB", "mode"]
+    },
+    {
+      "domain": "semantic",
+      "domain_cn": "语义",
+      "action": "match",
+      "action_cn": "匹配",
+      "usage": "semantic;match,<query>,<candidate1>,<candidate2>,...[,<mode>]",
+      "usage_cn": "语义;匹配,<查询>,<候选1>,<候选2>,...[,<模式>]",
+      "description": "Find the best semantic match among multiple candidates",
+      "description_cn": "在多个候选中找出语义最匹配的一项",
+      "params": ["query", "candidates...", "mode"]
+    }
+  ]
+}

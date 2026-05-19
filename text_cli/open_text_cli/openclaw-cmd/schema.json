@@ -1,0 +1,34 @@
+{
+  "id": "openclaw-cmd",
+  "name": "OpenClaw CLI",
+  "name_cn": "openclaw命令",
+  "runtime": "cmd",
+  "category": "运维工具",
+  "locales": ["cn", "en"],
+  "description": "Manage OpenClaw gateway, skills, and sessions via CLI",
+  "description_cn": "通过 CLI 管理 OpenClaw 网关、技能和会话",
+  "directives": [
+    {
+      "domain": "openclaw",
+      "domain_cn": "openclaw",
+      "action": "gateway-status",
+      "action_cn": "网关状态",
+      "usage": "openclaw;gateway-status",
+      "usage_cn": "openclaw;网关状态",
+      "description": "Check OpenClaw gateway running status",
+      "description_cn": "查看 OpenClaw 网关运行状态",
+      "params": []
+    },
+    {
+      "domain": "openclaw",
+      "domain_cn": "openclaw",
+      "action": "session-list",
+      "action_cn": "会话列表",
+      "usage": "openclaw;session-list",
+      "usage_cn": "openclaw;会话列表",
+      "description": "List active OpenClaw sessions",
+      "description_cn": "列出活跃的 OpenClaw 会话",
+      "params": []
+    }
+  ]
+}

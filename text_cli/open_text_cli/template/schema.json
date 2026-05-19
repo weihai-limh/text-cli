@@ -1,0 +1,36 @@
+{
+  "id": "template",
+  "name": "Prompt Templates",
+  "name_cn": "模板",
+  "runtime": "python",
+  "category": "AI",
+  "description": "Prompt template library with placeholder substitution. Templates are stored as a data file distributed with the package.",
+  "description_cn": "提示词模板库，支持占位符替换。模板以数据文件形式随包分发。",
+  "requires": {
+    "data": ["prompt_templates.json"]
+  },
+  "directives": [
+    {
+      "domain": "template",
+      "domain_cn": "模板",
+      "action": "list",
+      "action_cn": "列表",
+      "usage": "template;list",
+      "usage_cn": "模板;列表",
+      "description": "List all available prompt templates",
+      "description_cn": "列出所有可用的提示词模板",
+      "params": []
+    },
+    {
+      "domain": "template",
+      "domain_cn": "模板",
+      "action": "use",
+      "action_cn": "使用",
+      "usage": "template;use,<id>[,key1=val1,key2=val2,...]",
+      "usage_cn": "模板;使用,<ID>[,键1=值1,键2=值2,...]",
+      "description": "Render a template with placeholder substitution, output cached",
+      "description_cn": "渲染模板并替换占位符，输出缓存",
+      "params": ["id", "key=value pairs..."]
+    }
+  ]
+}

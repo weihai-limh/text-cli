@@ -1,0 +1,67 @@
+{
+  "id": "quota-manage",
+  "name": "Quota Manager",
+  "name_cn": "配额管理",
+  "runtime": "python",
+  "category": "基础设施",
+  "description": "Function-level API quota tracker with atomic cycle-reset and consume. SQLite-backed, zero external dependencies beyond Python stdlib.",
+  "description_cn": "函数级 API 配额追踪器，支持原子性周期重置与消耗。SQLite 存储，Python 标准库零额外依赖。",
+  "requires": {},
+  "directives": [
+    {
+      "domain": "quota",
+      "domain_cn": "配额",
+      "action": "register",
+      "action_cn": "注册",
+      "usage": "quota;register,<target>,<cycle>,<limit>",
+      "usage_cn": "配额;注册,<目标>,<周期>,<上限>",
+      "description": "Register a new quota rule for a target function. Cycles: day/week/month/year/forever.",
+      "description_cn": "为目标函数注册配额规则。周期：day(日)/week(周)/month(月)/year(年)/forever(永久)。",
+      "params": ["target", "cycle", "limit"]
+    },
+    {
+      "domain": "quota",
+      "domain_cn": "配额",
+      "action": "check",
+      "action_cn": "检查",
+      "usage": "quota;check,<target>[,<amount>]",
+      "usage_cn": "配额;检查,<目标>[,<数量>]",
+      "description": "Atomic check and consume quota units. Returns remaining count or stop signal.",
+      "description_cn": "原子性检查并消耗配额。返回剩余次数或停止信号。",
+      "params": ["target", "amount(optional)"]
+    },
+    {
+      "domain": "quota",
+      "domain_cn": "配额",
+      "action": "list",
+      "action_cn": "列表",
+      "usage": "quota;list",
+      "usage_cn": "配额;列表",
+      "description": "List all quota rules with current usage and remaining counts.",
+      "description_cn": "列出所有配额规则及当前使用量、剩余次数。",
+      "params": []
+    },
+    {
+      "domain": "quota",
+      "domain_cn": "配额",
+      "action": "reset",
+      "action_cn": "重置",
+      "usage": "quota;reset,<target>",
+      "usage_cn": "配额;重置,<目标>",
+      "description": "Manually reset a quota counter to zero.",
+      "description_cn": "手动将配额计数器归零。",
+      "params": ["target"]
+    },
+    {
+      "domain": "quota",
+      "domain_cn": "配额",
+      "action": "unregister",
+      "action_cn": "注销",
+      "usage": "quota;unregister,<target>",
+      "usage_cn": "配额;注销,<目标>",
+      "description": "Remove a quota rule.",
+      "description_cn": "移除配额规则。",
+      "params": ["target"]
+    }
+  ]
+}
