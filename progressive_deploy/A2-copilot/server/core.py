@@ -131,7 +131,7 @@ def ok(text: str, type: str = 'text', url: str = None, **extra) -> dict:
 
 
 def error(code: str, detail: str, **extra) -> dict:
-    """text-cli 标准错误响应 (v2 — supports __delegated__ marker)"""
+    """text-cli 标准错误响应"""
     result = {
         'rst_types': 'text',
         'rst_data': {'text': f'[{code}] {detail}'},
@@ -260,6 +260,13 @@ class CopilotCore:
         # 默认走本地 handler
         handler = self._handlers.get(canonical)
         if handler is None:
+            # Skill bridge fallback — try ClawHub skill routes
+            bridge_result = self._try_skill_bridge(canonical, parsed['params'])
+            if bridge_result is not None:
+                if 'rst_err' in bridge_result:
+                    self._error_count += 1
+                return bridge_result
+
             self._error_count += 1
             return error('unknown_instruction',
                         f'指令 {canonical} 已注册但无 handler')
@@ -275,7 +282,10 @@ class CopilotCore:
 
     def _dispatch_mcp(self, parsed: dict, canonical: str, mcp_cfg: dict) -> dict:
         """通过 MCP 桥执行指令（懒加载 mcporter）"""
-        from packages.mcp_bridge.handler import call_mcp_tool, parse_mcp_result
+        try:
+            from packages.mcp_bridge.handler import call_mcp_tool, parse_mcp_result
+        except ImportError:
+            return error('internal_error', 'MCP bridge package not installed')
 
         server = mcp_cfg['server']
         tool = mcp_cfg['tool']
@@ -302,7 +312,7 @@ class CopilotCore:
         adapter = mcp_cfg.get('adapter', 'passthrough')
 
         if adapter == 'git_push':
-            from packages.github_adapter.handler import adapt_git_push
+            from handlers.github_adapter import adapt_git_push
             return adapt_git_push(params, mcp_cfg, workdir=self.git_workdir)
 
         if adapter == 'passthrough':
