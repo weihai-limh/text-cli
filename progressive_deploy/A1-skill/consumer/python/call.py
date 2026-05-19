@@ -14,8 +14,8 @@ call.py — text-cli 指令调用（Python）
 
 import json
 import os
-import urllib.request
-import urllib.error
+
+import requests
 
 DEFAULT_ENDPOINT = "https://test.text-cli.com/cli/text_cli"
 TIMEOUT = 10
@@ -47,28 +47,27 @@ def call_directive(
     url = endpoint or os.getenv("TEXT_CLI_ENDPOINT", DEFAULT_ENDPOINT)
     auth_token = token or os.getenv("TEXT_CLI_TOKEN", "")
 
-    body = json.dumps({"prompt": directive}).encode("utf-8")
-
-    req = urllib.request.Request(
-        url,
-        data=body,
-        headers={
-            "Content-Type": "application/json",
-            **({"Authorization": f"Bearer {auth_token}"} if auth_token else {}),
-        },
-        method="POST",
-    )
+    headers = {"Content-Type": "application/json"}
+    if auth_token:
+        headers["Authorization"] = f"Bearer {auth_token}"
 
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            data = json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as e:
-        error_body = e.read().decode("utf-8", errors="replace")
-        raise ValueError(f"HTTP {e.code}: {error_body}") from e
-    except urllib.error.URLError as e:
-        raise ConnectionError(f"无法连接至 {url}: {e.reason}") from e
-    except TimeoutError:
-        raise TimeoutError(f"请求超时 ({timeout}s): {url}")
+        resp = requests.post(
+            url,
+            json={"prompt": directive},
+            headers=headers,
+            timeout=timeout,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except requests.exceptions.HTTPError as e:
+        error_body = e.response.text if e.response is not None else str(e)
+        status = e.response.status_code if e.response is not None else 0
+        raise ValueError(f"HTTP {status}: {error_body}") from e
+    except requests.exceptions.ConnectionError as e:
+        raise ConnectionError(f"无法连接至 {url}: {e}") from e
+    except requests.exceptions.Timeout as e:
+        raise TimeoutError(f"请求超时 ({timeout}s): {url}") from e
 
     if data.get("rst_types") == "text":
         return data["rst_data"]["text"]
