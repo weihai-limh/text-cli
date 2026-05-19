@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import os
 import pathlib
 import shutil
 
-HANDLERS_DIR = pathlib.Path(__file__).parent.parent
+_PROJECT = pathlib.Path(os.environ.get("TEXT_CLI_HOME", "/root/text-cli"))
+HANDLERS_DIR = _PROJECT / "service" / "handlers"
 SCHEMA_DIR = HANDLERS_DIR / "schema"
-# Shared directory for cmd runtime whitelists (copilot reads from here)
-COPILOT_WHITELIST_DIR = pathlib.Path(__file__).parent.parent.parent / "copilot" / "whitelists"
+COPILOT_WHITELIST_DIR = _PROJECT / "copilot" / "whitelists"
 
 
 def install_files(name: str, meta: dict, runtime: str = "python", force: bool = False) -> tuple[bool, str]:
@@ -38,7 +39,7 @@ def install_files(name: str, meta: dict, runtime: str = "python", force: bool = 
     try:
         shutil.copy2(schema_src, schema_dst)
     except OSError as e:
-        return False, f"File copy failed: {e}"
+        return False, f"文件复制失败: {e}"
 
     # Copy handler only for Python packages
     if runtime == "python":
@@ -48,10 +49,10 @@ def install_files(name: str, meta: dict, runtime: str = "python", force: bool = 
             shutil.copy2(handler_src, handler_dst)
         except OSError as e:
             return False, f"handler 复制失败: {e}"
-        return True, f"File deployment complete: {name}.py + {name}_schema.json"
+        return True, f"文件部署完成: {name}.py + {name}_schema.json"
 
     elif runtime == "mcp":
-        return True, f"MCP schema registered: {name}_schema.json"
+        return True, f"MCP schema 注册完成: {name}_schema.json"
 
     elif runtime == "node":
         # JS package: copy handler.js + schema.json
@@ -63,8 +64,8 @@ def install_files(name: str, meta: dict, runtime: str = "python", force: bool = 
             shutil.copy2(handler_src, handler_dst)
             shutil.copy2(schema_src, schema_dst)
         except OSError as e:
-            return False, f"File copy failed: {e}"
-        return True, f"File deployment complete: {name}.js + {name}_schema.json"
+            return False, f"文件复制失败: {e}"
+        return True, f"文件部署完成: {name}.js + {name}_schema.json"
 
     elif runtime == "cmd":
         # cmd package: schema → service discovery, whitelist → copilot execution dir
@@ -75,10 +76,10 @@ def install_files(name: str, meta: dict, runtime: str = "python", force: bool = 
             shutil.copy2(schema_src, schema_dst)
             shutil.copy2(wl_src, wl_dst)
         except OSError as e:
-            return False, f"File copy failed: {e}"
-        return True, f"File deployment complete: {name}_schema.json + whitelists/{name}_whitelist.json"
+            return False, f"文件复制失败: {e}"
+        return True, f"文件部署完成: {name}_schema.json + whitelists/{name}_whitelist.json"
 
-    return True, "File deployment complete"
+    return True, "文件部署完成"
 
 
 def remove_files(name: str) -> tuple[bool, str]:
@@ -100,6 +101,6 @@ def remove_files(name: str) -> tuple[bool, str]:
         removed.append(f"handlers/schema/{name}_schema.json")
 
     if not removed:
-        return False, f"包 \"{name}\" not installed"
+        return False, f"包 \"{name}\" 未安装"
 
-    return True, "Removed: " + ", ".join(removed)
+    return True, "已移除: " + ", ".join(removed)

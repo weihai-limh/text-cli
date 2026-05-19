@@ -6,10 +6,12 @@ Format: JSON Lines (one JSON object per line, append-only).
 from __future__ import annotations
 
 import json
+import os
 import pathlib
 import time
 
-AUDIT_PATH = pathlib.Path(__file__).parent.parent / ".install_audit.jsonl"
+_PROJECT = pathlib.Path(os.environ.get("TEXT_CLI_HOME", "/root/text-cli"))
+AUDIT_PATH = _PROJECT / "service" / ".install_audit.jsonl"
 
 
 def log_install(name: str, meta: dict, success: bool, message: str):

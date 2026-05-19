@@ -12,8 +12,8 @@ project_root = Path(__file__).parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-# text-cli-modules 路径（与 service 同级）
-_modules_root = Path(__file__).resolve().parent / "text_cli_modules"
+# 基础设施模块路径（跨层级共享，由环境变量指定）
+_modules_root = Path(os.environ.get("TEXT_CLI_MODULES_DIR", Path(__file__).resolve().parent.parent / "text_cli_modules"))
 if str(_modules_root.parent) not in sys.path:
     sys.path.append(str(_modules_root.parent))
 
@@ -234,7 +234,7 @@ async def get_schema():
 @app.get("/cache/{key}")
 async def image_cache_retrieve(key: str):
     """获取缓存的 base64 图片数据"""
-    from handlers.image import cache_get
+    from packages.image.handler import cache_get
     data = cache_get(key)
     if data is None:
         return JSONResponse(
@@ -255,7 +255,7 @@ async def health(request: Request):
 
     if auth.allowed:
         # Authenticated: full capabilities snapshot
-        from handlers.skill_endpoint import _load_path_schemas, _load_exposure, _filter_exposed
+        from packages.skill_endpoint.handler import _load_path_schemas, _load_exposure, _filter_exposed
         packages = [s.get("id", "") for s in _load_path_schemas() if s.get("id")]
         # Also collect installed packages from schema dir
         installed = []
@@ -284,7 +284,7 @@ async def health(request: Request):
         }
 
     # Public: minimal info
-    from handlers.skill_endpoint import _load_exposure
+    from packages.skill_endpoint.handler import _load_exposure
     exposure = _load_exposure()
     public_count = sum(
         1 for v in exposure.values()
@@ -352,7 +352,7 @@ async def handle_directive(request: Request):
 
     # 1. MCP 优先路由（显式偏好 mcp 时优先）
     from core.mcp_dispatch import decide_backend, get_mcp_route, adapt_params
-    from handlers.mcp_handler import check_mcp_quota
+    from packages.mcp.handler import check_mcp_quota
     backend = decide_backend(parsed.domain, parsed.action)
 
     if backend == "mcp":
@@ -368,7 +368,7 @@ async def handle_directive(request: Request):
                     content=ok(json.dumps({"status": "quota_exceeded", **quota_block}, ensure_ascii=False)),
                 )
             try:
-                from handlers.mcp_handler import call_mcp_tool, format_mcp_result
+                from packages.mcp.handler import call_mcp_tool, format_mcp_result
                 args = adapt_params(parsed.params, mcp_route)
                 mcp_result = call_mcp_tool(
                     mcp_route["server"], mcp_route["tool"],
@@ -412,7 +412,7 @@ async def handle_directive(request: Request):
                 content=ok(json.dumps({"status": "quota_exceeded", **quota_block}, ensure_ascii=False)),
             )
         try:
-            from handlers.mcp_handler import call_mcp_tool, format_mcp_result
+            from packages.mcp.handler import call_mcp_tool, format_mcp_result
             args = adapt_params(parsed.params, mcp_route)
             mcp_result = call_mcp_tool(
                 mcp_route["server"], mcp_route["tool"],
@@ -439,14 +439,14 @@ async def handle_directive(request: Request):
 @app.get("/text-cli/skills")
 async def skills_list():
     """列出所有对外暴露的技能（public + restricted）"""
-    from handlers.skill_endpoint import list_skills
+    from packages.skill_endpoint.handler import list_skills
     return JSONResponse(content=list_skills())
 
 
 @app.get("/text-cli/skills/{skill_id}")
 async def skills_detail(skill_id: str):
     """获取单个技能的完整详情"""
-    from handlers.skill_endpoint import get_skill_detail
+    from packages.skill_endpoint.handler import get_skill_detail
     detail = get_skill_detail(skill_id)
     if detail is None:
         return JSONResponse(
@@ -491,7 +491,7 @@ async def skills_execute(skill_id: str, request: Request):
                       "message": "请求体非有效 JSON"},
         )
 
-    from handlers.skill_endpoint import execute_skill
+    from packages.skill_endpoint.handler import execute_skill
     result = execute_skill(skill_id, body)
 
     if result.get("status") == "error":

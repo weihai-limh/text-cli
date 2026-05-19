@@ -1,116 +1,95 @@
-# text_cli/python — 技能服务模板
+# A3 — Service 平台管理核心
 
-可被 `server/` 集成端点直接调用的标准指令服务。开发者以此模板为骨架，用 `@directive` 装饰器注册自己的指令处理函数。
+可被 agent-copilot 代理调用的标准指令服务骨架。10 个骨架 handler + 包安装机制。
 
----
+> 已升级为骨架架构：包 handler 由运行时安装注入 packages/，骨架仅保留结构性代码。
 
 ## 目录结构
 
 ```
-text_cli/python/
-├── main.py                          # FastAPI 入口（lifespan + 指令分发）
+A3-service/
+├── main.py                          ← FastAPI 入口（lifespan + 指令分发）
 ├── requirements.txt
-├── Dockerfile
-├── docker-compose.yml
-├── .gitignore
+├── Dockerfile / docker-compose.yml
 ├── config/
-│   └── text_cli_schema.json         # 指令 Schema（元数据与 URL）
+│   ├── service_manifest.json        ← 服务清单
+│   ├── system_schema.json           ← 系统 schema
+│   └── *.example.json               ← 示例配置
 ├── core/
-│   ├── __init__.py
-│   ├── parser.py                    # 指令文本解析（正则 → ParsedDirective）
-│   ├── auth.py                      # Service Token 鉴权
-│   ├── registry.py                  # @directive 装饰器注册表 + dispatch 分发
-│   └── response.py                  # ok() / error() 标准响应
-└── handlers/
-    ├── __init__.py                  # 自动发现并导入所有 handler 模块
-    └── sample.py                    # 示例指令（回显 / 问候 / 列表）
+│   ├── parser.py                    ← 指令文本解析
+│   ├── registry.py                  ← @directive 装饰器注册表 + dispatch
+│   ├── auth.py                      ← Service Token 鉴权
+│   ├── response.py                  ← ok() / error() 标准响应
+│   └── mcp_dispatch.py              ← MCP 调度
+├── handlers/                        ← 骨架（10 文件 + installer/）
+│   ├── __init__.py                  ← 自动扫描 packages/ + JS 注册
+│   ├── text_cli_path.py             ← 路径引擎
+│   ├── text_cli_pro.py              ← copilot 代理
+│   ├── text_cli_install.py          ← 包安装器
+│   ├── text_cli_export.py           ← 包导出器
+│   ├── text_cli_uninstall.py        ← 包卸载器
+│   ├── package_manifest.py          ← 清单注册
+│   ├── schema_query.py              ← schema 查询
+│   ├── proxy.py                     ← 代理路由
+│   ├── js_bridge.py                 ← JS 运行时桥
+│   └── installer/                   ← 安装器子模块
+└── packages/                        ← 包安装目标（空目录）
 ```
 
-## 核心模块职责
+## 骨架 Handler
 
-| 模块 | 职责 |
-|:---|:---|
-| `core/parser.py` | 将 `指令:领域;动作,参数...` 解析为 `ParsedDirective`，含格式校验和长度/参数上限 |
-| `core/registry.py` | `@directive(domain, action)` 装饰器注册 + `dispatch()` 路由分发 |
-| `core/auth.py` | 从环境变量 `SERVICE_TOKEN` 校验请求头 `Service-token` |
-| `core/response.py` | `ok(text)` / `error(text)` 统一响应格式 |
-| `handlers/` | 新增指令只需在此目录加 `.py` 文件并用 `@directive` 装饰——`__init__.py` 自动发现 |
+| 文件 | 指令 | 说明 |
+|------|------|------|
+| `text_cli_path.py` | `text-cli;path` | 路径引擎，条件执行 + 降级 + 并行 |
+| `text_cli_pro.py` | `text-cli;pro` | copilot 代理转发 |
+| `text_cli_install.py` | `text-cli;install` `文本指令;安装` | 包安装（注册到 manifest） |
+| `text_cli_export.py` | `text-cli;export` `文本指令;导出` | 包导出 |
+| `text_cli_uninstall.py` | `text-cli;uninstall` `文本指令;卸载` | 包卸载 |
+| `package_manifest.py` | — | 清单持久化 |
+| `schema_query.py` | `text-cli;query` | schema 查询 |
+| `proxy.py` | — | 代理路由 |
+| `js_bridge.py` | — | Node.js 运行时桥 |
+
+## 包 Handler（运行时安装）
+
+以下能力由指令包提供，安装到 `packages/` 目录：
+
+| 类别 | 包（示例） |
+|------|----------|
+| AI | ai-generate, ai-inference, ai-im |
+| 地图 | bd-map, gd-map, tx-map, tdt-map |
+| 坐标 | geo-coords, geo-grid, geo-panoramic |
+| 媒体 | image, ms-tts, tc-browser |
+| 工具 | tc-json, tc-markdown, path-str, sample, template |
+| 平台 | key, quota-manage, task-manager |
+| 云服务 | bd-cloud, tx-cloud |
+| 桥接 | mcp, skill-endpoint, stream-im |
+
+安装：`AI:text-cli;install,<包路径>`
+
+## 环境变量
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `TEXT_CLI_HOME` | `/root/text-cli` | 项目根目录 |
+| `TEXT_CLI_MODULES_DIR` | `$TEXT_CLI_HOME/text_cli_modules` | 基础设施模块路径 |
+| `PORT` | `28050` | 服务端口 |
 
 ## 快速启动
 
 ```bash
-cd text_cli/python
+cd A3-service/
 pip install -r requirements.txt
-uvicorn main:app --host 0.0.0.0 --port 8000
+PORT=28050 python3 main.py
 ```
 
-### 注册新指令
-
-```python
-# handlers/my_handler.py
-from core.registry import directive
-
-@directive("基础应用", "天气查询")
-def weather(params: list[str]) -> str:
-    city = params[0] if params else "默认城市"
-    return f"{city}天气: 晴, 22°C"
-```
-
-无需修改任何其他文件——`handlers/__init__.py` 启动时自动导入。
-
-### Docker
+验证：
 
 ```bash
-docker compose up --build -d
+curl http://localhost:28050/health
+# {"status":"ok"}
 ```
 
 ---
 
-## handler_inits 自动加载
-
-不再为每个包在 main.py 里写 try/except 块。所有 handler 的初始化收束到 `config/handler_inits.py` 清单：
-
-```python
-HANDLER_INITS = [
-    ("handlers.key", "init_key_handler", "db", None),
-    ("handlers.quota_handler", "init_quota_handler", "quota", None),
-    ...
-]
-```
-
-`text-cli;install` 安装包后自动追加条目，`text-cli;uninstall` 卸载时自动移除。重启服务后新包自动加载——加包不再改 main.py。
-
-## manifest 包生命周期
-
-每个已安装的包在 `config/installed_packages.json` 中有记录：
-
-```json
-{
-  "tx-cloud": {
-    "id": "tx-cloud", "domain": "tx-cloud", "type": "native",
-    "source": "/root/text-cli-package/tx-cloud/",
-    "files": {"handler": "handlers/tx_cloud_handler.py"},
-    "directives": ["tx-cloud;translation", "tx-cloud;asr", ...],
-    "installed_at": "2026-05-17T10:28:00"
-  }
-}
-```
-
-manifest 支撑三个操作：
-- **export**：读 manifest → 按 type 重组文件 → 输出到 `text-cli-package/<id>/`
-- **packages**：列出已安装包及指令清单
-- **uninstall**：删文件 + 清理 manifest 条目
-
-## nocode 指令包
-
-非代码经验成为一等指令包类型。花店老板的六篇 Markdown + 一份症状索引 + 一条路径声明——不需要 handler.py。平台通过 `tc-markdown;read` 读取经验文件，AI 推理做诊断。
-
-## 指令包导出
-
-```
-text-cli;export,<id>      → 单包导出到 text-cli-package/
-text-cli;export-all       → 全量导出
-text-cli;packages         → 列出已安装包
-```
-
-导出的包结构与安装格式一致，可被 `text-cli;install` 直接消费。
+*text-cli 项目的一部分。由 lemondy 发起，Tide 🌊 实现。*

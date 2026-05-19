@@ -13,6 +13,8 @@ Author: Tide 🌊
 
 from __future__ import annotations
 
+import os
+
 from core.registry import directive
 
 from .installer.validate import SYSTEM_DOMAINS
@@ -53,7 +55,7 @@ def text_cli_uninstall(params: list[str]) -> str:
         "",
         "  pip 依赖未移除（可能被其他包共用）。",
         "  如确认不再需要，手动清理:",
-        f"    /root/text-cli/service/.venv/bin/pip uninstall <pkg>",
+        f"    {Path(os.environ.get('TEXT_CLI_HOME', '/root/text-cli')) / 'service' / '.venv' / 'bin' / 'pip'} uninstall <pkg>",
     ]
 
     result = "\n".join(lines)
