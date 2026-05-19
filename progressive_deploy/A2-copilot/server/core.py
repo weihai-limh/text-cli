@@ -275,7 +275,7 @@ class CopilotCore:
 
     def _dispatch_mcp(self, parsed: dict, canonical: str, mcp_cfg: dict) -> dict:
         """通过 MCP 桥执行指令（懒加载 mcporter）"""
-        from handlers.mcp_handler import call_mcp_tool, parse_mcp_result
+        from packages.mcp_bridge.handler import call_mcp_tool, parse_mcp_result
 
         server = mcp_cfg['server']
         tool = mcp_cfg['tool']
@@ -302,7 +302,7 @@ class CopilotCore:
         adapter = mcp_cfg.get('adapter', 'passthrough')
 
         if adapter == 'git_push':
-            from handlers.github_adapter import adapt_git_push
+            from packages.github_adapter.handler import adapt_git_push
             return adapt_git_push(params, mcp_cfg, workdir=self.git_workdir)
 
         if adapter == 'passthrough':
