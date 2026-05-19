@@ -16,7 +16,7 @@ from pathlib import Path
 
 from handlers.adapters import ADAPTERS
 
-SKILLS_DIR = Path(os.environ.get("SKILLS_DIR", "/root/.openclaw/workspace/skills"))
+SKILLS_DIR = Path(os.environ.get("SKILLS_DIR", str(Path.home() / ".openclaw" / "workspace" / "skills")))
 ROUTES_PATH = Path(__file__).resolve().parent.parent / "config" / "skill_bridge_routes.json"
 
 

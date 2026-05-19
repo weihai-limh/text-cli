@@ -93,6 +93,11 @@ def text_cli_install(params: list[str]) -> str:
 
     result = "\n".join(lines)
 
+    if msg and "\n" in msg:
+        extra = "\n".join(msg.split("\n")[1:])
+        if extra.strip():
+            result += f"\n{extra}"
+
     # Append secrets warnings
     if secrets_warnings:
         result += "\n\n" + secrets_warnings
@@ -161,7 +166,7 @@ def _check_secrets(schema: dict, skip_check: bool = False) -> str:
         from text_cli_modules.key.key_registry import get as key_get
         # We need DB_PATH — try common locations
         import os
-        db_path = os.environ.get("TEXT_CLI_DB", str(Path(os.environ.get("TEXT_CLI_HOME", "/root/text-cli")) / "service" / "text_cli.db"))
+        db_path = os.environ.get("TEXT_CLI_DB", str(Path(os.environ.get("TEXT_CLI_HOME", str(Path.home() / "text-cli"))) / "service" / "text_cli.db"))
         for secret_name in secrets:
             val = key_get({"config": db_path}, secret_name)
             if not val:

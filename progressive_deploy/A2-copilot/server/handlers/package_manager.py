@@ -10,6 +10,7 @@ Install also copies adapters/ (if present) to copilot/adapters/.
 import importlib
 import json
 import logging
+import os
 import pathlib
 import shutil
 
@@ -17,22 +18,30 @@ from core import ok, error
 
 logger = logging.getLogger("copilot.package_manager")
 
-# Default package source directories
-DEFAULT_SOURCE_DIRS = [
-    pathlib.Path("/root/tide/new_package"),
-    pathlib.Path("/root/.openclaw/workspace/tide-scripts/text-cliV1"),
-]
+
+def _get_source_dirs() -> list[pathlib.Path]:
+    raw = os.environ.get("TEXT_CLI_PACKAGE_SOURCE_DIRS", "")
+    if raw:
+        return [pathlib.Path(d.strip()) for d in raw.split(":") if d.strip()]
+    return [
+        pathlib.Path(os.environ.get("TEXT_CLI_HOME", str(pathlib.Path.home() / "text-cli"))) / "copilot" / "packages",
+    ]
 
 
 class PackageManagerHandlers:
     """Mixin: copilot package install, uninstall, and list."""
 
     def _resolve_package(self, name: str) -> pathlib.Path | None:
-        """Find a package directory by name across source dirs."""
-        for sdir in DEFAULT_SOURCE_DIRS:
-            candidate = sdir / name
-            if candidate.is_dir() and (candidate / "schema.json").is_file():
-                return candidate
+        for sdir in _get_source_dirs():
+            for candidate in sdir.rglob("schema.json"):
+                if candidate.parent.name == name:
+                    return candidate.parent
+                try:
+                    schema = json.loads(candidate.read_text(encoding="utf-8"))
+                    if schema.get("id") == name:
+                        return candidate.parent
+                except Exception:
+                    pass
         return None
 
     def _handle_text_cli_co_install(self, params: list) -> dict:
