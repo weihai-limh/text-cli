@@ -27,22 +27,26 @@ from handlers import (
     SkillBridgeHandlers, PackageManagerHandlers,
 )
 
-# 包 mixin（FileHandlers/GitHandlers/MailHandlers 等）
-# 由包安装时通过 manifest 注入，不出现在骨架中。
+import handlers as _h
+
+_pkg_bases = getattr(_h, '_discovered_classes', [])
+
+_CopilotBases = (
+    CodecHandlers,
+    KeyHandlers,
+    SkillBridgeHandlers,
+    PackageManagerHandlers,
+    *tuple(_pkg_bases),
+    CopilotCore,
+)
 
 
 # ═══════════════════════════════════════════════════════════════
 # Copilot Class — core + all handler mixins
 # ═══════════════════════════════════════════════════════════════
 
-class Copilot(
-    CodecHandlers,
-    KeyHandlers,
-    SkillBridgeHandlers,
-    PackageManagerHandlers,
-    CopilotCore,
-):
-    """指令辅助服务器 — 骨架 mixin + 核心引擎"""
+class Copilot(*_CopilotBases):
+    """指令辅助服务器 — 骨架 mixin + 核心引擎 + 动态发现的包 handler"""
     pass
 
 

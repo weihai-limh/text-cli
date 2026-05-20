@@ -249,6 +249,24 @@
         "parameters_en": ["source", "path", "new_value"],
         "returns": "rst_data.path, rst_data.old, rst_data.new, rst_data.wrote_to"
       },
+      "openclaw;gateway-status": {
+        "level": "read",
+        "aliases": ["openclaw;gateway-status", "openclaw;网关状态"],
+        "description": "检查 OpenClaw 网关守护进程状态",
+        "description_en": "Check OpenClaw gateway daemon status",
+        "parameters": [],
+        "parameters_en": [],
+        "returns": "rst_data.text = gateway status"
+      },
+      "openclaw;session-list": {
+        "level": "read",
+        "aliases": ["openclaw;session-list", "openclaw;会话列表"],
+        "description": "列出活跃的 OpenClaw 会话",
+        "description_en": "List active OpenClaw sessions",
+        "parameters": [],
+        "parameters_en": [],
+        "returns": "rst_data.text = session list"
+      },
       "text-cli;co-install": {
         "level": "write",
         "aliases": ["text-cli;co-install", "copilot;安装"],
