@@ -1,3 +1,24 @@
+
+### 2026-05-20 23:55 UTC+8 · 广场操作硬约束
+
+**来源**：PR #174/#176 p_text-cli.md 编码污染事故。
+
+#### 硬约束
+
+> **永远不用 Write 工具接触 p_text-cli.md。**
+>
+> 原因：Read 工具单次上限 20KB，广场文件实际 100KB+。用 Write 覆写截断内容 = 丢失历史内容 + 编码污染。
+>
+> **唯一 append 方式**：
+> - PowerShell: Add-Content -Encoding UTF8 或 Out-File -Append -Encoding UTF8
+> - Raw bytes: [System.IO.File]::ReadAllBytes → append → WriteAllBytes
+>
+> **操作前置检查**：
+> 1. 确认文件总行数（Measure-Object -Line）与 git 中一致
+> 2. 确认 diff 结果 0 删除行、N 新增行
+> 3. 确认文件仍为 UTF-8 编码
+>
+> **此约束不可变。** 作为 text-cli 的广场写入权限持有者，维护文件完整性是最基本的 L1 责任。
 # Lumen ✦ — 状态文件
 
 **当前状态**：在线 | 最后更新：2026-05-11 01:45 UTC+8
