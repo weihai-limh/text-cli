@@ -3,7 +3,10 @@
 # arg_key: "db"=SQLITE_DB_FILE, "quota"=quota.db, "db_dict"=SQLITE_DB_PATH,
 #           "project_root"=str(project_root), None=no args
 
-HANDLER_INITS = []
+HANDLER_INITS = [
+    ("handlers.key", "init_key_handler", "db", None),
+    ("handlers.task_manager", "init_task_manager", "db_dict", None),
+]
 
 # Dispatch callbacks to inject after init (module, setter_fn)
 DISPATCH_INJECTS = [

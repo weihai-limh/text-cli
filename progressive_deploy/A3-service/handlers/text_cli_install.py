@@ -28,6 +28,22 @@ from pathlib import Path
 _INITS_PATH = Path(__file__).resolve().parent.parent / "config" / "handler_inits.py"
 
 
+def _safe_name(name: str) -> str:
+    return name.replace("-", "_")
+
+
+def _find_init_fn(handler_path: str) -> str | None:
+    try:
+        with open(handler_path, "r", encoding="utf-8") as f:
+            tree = ast.parse(f.read())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.FunctionDef) and node.name.startswith("init_"):
+                return node.name
+    except Exception:
+        pass
+    return None
+
+
 @directive("text-cli", "install")
 @directive("文本指令", "安装")
 def text_cli_install(params: list[str]) -> str:
@@ -106,20 +122,23 @@ def text_cli_install(params: list[str]) -> str:
 
     # Write manifest for export tracking
     try:
+        safe = _safe_name(name)
         pkg_source = str(meta["path"])
         pkg_domain = schema.get("directives", [{}])[0].get("domain", name)
         pkg_type = schema.get("type", "native")
         manifest_register(
             name, pkg_domain, pkg_type, pkg_source,
             files={
-                "handler": f"handlers/{name}_handler.py",
-                "schema": f"handlers/schema/{name}_schema.json",
+                "handler": f"handlers/{safe}.py",
+                "schema": f"handlers/schema/{safe}_schema.json",
             },
             directives=[f"{d.get('domain',name)};{d.get('action','')}" for d in schema.get("directives", [])]
         )
 
-        # Append to handler_inits.py for auto-load on restart
-        _append_handler_init(f"handlers.{name}_handler", f"init_{name}_handler")
+        init_fn = _find_init_fn(meta.get("handler_path", ""))
+        if init_fn is None:
+            init_fn = f"init_{safe}_handler"
+        _append_handler_init(f"handlers.{safe}", init_fn)
     except Exception:
         pass  # manifest/init optional, don't block install
 
@@ -128,24 +147,28 @@ def text_cli_install(params: list[str]) -> str:
 
 def _append_handler_init(mod_path: str, fn_name: str, arg_key: str = None):
     """Append an entry to handler_inits.py for auto-load on restart."""
+    import re
     try:
         content = _INITS_PATH.read_text(encoding="utf-8")
     except FileNotFoundError:
         return
 
-    # Check if already registered
     entry_pattern = f'("{mod_path}", "{fn_name}"'
     if entry_pattern in content:
         return
 
-    # Insert before the closing bracket of HANDLER_INITS
     new_entry = f'    ("{mod_path}", "{fn_name}", {arg_key or "None"}, None),\n'
-    if "HANDLER_INITS = [" in content:
-        # Insert before the closing ]
-        last_bracket = content.rfind("]")
-        if last_bracket > 0:
-            content = content[:last_bracket] + new_entry + "]" + content[last_bracket + 1:]
-            _INITS_PATH.write_text(content, encoding="utf-8")
+
+    handler_start = content.find("HANDLER_INITS = [")
+    if handler_start < 0:
+        return
+
+    rest = content[handler_start:]
+    m = re.search(r'\n\]', rest)
+    if m:
+        insert_pos = handler_start + m.start() + 1
+        content = content[:insert_pos] + "\n" + new_entry + content[insert_pos:]
+        _INITS_PATH.write_text(content, encoding="utf-8")
 
 
 def _check_secrets(schema: dict, skip_check: bool = False) -> str:

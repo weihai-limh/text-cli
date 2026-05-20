@@ -13,7 +13,7 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 # text-cli-modules 路径（与 service 同级）
-_modules_root = Path(__file__).resolve().parent.parent / "text_cli_modules"
+_modules_root = Path(__file__).resolve().parent / "text_cli_modules"
 if str(_modules_root.parent) not in sys.path:
     sys.path.append(str(_modules_root.parent))
 
