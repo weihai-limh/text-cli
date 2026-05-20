@@ -97,6 +97,11 @@ def install_files(name: str, meta: dict, runtime: str = "python", force: bool = 
         if aux_msg:
             lines.append(aux_msg)
 
+        # Deploy package config (config/* → service/config/, skip existing)
+        ok_cfg, cfg_msg = _deploy_package_config(pkg_dir, name)
+        if cfg_msg:
+            lines.append(cfg_msg)
+
         # Check binaries
         ok_bin, bin_msg = _check_binary(pkg_dir, meta)
         if bin_msg:
@@ -154,6 +159,41 @@ def _deploy_aux_files(pkg_dir: pathlib.Path, name: str, runtime: str) -> tuple[b
 
     if extra:
         return True, f"  auxiliary: {', '.join(extra)}"
+    return True, ""
+
+
+def _deploy_package_config(pkg_dir: pathlib.Path, name: str) -> tuple[bool, str]:
+    """Deploy package's config/ directory to service/config/.
+
+    Files already present in the target directory are skipped (never overwritten).
+    Subdirectories are not recursed — only top-level files are copied.
+    """
+    config_src = pathlib.Path(pkg_dir) / "config"
+    if not config_src.is_dir():
+        return True, ""
+
+    config_dst = _PROJECT / "service" / "config"
+    config_dst.mkdir(parents=True, exist_ok=True)
+
+    copied = []
+    skipped = []
+    for item in sorted(config_src.iterdir()):
+        if item.is_dir():
+            continue
+        dst = config_dst / item.name
+        if dst.exists():
+            skipped.append(item.name)
+            continue
+        shutil.copy2(str(item), str(dst))
+        copied.append(item.name)
+
+    parts = []
+    if copied:
+        parts.append(f"config: {', '.join(copied)}")
+    if skipped:
+        parts.append(f"config skipped: {', '.join(skipped)}")
+    if parts:
+        return True, "  " + " | ".join(parts)
     return True, ""
 
 
