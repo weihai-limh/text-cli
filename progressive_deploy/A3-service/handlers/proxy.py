@@ -12,7 +12,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-_PROJECT = Path(os.environ.get("TEXT_CLI_HOME", "/root/text-cli"))
+_PROJECT = Path(os.environ.get("TEXT_CLI_HOME", str(Path.home() / "text-cli")))
 PROXY_CONFIG_PATH = str(_PROJECT / "service" / "config" / "proxy_routes.json")
 
 # Try loading SQLite for credential injection

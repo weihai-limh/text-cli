@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import pathlib
 from typing import Optional
 
@@ -14,7 +15,7 @@ SYSTEM_DOMAINS = frozenset({"text-cli"})
 
 # Default search paths for package sources
 DEFAULT_SOURCE_DIRS = [
-    pathlib.Path("/root/.openclaw/workspace/tide-scripts/text-cliV1"),
+    pathlib.Path(os.path.expanduser("~/.openclaw/workspace/tide-scripts/text-cliV1")),
 ]
 
 
@@ -33,7 +34,7 @@ def _check_mcporter_server(server_name: str) -> tuple[bool, str]:
     """Verify an MCP server is configured in mcporter."""
     import subprocess
     # mcporter config is in workspace, not service dir
-    mcporter_config = "/root/.openclaw/workspace/config/mcporter.json"
+    mcporter_config = os.path.expanduser("~/.openclaw/workspace/config/mcporter.json")
     try:
         result = subprocess.run(
             ["mcporter", "--config", mcporter_config, "list", server_name],

@@ -5,8 +5,6 @@ Provides task registration, status tracking, and result storage.
 Used by bim-ifc and any other long-running directive.
 
 A6 infrastructure — shares SQLITE_DB_PATH with key/embed/quota.
-
-Author: Tide 🌊 — 2026-05-16
 """
 
 import json
@@ -16,25 +14,22 @@ import threading
 import time
 from pathlib import Path
 
-RESULTS_DIR = Path(os.environ.get("TEXT_CLI_MEDIA_DIR", str(Path(os.environ.get("TEXT_CLI_HOME", str(Path.home() / "text-cli"))) / "media"))) / "tasks"
+_HOME = Path(os.environ.get("TEXT_CLI_HOME", str(Path.home() / "text-cli")))
+RESULTS_DIR = Path(os.environ.get("TEXT_CLI_MEDIA_DIR", str(_HOME / "media"))) / "tasks"
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
-# Injected by init (from service SQLITE_DB_PATH)
 _db_file: str | None = None
 _local = threading.local()
 
-# Dispatch injection (for tracked tasks — real-time poll on status query)
 _dispatch_fn = None
 
 
 def _set_task_dispatch(fn):
-    """Inject dispatch callback (called by main.py after init)."""
     global _dispatch_fn
     _dispatch_fn = fn
 
 
 def _get_db() -> sqlite3.Connection:
-    """Thread-local SQLite connection."""
     if not hasattr(_local, "conn") or _local.conn is None:
         _local.conn = sqlite3.connect(_db_file)
         _local.conn.row_factory = sqlite3.Row
@@ -61,10 +56,7 @@ def _ensure_table():
     db.commit()
 
 
-# ── Public API ──────────────────────────────────
-
 def register(domain: str, action: str, params: dict = None) -> str:
-    """Register a new task. Returns task_id."""
     _ensure_table()
     ts = int(time.time() * 1000)
     seq = _next_seq()
@@ -80,7 +72,6 @@ def register(domain: str, action: str, params: dict = None) -> str:
 
 
 def update(task_id: str, state: str, progress: str = "", error: str = ""):
-    """Update task state and progress."""
     db = _get_db()
     db.execute(
         "UPDATE tasks SET state=?,progress=?,error=?,updated_at=? WHERE task_id=?",
@@ -90,7 +81,6 @@ def update(task_id: str, state: str, progress: str = "", error: str = ""):
 
 
 def complete(task_id: str, result: dict):
-    """Mark task done and store result."""
     result_path = str(RESULTS_DIR / f"{task_id}.json")
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
     Path(result_path).write_text(json.dumps(result, ensure_ascii=False))
@@ -104,7 +94,6 @@ def complete(task_id: str, result: dict):
 
 
 def fail(task_id: str, error: str):
-    """Mark task as failed."""
     db = _get_db()
     db.execute(
         "UPDATE tasks SET state='error',error=?,updated_at=? WHERE task_id=?",
@@ -114,7 +103,6 @@ def fail(task_id: str, error: str):
 
 
 def cancel(task_id: str) -> bool:
-    """Cancel a pending/running task."""
     db = _get_db()
     row = db.execute("SELECT state FROM tasks WHERE task_id=?", (task_id,)).fetchone()
     if row and row["state"] in ("pending", "running"):
@@ -128,7 +116,6 @@ def cancel(task_id: str) -> bool:
 
 
 def get(task_id: str) -> dict | None:
-    """Get task info."""
     db = _get_db()
     row = db.execute("SELECT * FROM tasks WHERE task_id=?", (task_id,)).fetchone()
     if not row:
@@ -148,7 +135,6 @@ def get(task_id: str) -> dict | None:
 
 
 def list_tasks(limit: int = 20) -> list[dict]:
-    """List recent tasks."""
     db = _get_db()
     rows = db.execute(
         "SELECT task_id,domain,action,state,created_at FROM tasks ORDER BY created_at DESC LIMIT ?",
@@ -157,13 +143,7 @@ def list_tasks(limit: int = 20) -> list[dict]:
     return [dict(r) for r in rows]
 
 
-# ── Tracked task API ────────────────────────────
-
 def track_task(task_id: str, poll_domain: str, poll_action: str, poll_params: list = None) -> str:
-    """
-    Register a tracked task (owned by external service, polled on status query).
-    Returns task_id.
-    """
     _ensure_table()
     ts = int(time.time() * 1000)
     poll_info = json.dumps({
@@ -184,17 +164,13 @@ def track_task(task_id: str, poll_domain: str, poll_action: str, poll_params: li
     return task_id
 
 
-# ── Internal ────────────────────────────────────
-
 def _next_seq() -> int:
-    """Get next sequence number from DB max rowid."""
     db = _get_db()
     row = db.execute("SELECT MAX(rowid) FROM tasks").fetchone()
     return (row[0] or 0) + 1
 
 
 def _mark_stale():
-    """On startup, mark stale running tasks as error."""
     db = _get_db()
     db.execute(
         "UPDATE tasks SET state='error',error='service restarted',updated_at=? WHERE state='running'",
@@ -202,8 +178,6 @@ def _mark_stale():
     )
     db.commit()
 
-
-# ── Directive handlers ──────────────────────────
 
 from core.registry import directive
 
@@ -216,7 +190,6 @@ def task_status(params: list[str]) -> str:
     if task is None:
         return json.dumps({"status": "error", "reason": f"Task not found: {params[0]}"})
 
-    # Tracked mode: real-time poll on status query
     task_params = task.get("params", {})
     if isinstance(task_params, dict) and task_params.get("mode") == "tracked":
         if _dispatch_fn is None:
@@ -257,7 +230,6 @@ def task_list(params: list[str]) -> str:
 
 @directive("task", "track", domain_alias="任务", action_aliases={"track": "追踪"})
 def task_track(params: list[str]) -> str:
-    """Register a tracked task. task;track,<task_id>,<domain>,<action>,<param1>[,<param2>...]"""
     if len(params) < 4:
         return json.dumps({
             "status": "error",
@@ -283,14 +255,12 @@ def task_cancel(params: list[str]) -> str:
 
 
 def init_task_manager(sqlite_db_cfg):
-    """Initialize task manager with SQLite DB config."""
     global _db_file
     _db_file = sqlite_db_cfg.get("config") if isinstance(sqlite_db_cfg, dict) else str(sqlite_db_cfg)
     _ensure_table()
     _mark_stale()
 
 
-# Aliases for internal callers (e.g. bim-ifc handler)
 task_manager_register = register
 task_manager_track = track_task
 task_manager_update = update
