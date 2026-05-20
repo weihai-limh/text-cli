@@ -83,6 +83,14 @@ def install_files(name: str, meta: dict, runtime: str = "python", force: bool = 
             return False, f"文件复制失败: {e}"
         lines.append(f"文件部署完成: {name}_schema.json + whitelists/{name}_whitelist.json")
 
+    elif runtime == "path":
+        # Path packages: deploy path/ and knowledge/ directories (zero-knowledge)
+        _deploy_path_resources(pkg_dir, name, lines)
+
+    elif runtime == "aggregate":
+        # Aggregate packages: deploy route table JSON to A8-discovery/aggregate/
+        _deploy_aggregate_resources(pkg_dir, name, lines)
+
     else:
         lines.append("文件部署完成")
 
@@ -195,6 +203,67 @@ def _deploy_package_config(pkg_dir: pathlib.Path, name: str) -> tuple[bool, str]
     if parts:
         return True, "  " + " | ".join(parts)
     return True, ""
+
+
+def _deploy_path_resources(pkg_dir: pathlib.Path, name: str, lines: list[str]) -> None:
+    """Deploy path/ and knowledge/ directories for runtime=path packages.
+
+    path/*.json   → service/paths/<pkg_id>/
+    knowledge/*   → service/knowledge/<pkg_id>/
+    """
+    pkg_dir = pathlib.Path(pkg_dir)
+    path_src = pkg_dir / "path"
+    knowledge_src = pkg_dir / "knowledge"
+
+    deployed = []
+
+    if path_src.is_dir():
+        dst = _PROJECT / "service" / "paths" / name
+        dst.mkdir(parents=True, exist_ok=True)
+        for item in sorted(path_src.iterdir()):
+            if item.is_file():
+                if not (dst / item.name).exists():
+                    shutil.copy2(str(item), str(dst / item.name))
+                    deployed.append(f"path/{item.name}")
+
+    if knowledge_src.is_dir():
+        dst = _PROJECT / "service" / "knowledge" / name
+        dst.mkdir(parents=True, exist_ok=True)
+        for item in sorted(knowledge_src.rglob("*")):
+            if item.is_file():
+                rel = item.relative_to(knowledge_src)
+                dest = dst / rel
+                if not dest.exists():
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(str(item), str(dest))
+                    deployed.append(f"knowledge/{rel}")
+
+    lines.append(f"文件部署完成: {name}_schema.json")
+    if deployed:
+        lines.append(f"  path resources: {', '.join(deployed)}")
+
+
+def _deploy_aggregate_resources(pkg_dir: pathlib.Path, name: str, lines: list[str]) -> None:
+    """Deploy aggregate route-table JSON for runtime=aggregate packages.
+
+    *.json (route tables) → A8-discovery/aggregate/
+    """
+    pkg_dir = pathlib.Path(pkg_dir)
+    agg_dst = _PROJECT.parent / "A8-discovery" / "aggregate"
+    agg_dst.mkdir(parents=True, exist_ok=True)
+
+    deployed = []
+    for item in sorted(pkg_dir.glob("*.json")):
+        if item.name == "schema.json":
+            continue
+        dst = agg_dst / item.name
+        if not dst.exists():
+            shutil.copy2(str(item), str(dst))
+            deployed.append(item.name)
+
+    lines.append(f"aggregate 部署完成: {name}_schema.json")
+    if deployed:
+        lines.append(f"  route tables: {', '.join(deployed)}")
 
 
 def _check_binary(pkg_dir: pathlib.Path, meta: dict) -> tuple[bool, str]:
