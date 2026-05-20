@@ -22,6 +22,7 @@ from handlers.package_manager import PackageManagerHandlers
 
 _packages_dir = pathlib.Path(__file__).resolve().parent.parent / "packages"
 _discovered = []
+_discovered_classes = []
 
 if _packages_dir.is_dir():
     for _pkg_dir in sorted(_packages_dir.iterdir()):
@@ -35,12 +36,12 @@ if _packages_dir.is_dir():
         _name = _pkg_dir.name
         try:
             _mod = importlib.import_module(f"packages.{_name}.handler")
-            # Find the handler class (any public class ending with Handlers)
             for _attr in dir(_mod):
                 if _attr.endswith("Handlers") and not _attr.startswith("_"):
                     _cls = getattr(_mod, _attr)
                     globals()[_attr] = _cls
                     _discovered.append(_attr)
+                    _discovered_classes.append(_cls)
                     break
             else:
                 logger.warning("No Handlers class found in packages.%s.handler", _name)

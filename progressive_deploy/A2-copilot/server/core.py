@@ -395,3 +395,10 @@ class CopilotCore:
             except ValueError:
                 continue
         return None
+
+    def _get_mem_mb(self) -> float:
+        try:
+            import resource
+            return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
+        except (ImportError, AttributeError):
+            return 0.0
