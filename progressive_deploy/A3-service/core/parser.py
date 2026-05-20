@@ -8,8 +8,8 @@ DIRECTIVE_PATTERN = re.compile(
 
 _PREFIX_PATTERN = re.compile(r"^(指令|AI)")
 
-MAX_DIRECTIVE_LENGTH = 512
-MAX_PARAMS = 20
+MAX_DIRECTIVE_LENGTH = 2048
+MAX_PARAMS = 50
 
 
 @dataclass
@@ -34,6 +34,50 @@ class DirectiveParseError(Exception):
         super().__init__(message)
 
 
+def _split_params_json_aware(raw: str) -> list[str]:
+    """Split params by comma, respecting JSON brackets and string quotes."""
+    result = []
+    buf = []
+    depth = 0
+    in_string = False
+    escape = False
+    for ch in raw:
+        if escape:
+            buf.append(ch)
+            escape = False
+            continue
+        if ch == '\\':
+            buf.append(ch)
+            escape = True
+            continue
+        if ch == '"' and depth == 0:
+            in_string = not in_string
+            buf.append(ch)
+            continue
+        if in_string:
+            buf.append(ch)
+            continue
+        if ch in ('[', '{'):
+            depth += 1
+            buf.append(ch)
+            continue
+        if ch in (']', '}'):
+            depth -= 1
+            buf.append(ch)
+            continue
+        if ch == ',' and depth == 0:
+            val = ''.join(buf).strip()
+            if val:
+                result.append(val)
+            buf = []
+            continue
+        buf.append(ch)
+    val = ''.join(buf).strip()
+    if val:
+        result.append(val)
+    return result
+
+
 def parse_directive(prompt: str | None) -> ParsedDirective:
     if not prompt or not prompt.strip():
         raise DirectiveParseError("prompt is required")
@@ -55,10 +99,7 @@ def parse_directive(prompt: str | None) -> ParsedDirective:
 
     params: list[str] = []
     if raw_params:
-        for p in raw_params.split(","):
-            p = p.strip()
-            if p:
-                params.append(p)
+        params = _split_params_json_aware(raw_params)
 
     if len(params) > MAX_PARAMS:
         raise DirectiveParseError(
