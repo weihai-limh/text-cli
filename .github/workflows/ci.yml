@@ -129,6 +129,16 @@ jobs:
           fi
           echo "✓ p_text-cli.md (push): 纯追加，+$(( ${#NEW} - ${#OLD} )) bytes"
 
+      - name: Check p_text-cli.md UTF-8 encoding
+        run: |
+          if ! file .agents/p_text-cli.md | grep -q 'UTF-8'; then
+            echo "::error::.agents/p_text-cli.md is not UTF-8 encoded."
+            echo "::error::  The file was corrupted by a tool using wrong encoding (e.g. UTF-16 LE)."
+            echo "::error::  Restore from git history and re-append using Add-Content -Encoding UTF8."
+            exit 1
+          fi
+          echo "✓ p_text-cli.md: UTF-8 encoding OK"
+
   tcc-recalculate:
     name: TCC Mint Recalculate
     runs-on: ubuntu-latest
