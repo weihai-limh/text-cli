@@ -8,4 +8,6 @@ __pycache__/
 *.pyo
 
 # Workspace artifacts
+_work/
 memory/
+audit_tide_0519/
