@@ -1,9 +1,7 @@
 # text-cli Protocol Specification v1.2
 
-> 2026-05-17 — 协议从文本 RPC 格式升级为技能交付规范。
-> 新增：聚合指令、nocode 指令包、包生命周期（export/manifest）、管道闭包原则、service_manifest 白名单暴露。
-> 前缀变更：`指令:` 为过渡期中文前缀，未来仅保留 `AI:`。废弃从未实现的 `directive:` 前缀。
-> 废弃：旧 Schema 格式（prompt_template/trigger_keywords/directive_zh）——v1.2 统一为新格式。
+> 2026-05-20 — 新增：path/aggregate runtime、门面入口（text-cli;pro）、知识引擎（text-cli;nocode）、JSON感知参数拆分、handler_inits 约定、config部署机制。
+> 修复：credentials 格式统一为数组、步骤语法 directive→instruction、变量语法 `${}`→`{}`。
 
 ---
 
@@ -23,7 +21,7 @@ AI:<领域>;<动作>,<参数1>,<参数2>,...
 - 
 - **领域**：命名空间，规范名 ASCII，别名不限字符集。
 - **动作**：动词，规范名 ASCII，别名不限。
-- **参数**：逗号分隔，顺序固定。末位参数可为自由文本（含逗号）。
+- **参数**：逗号分隔，顺序固定。末位参数可为自由文本（含逗号）。参数中 JSON 数组/对象可能含逗号——实现层追踪括号深度 `{}` `[]` 和字符串引号 `""`，只在深度为 0 的逗号处拆分（`_split_params_json_aware()`）。
 
 ### 1.2 指令类型
 
@@ -144,7 +142,15 @@ GET /health
     "pip": ["requests>=2.28"],
     "tc_packages": ["task-manager", "quota-manage"]
   },
-  "credentials": {"tx": "sqlite"},
+  "credentials": [
+    {
+      "name": "xx_cloud_key",
+      "description_en": "API key for XX Cloud",
+      "description_cn": "XX云 API 密钥",
+      "storage": "a6_key_registry",
+      "register_cmd": "AI:key;register,xx_cloud_key,<key>,api_key"
+    }
+  ],
   "directives": [
     {
       "domain": "xx-cloud",
@@ -171,12 +177,13 @@ GET /health
 |------|------|------|
 | `id` | ✅ | 包唯一标识 |
 | `type` | ✅ | `"native"` / `"nocode"` / `"aggregate"` / `"path"` |
-| `runtime` | ✅ | `"python"` / `"node"` / `"mcp"` / `"cmd"` |
+| `runtime` | ✅ | `"python"` / `"node"` / `"mcp"` / `"cmd"` / `"path"` / `"aggregate"` |
 | `category` | ✅ | 分类标签 |
 | `locales` | ✅ | 多语言覆盖 |
 | `trust` | ✅ | `"internal"` / `"community"` / `"public"` |
 | `requires.pip` | 否 | Python 包依赖 |
 | `requires.tc_packages` | 否 | 指令包间依赖 |
+| `requires.modules` | 否 | `text_cli_modules/` 运行时依赖 |
 | `requires.binaries` | 否 | 系统二进制依赖 |
 | `credentials` | 否 | 需要的凭据（key name → source） |
 | `entry` | 否 | 公开端点 URL |
@@ -238,9 +245,9 @@ GET /health
   "output_schema": {"type": "picture"},
   "requires": ["map;geocode", "map;route", "xx-map;static-map"],
   "steps": [
-    {"id": "start", "directive": "map;geocode,${input}", "output_as": "start"},
-    {"id": "route", "directive": "map;route,{start.lat},{start.lon},{end.lat},{end.lon}", "output_as": "route"},
-    {"id": "map", "directive": "xx-map;static-map,{end.lat},{end.lon},14,600x400,...", "output_as": "map"}
+    {"id": "start", "instruction": "map;geocode,{input.address}", "output_as": "start"},
+    {"id": "route", "instruction": "map;route,{start.lat},{start.lon},{end.lat},{end.lon}", "output_as": "route"},
+    {"id": "map", "instruction": "xx-map;static-map,{end.lat},{end.lon},14,600x400,...", "output_as": "map"}
   ]
 }
 ```
@@ -292,8 +299,8 @@ GET /health
 ## 7. 版本管理
 
 - 当前版本 v1.2
-- v1.2 新增：聚合指令（§13）、nocode 指令包（§4.2 type 值域）、管道闭包原则（§9.1）、包生命周期导出（§10.3）、service_manifest 白名单（§10.5）
-- v1.2 废弃：旧 Schema 格式（prompt_template/trigger_keywords/directive_zh 字段）。运行时保留向后兼容，SPEC 正文中不再出现
+- v1.2 初始（2026-05-17）：聚合指令、nocode 指令包、包生命周期导出、管道闭包原则、service_manifest 白名单
+- v1.2 更新（2026-05-20）：runtime 新增 `"path"` `"aggregate"`、门面入口 `text-cli;pro`、知识引擎 `text-cli;nocode`、JSON 感知参数拆分、handler_inits 约定、config 部署机制、credentials 格式统一为数组、步骤语法修正
 
 ---
 
@@ -326,16 +333,17 @@ GET /health
 ```json
 {
   "id": "step_id",
-  "directive": "domain;action,${input},{prev.field}",
-  "output_as": "step_id"
+  "instruction": "domain;action,{input.key},{prev.field}",
+  "if": "{step.field} == 'NOMATCH'"
 }
 ```
 
 | 语法 | 含义 |
 |------|------|
-| `${input}` | 用户输入 |
+| `{input.key}` | 用户输入 JSON 中的 key 字段 |
 | `{step_id.field}` | 上一步输出的 JSON 字段（支持深度路径如 `{geo.poi.0.name}`） |
-| `output_as` | 捕获步骤输出为变量 |
+| `"if"` | 可选条件——条件为 false 时跳过此步骤 |
+| `"instruction"` | 要分派的 text-cli 指令模板 |
 
 ### 9.3 收敛模板
 
@@ -356,13 +364,27 @@ ai;infer,'只返回JSON如{"file":"根腐病.md"}'
 
 路径声明天然抗注入——`steps` 在 JSON 中固定，数据通过命名管道单向流动。注入载荷永远不会从数据位置逃脱到指令位置。
 
-### 9.6 技能发布
+### 9.6 门面入口
 
-```json
-text-cli;pro,<path_id>
+```
+text-cli;pro,<name>[,<input_json>]
 ```
 
-发布后路径获得 `skill;*` 调用入口，与原子指令平权。
+A9 门面层将短名称解析为执行目标。门面注册表 `service/config/pro_registry.json` 映射 name → target：
+
+```json
+{
+  "flower-care": {"type": "path", "path": "flower-care/diagnose.json"},
+  "map-geocode": {"type": "aggregate", "domain": "map", "action": "geocode"}
+}
+```
+
+| type | 行为 |
+|------|------|
+| `path` | 解析 `path` 字段 → 调度 `text-cli;path,<path_ref>,<input>` |
+| `aggregate` | 解析 `domain` + `action` → 调度 `domain;action,<params>` |
+
+门面指令与原子指令平权——调用方不感知背后的实现是单步还是多步。这是 A9 高级指令门面层的核心价值：**按服务领域数增长，而非按工具数增长。**
 
 ---
 
@@ -376,6 +398,16 @@ text-cli;install,<包名>
 
 安装流程：验证 schema.json → 安装依赖 → 复制 handler → 写入 handler_inits → 写入 manifest。重启后自动加载。
 
+`runtime` 字段决定安装器行为：
+
+| runtime | 安装器行为 |
+|---------|-----------|
+| `python` | 部署 handler.py + schema.json + text_cli_modules/ + config/ |
+| `path` | 部署 schema.json + path/*.json → `service/paths/<pkg>/` + knowledge/* → `service/knowledge/<pkg>/` |
+| `aggregate` | 部署 schema.json + 路由表 *.json → `A8-discovery/aggregate/` |
+
+若包含 `config/` 目录，安装器通过 `_deploy_package_config()` 自动复制到 `service/config/`，已存在文件跳过（不覆盖用户修改）。
+
 ### 10.2 指令包卸载
 
 ```
@@ -384,7 +416,19 @@ text-cli;uninstall,<包名>
 
 移除文件 + 清理 handler_inits 条目 + 清理 manifest。
 
-### 10.3 包生命周期导出
+### 10.3 handler_inits 参数约定
+
+`handler_inits.py` 中的 `arg_key` 决定传递给 `init_<pkg>_handler()` 的参数：
+
+| arg_key | 传递值 | 适用场景 |
+|---------|--------|---------|
+| `None` | 无参数 | 无外部依赖的纯处理包 |
+| `"project_root"` | `str`: 项目根路径 | 需要读 `config/*.json` 的包 |
+| `"db"` | `str`: SQLITE_DB_FILE 路径 | 需要 key_registry 的包 |
+| `"quota"` | `str`: quota.db 路径 | 配额管理包 |
+| `"db_dict"` | `str`: SQLITE_DB_PATH | 已废弃，使用 `"db"` 替代 |
+
+### 10.4 包生命周期导出
 
 ```
 text-cli;export,<包名>         → 单包导出
@@ -394,14 +438,19 @@ text-cli;packages              → 列出已安装包
 
 导出的包结构与安装格式一致，可被 `text-cli;install` 直接消费。
 
-### 10.4 指令查询与发现
+### 10.5 路径引擎、知识引擎与门面
 
 ```
-text-cli;query,<关键词>        → 搜索指令
-text-cli;path,<路径文件>       → 注册路径
+text-cli;path,<json_or_file>[,<input_json>]   → 执行路径步骤序列
+text-cli;nocode,<知识域>[,<文件>]              → 加载嵌入式知识文件
+text-cli;query,<关键词>                        → 搜索指令
 ```
 
-### 10.5 技能暴露控制
+`text-cli;path` 接收内联 JSON 步骤序列或指向 `service/paths/<pkg>/<file>.json` 的文件引用。用户输入通过 `{input.key}` 插值注入。
+
+`text-cli;nocode` 列出或读取 `service/knowledge/<domain>/` 下的 Markdown 知识文件。这些文件由 runtime=path 的包在安装时通过 `_deploy_path_resources()` 部署。
+
+### 10.6 技能暴露控制
 
 服务通过 `service_manifest.json` 声明对外暴露的指令：
 
@@ -411,7 +460,7 @@ text-cli;path,<路径文件>       → 注册路径
 
 白名单为空 = 全部暴露（向后兼容）。有内容时只暴露列出的条目。`/skill` 端点据此过滤输出。
 
-### 10.6 包清单跟踪
+### 10.7 包清单跟踪
 
 `installed_packages.json` 记录每个已安装包的来源、类型、文件列表和安装时间。支撑 export/uninstall/list 操作。
 
