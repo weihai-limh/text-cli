@@ -7,9 +7,9 @@
   },
   "security": {
     "path_whitelist": [
-      "/root/.openclaw/workspace/",
-      "/root/.openclaw/workspace/text-cli/",
-      "/root/.openclaw/workspace/tide-scripts/"
+      "${TEXT_CLI_HOME}/",
+      "${TEXT_CLI_HOME}/workspace/",
+      "${HOME}/"
     ],
     "operations": {
       "file;read": {
@@ -248,6 +248,33 @@
         "parameters": ["JSON源(文件路径或内联JSON)", "JSONPath(如$.key.sub)", "新值"],
         "parameters_en": ["source", "path", "new_value"],
         "returns": "rst_data.path, rst_data.old, rst_data.new, rst_data.wrote_to"
+      },
+      "text-cli;co-install": {
+        "level": "write",
+        "aliases": ["text-cli;co-install", "copilot;安装"],
+        "description": "安装 copilot 本地操作包到 packages/ 目录。专注本地操作类包（cmd/shell/terminal）。",
+        "description_en": "Install a copilot local-operation package to packages/. For local ops only (cmd/shell/terminal).",
+        "parameters": ["包名", "--force(可选)"],
+        "parameters_en": ["package_name", "--force(optional)"],
+        "returns": "rst_data.text = install result + package info"
+      },
+      "text-cli;co-uninstall": {
+        "level": "write",
+        "aliases": ["text-cli;co-uninstall", "copilot;卸载"],
+        "description": "卸除已安装的 copilot 本地操作包。",
+        "description_en": "Uninstall a copilot local-operation package.",
+        "parameters": ["包名"],
+        "parameters_en": ["package_name"],
+        "returns": "rst_data.text = uninstall confirmation"
+      },
+      "text-cli;co-list": {
+        "level": "read",
+        "aliases": ["text-cli;co-list", "copilot;已安装"],
+        "description": "列出 copilot 已安装的本地操作包。",
+        "description_en": "List installed copilot local-operation packages.",
+        "parameters": [],
+        "parameters_en": [],
+        "returns": "rst_data.text = package list"
       }
     }
   },
@@ -265,7 +292,7 @@
     }
   },
   "git": {
-    "workdir": "/root/.openclaw/workspace/text-cli/",
+    "workdir": "${TEXT_CLI_HOME}/workspace/",
     "remote_name": "origin"
   },
   "endpoint_info": {

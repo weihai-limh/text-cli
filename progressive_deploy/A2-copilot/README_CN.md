@@ -61,7 +61,37 @@ Skill Bridge 将 ClawHub skill 桥接为 text-cli 指令。
 ## 部署
 
 用户 merge A2-copilot/ 到本地系统后：
+
+### 启动前提
+
+1. **配置文件** — `server/auxiliary_config.json` 中的路径使用 `${VAR_NAME}` 占位符，启动时通过环境变量解析
+2. **运行时目录** — `data/`（路由偏好）、`whitelists/`（CLI 白名单）启动时自动创建
+3. **环境变量（必需）**
+
+| 变量 | 说明 | 示例 |
+|------|------|------|
+| `TEXT_CLI_HOME` | 项目根目录 | `/home/user/text-cli` |
+
+配置文件中以 `${...}` 形式引用环境变量，未被设置的环境变量会打印警告并使用空字符串。
+
+### 启动
+
+```bash
+cd server/
+python3 text-cli-copilot.py
+```
+
+服务监听 `127.0.0.1:20260`。
+
+### 验证
+
+```bash
+curl http://localhost:20260/health
+# {"status": "ok"}
+```
+
+### 后续
+
 1. `server/handlers/` 提供 5 个骨架 handler
-2. `server/packages/` 为空，通过 `AI:install,<包路径>` 安装所需包
-3. `text_cli_modules/media/` 为共享产出目录
-4. 启动 copilot 服务后即可使用骨架指令
+2. `server/packages/` 为空，通过 `AI:co-install,<包名>` 安装所需包
+3. 包安装后重启 copilot 激活新 handler

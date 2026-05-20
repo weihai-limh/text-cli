@@ -6,7 +6,6 @@ text-cli-copilot 核心 — 配置加载、指令解析、响应辅助、dispatc
 import json
 import os
 import re
-import resource
 import subprocess
 import time
 from fnmatch import fnmatch
@@ -46,7 +45,7 @@ def load_config(config_path: str) -> dict:
 # 指令解析器
 # ═══════════════════════════════════════════════════════════════
 
-PREFIXES = ['指令:', 'AI:', 'directive:']
+PREFIXES = ['指令:', 'AI:']
 
 
 def parse_instruction(prompt: str) -> dict | None:
@@ -152,6 +151,8 @@ class CopilotCore:
     def __init__(self, config_path: str):
         self.config = load_config(config_path)
         self.config_dir = Path(config_path).parent
+        (self.config_dir / 'data').mkdir(parents=True, exist_ok=True)
+        (self.config_dir / 'whitelists').mkdir(parents=True, exist_ok=True)
         self.token = self.config['server']['token']
         self.start_time = time.time()
         self._request_count = 0
@@ -312,8 +313,11 @@ class CopilotCore:
         adapter = mcp_cfg.get('adapter', 'passthrough')
 
         if adapter == 'git_push':
-            from handlers.github_adapter import adapt_git_push
-            return adapt_git_push(params, mcp_cfg, workdir=self.git_workdir)
+            try:
+                from handlers.github_adapter import adapt_git_push
+                return adapt_git_push(params, mcp_cfg, workdir=self.git_workdir)
+            except ImportError:
+                return {"error": "github_adapter not installed"}
 
         if adapter == 'passthrough':
             param_names = mcp_cfg.get('param_names', [])
@@ -391,6 +395,3 @@ class CopilotCore:
             except ValueError:
                 continue
         return None
-
-    def _get_mem_mb(self) -> float:
-        return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024

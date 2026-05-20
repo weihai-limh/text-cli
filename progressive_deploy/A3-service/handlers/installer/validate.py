@@ -13,28 +13,42 @@ ACCEPTED_RUNTIMES = frozenset({"python", "node", "js", "mcp", "cmd"})
 # Domains that MUST NOT be installed as packages (system reserved)
 SYSTEM_DOMAINS = frozenset({"text-cli"})
 
-# Default search paths for package sources
-DEFAULT_SOURCE_DIRS = [
-    pathlib.Path(os.path.expanduser("~/.openclaw/workspace/tide-scripts/text-cliV1")),
-]
+
+def _get_source_dirs() -> list[pathlib.Path]:
+    raw = os.environ.get("TEXT_CLI_PACKAGE_SOURCE_DIRS", "")
+    if raw:
+        return [pathlib.Path(d.strip()) for d in raw.split(os.pathsep) if d.strip()]
+    return [
+        pathlib.Path(os.environ.get("TEXT_CLI_HOME", str(pathlib.Path.home() / "text-cli"))) / "service" / "packages",
+    ]
 
 
 def _find_package_dir(name: str, source_dirs: list[pathlib.Path] = None):
-    """Locate a package directory by name across source dirs."""
+    """Locate a package directory by name across source dirs. Recursively searches subdirectories, matching by directory name or schema id."""
     if source_dirs is None:
-        source_dirs = DEFAULT_SOURCE_DIRS
+        source_dirs = _get_source_dirs()
     for sdir in source_dirs:
-        candidate = sdir / name
-        if candidate.is_dir():
-            return candidate
+        if not sdir.is_dir():
+            continue
+        for candidate in sdir.rglob("schema.json"):
+            if candidate.parent.name == name:
+                return candidate.parent
+            try:
+                schema = json.loads(candidate.read_text(encoding="utf-8"))
+                if schema.get("id") == name:
+                    return candidate.parent
+            except Exception:
+                pass
     return None
 
 
 def _check_mcporter_server(server_name: str) -> tuple[bool, str]:
-    """Verify an MCP server is configured in mcporter."""
+    """Verify an MCP server is configured in mcporter. Warns but does not block install if mcporter unavailable."""
     import subprocess
-    # mcporter config is in workspace, not service dir
-    mcporter_config = os.path.expanduser("~/.openclaw/workspace/config/mcporter.json")
+    mcporter_config = os.environ.get(
+        "MCPORTER_CONFIG_PATH",
+        str(pathlib.Path.home() / ".openclaw" / "workspace" / "config" / "mcporter.json"),
+    )
     try:
         result = subprocess.run(
             ["mcporter", "--config", mcporter_config, "list", server_name],
@@ -42,9 +56,11 @@ def _check_mcporter_server(server_name: str) -> tuple[bool, str]:
         )
         if result.returncode == 0 and "function" in result.stdout:
             return True, "ok"
-        return False, f"MCP server '{server_name}' not configured or unreachable in mcporter"
+        return True, f"mcporter: server '{server_name}' not configured — MCP dispatch may fail"
     except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
-        return False, f"Cannot check MCP server '{server_name}': {e}"
+        if isinstance(e, FileNotFoundError):
+            return True, "mcporter CLI not available — MCP dispatch may fail"
+        return True, f"mcporter check skipped ({e}) — MCP dispatch may fail"
 
 
 def validate_package(name: str, source_dirs: list[pathlib.Path] = None) -> tuple[bool, str, Optional[dict]]:
@@ -127,12 +143,11 @@ def validate_package(name: str, source_dirs: list[pathlib.Path] = None) -> tuple
         meta["handler_path"] = None  # MCP has no local handler
 
     elif runtime == "node":
-        # Node.js packages require handler.js
-        handler_path = pkg_dir / "handler.js"
+        entry = schema.get("entry", "handler.js")
+        handler_path = pkg_dir / entry
         if not handler_path.is_file():
-            return False, f"包 \"{name}\" (runtime=node) 缺少 handler.js", None
+            return False, f"包 \"{name}\" (runtime=node) 缺少 {entry}", None
         meta["handler_path"] = str(handler_path)
-        # package.json optional for npm dependencies
         pkg_json = pkg_dir / "package.json"
         if pkg_json.is_file():
             meta["npm_dir"] = str(pkg_dir)

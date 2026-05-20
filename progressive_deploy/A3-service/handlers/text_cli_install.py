@@ -109,6 +109,11 @@ def text_cli_install(params: list[str]) -> str:
 
     result = "\n".join(lines)
 
+    if msg and "\n" in msg:
+        extra = "\n".join(msg.split("\n")[1:])
+        if extra.strip():
+            result += f"\n{extra}"
+
     # Append secrets warnings
     if secrets_warnings:
         result += "\n\n" + secrets_warnings

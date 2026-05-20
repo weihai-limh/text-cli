@@ -27,6 +27,17 @@ LOG_LEVEL = os.getenv("LOG_LEVEL", "info").upper()
 logging.basicConfig(level=getattr(logging, LOG_LEVEL, logging.INFO))
 logger = logging.getLogger(__name__)
 
+
+def _resolve_config_path(path: str) -> str:
+    if os.path.exists(path):
+        return path
+    example_path = path.replace('.json', '.example.json')
+    if os.path.exists(example_path):
+        logger.info("Using example config: %s", example_path)
+        return example_path
+    return path
+
+
 SCHEMA_PATH = os.getenv(
     "SCHEMA_PATH",
     str(project_root / "config" / "text_cli_schema.json"),
@@ -183,7 +194,8 @@ def _load_schema():
         logger.warning("Schema not found: %s", SCHEMA_PATH)
         _schema = {}
         return
-    with open(SCHEMA_PATH, "r", encoding="utf-8") as f:
+    schema_path = _resolve_config_path(SCHEMA_PATH)
+    with open(schema_path, "r", encoding="utf-8") as f:
         _schema = json.load(f)
     logger.info("Loaded %d directives from %s", len(_schema), SCHEMA_PATH)
     # 从 schema 派生 MCP 路由表（与 copilot _build_mcp_registry 同构）
@@ -194,7 +206,7 @@ def _load_schema():
 def _load_copilot_token():
     global _copilot_token
     try:
-        route_path = os.path.join(os.path.dirname(__file__), "config", "proxy_routes.json")
+        route_path = _resolve_config_path(os.path.join(os.path.dirname(__file__), "config", "proxy_routes.json"))
         with open(route_path, "r") as f:
             routes = json.load(f)
         # 从任一路由取 copilot token
@@ -212,8 +224,11 @@ async def lifespan(app: FastAPI):
     import handlers  # noqa: F401 — triggers auto-registration
     _load_copilot_token()
     _load_schema()
-    from core.stream_subscriber_registry import init_subscribers
-    init_subscribers()
+    try:
+        from core.stream_subscriber_registry import init_subscribers
+        init_subscribers()
+    except ImportError:
+        logger.info("stream_subscriber_registry not available, skipping")
     registered = get_registered_directives()
     logger.info("Registered handlers: %s", registered)
     yield
@@ -260,9 +275,6 @@ async def health(request: Request):
 
     if auth.allowed:
         # Authenticated: full capabilities snapshot
-        from packages.skill_endpoint.handler import _load_path_schemas, _load_exposure, _filter_exposed
-        packages = [s.get("id", "") for s in _load_path_schemas() if s.get("id")]
-        # Also collect installed packages from schema dir
         installed = []
         schema_dir = __import__('pathlib').Path(__file__).parent / "handlers" / "schema"
         for sf in sorted(schema_dir.glob("*_schema.json")):
@@ -584,8 +596,11 @@ async def copilot_proxy(request: Request, rest: str):
 
 # ── Webhook 路由 ──
 
-from webhook import router as webhook_router
-app.include_router(webhook_router, prefix="/webhook")
+try:
+    from webhook import router as webhook_router
+    app.include_router(webhook_router, prefix="/webhook")
+except ImportError:
+    logger.info("webhook module not installed, /webhook endpoint disabled")
 
 
 if __name__ == "__main__":
