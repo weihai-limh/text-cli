@@ -1,0 +1,340 @@
+{
+  "sample_echo": {
+    "id": "sample_echo",
+    "name": "参数回显",
+    "category": "示例领域",
+    "description": "将传入的参数原样返回，用于测试服务连通性",
+    "directive": "指令:示例领域;回显",
+    "parameters": [
+      {
+        "name": "text",
+        "type": "string",
+        "examples": [
+          "hello"
+        ]
+      }
+    ],
+    "prompt_template": "指令:示例领域;回显,{text}",
+    "trigger_keywords": [
+      "回显",
+      "echo",
+      "测试"
+    ],
+    "response_type": "text",
+    "response_example": {
+      "rst_types": "text",
+      "rst_data": {
+        "text": "回显结果: hello"
+      }
+    }
+  },
+  "sample_greet": {
+    "id": "sample_greet",
+    "name": "问候",
+    "category": "示例领域",
+    "description": "根据传入的名字返回问候语",
+    "directive": "指令:示例领域;问候",
+    "parameters": [
+      {
+        "name": "name",
+        "type": "string",
+        "examples": [
+          "张三"
+        ]
+      }
+    ],
+    "prompt_template": "指令:示例领域;问候,{name}",
+    "trigger_keywords": [
+      "问候",
+      "你好",
+      "打招呼"
+    ],
+    "response_type": "text",
+    "response_example": {
+      "rst_types": "text",
+      "rst_data": {
+        "text": "你好, 张三!"
+      }
+    }
+  },
+  "sample_list": {
+    "id": "sample_list",
+    "name": "指令列表",
+    "category": "示例领域",
+    "description": "列出当前服务提供的所有示例指令",
+    "directive": "指令:示例领域;列表",
+    "parameters": [],
+    "prompt_template": "指令:示例领域;列表",
+    "trigger_keywords": [
+      "列表",
+      "有哪些指令",
+      "帮助"
+    ],
+    "response_type": "text",
+    "response_example": {
+      "rst_types": "text",
+      "rst_data": {
+        "text": "示例指令列表:\n- 回显: 回显参数\n- 问候: 问候指定名称\n- 列表: 显示此列表"
+      }
+    }
+  },
+  "tencent-maps_action_geocode": {
+    "id": "tencent-maps_action_geocode",
+    "name": "geocode（地址解析）",
+    "category": "地图",
+    "description": "Convert address to lat/lng;将包含省市区的地址转换为经纬度",
+    "directive": "AI:tencentmap;geocode",
+    "directive_zh": "AI:腾讯地图;地址解析",
+    "parameters": [
+      {
+        "name": "address",
+        "type": "string",
+        "description": "地址"
+      }
+    ],
+    "prompt_template": "AI:tencentmap;geocode,{address}",
+    "trigger_keywords": [
+      "地址解析",
+      "经纬度",
+      "坐标",
+      "地理编码",
+      "geocode",
+      "latlng",
+      "coordinates"
+    ],
+    "response_type": "text",
+    "routing": {
+      "type": "mcp",
+      "backends": [
+        {
+          "type": "mcp",
+          "server": "tencent-maps",
+          "tool": "geocoder",
+          "adapter": "passthrough",
+          "timeout_ms": 30000,
+          "param_names": [
+            "address"
+          ]
+        }
+      ]
+    }
+  },
+  "tencent-maps_action_driving_route": {
+    "id": "tencent-maps_action_driving_route",
+    "name": "driving_route（驾车路线）",
+    "category": "地图",
+    "description": "Plan driving route from origin to destination;驾车路线规划，支持路况偏好",
+    "directive": "AI:tencentmap;driving_route",
+    "directive_zh": "AI:腾讯地图;驾车路线",
+    "parameters": [
+      {
+        "name": "from",
+        "type": "string",
+        "description": "起点"
+      },
+      {
+        "name": "to",
+        "type": "string",
+        "description": "终点"
+      }
+    ],
+    "prompt_template": "AI:tencentmap;driving_route,{from},{to}",
+    "trigger_keywords": [
+      "驾车",
+      "开车",
+      "路线规划",
+      "导航",
+      "driving",
+      "car route",
+      "navigation"
+    ],
+    "response_type": "text",
+    "routing": {
+      "type": "mcp",
+      "backends": [
+        {
+          "type": "mcp",
+          "server": "tencent-maps",
+          "tool": "directionDriving",
+          "adapter": "passthrough",
+          "timeout_ms": 30000,
+          "param_names": [
+            "from",
+            "to"
+          ]
+        }
+      ]
+    }
+  },
+  "tencent-maps_action_weather": {
+    "id": "tencent-maps_action_weather",
+    "name": "weather（天气查询）",
+    "category": "地图",
+    "description": "Query weather by adcode or location;根据行政区划代码或位置查询天气",
+    "directive": "AI:tencentmap;weather",
+    "directive_zh": "AI:腾讯地图;天气查询",
+    "parameters": [
+      {
+        "name": "adcode",
+        "type": "string",
+        "description": "行政区划代码"
+      },
+      {
+        "name": "type",
+        "type": "string",
+        "description": "预报类型"
+      },
+      {
+        "name": "location",
+        "type": "string",
+        "description": "位置"
+      }
+    ],
+    "prompt_template": "AI:tencentmap;weather,{adcode},{type},{location}",
+    "trigger_keywords": [
+      "天气",
+      "气温",
+      "湿度",
+      "下雨",
+      "晴天",
+      "weather",
+      "temperature",
+      "forecast"
+    ],
+    "response_type": "text",
+    "routing": {
+      "type": "mcp",
+      "backends": [
+        {
+          "type": "mcp",
+          "server": "tencent-maps",
+          "tool": "weather",
+          "adapter": "passthrough",
+          "timeout_ms": 30000,
+          "param_names": [
+            "adcode",
+            "type",
+            "location"
+          ]
+        }
+      ]
+    }
+  },
+  "antv_action_line_chart": {
+    "id": "antv_action_line_chart",
+    "name": "line（折线图）",
+    "category": "蚂蚁图表",
+    "description": "Generate line chart for time series and trends;生成折线图，展示时序变化趋势",
+    "directive": "AI:antvchart;line",
+    "directive_zh": "AI:蚂蚁图表;折线图",
+    "parameters": [
+      {
+        "name": "config",
+        "type": "json",
+        "description": "图表配置"
+      }
+    ],
+    "prompt_template": "AI:antvchart;line,{config}",
+    "trigger_keywords": [
+      "折线图",
+      "趋势图",
+      "时间序列",
+      "走势",
+      "变化",
+      "line chart",
+      "trend line",
+      "time series"
+    ],
+    "response_type": "text",
+    "routing": {
+      "type": "mcp",
+      "backends": [
+        {
+          "type": "mcp",
+          "server": "antv",
+          "tool": "generate_line_chart",
+          "adapter": "json_parse",
+          "timeout_ms": 30000
+        }
+      ]
+    }
+  },
+  "antv_action_pie_chart": {
+    "id": "antv_action_pie_chart",
+    "name": "pie（饼图）",
+    "category": "蚂蚁图表",
+    "description": "Generate pie chart for proportion comparison;生成饼图，展示占比分布",
+    "directive": "AI:antvchart;pie",
+    "directive_zh": "AI:蚂蚁图表;饼图",
+    "parameters": [
+      {
+        "name": "config",
+        "type": "json",
+        "description": "图表配置"
+      }
+    ],
+    "prompt_template": "AI:antvchart;pie,{config}",
+    "trigger_keywords": [
+      "饼图",
+      "圆饼图",
+      "占比",
+      "比例",
+      "百分比",
+      "pie chart",
+      "donut chart",
+      "proportion"
+    ],
+    "response_type": "text",
+    "routing": {
+      "type": "mcp",
+      "backends": [
+        {
+          "type": "mcp",
+          "server": "antv",
+          "tool": "generate_pie_chart",
+          "adapter": "json_parse",
+          "timeout_ms": 30000
+        }
+      ]
+    }
+  },
+  "antv_action_scatter_chart": {
+    "id": "antv_action_scatter_chart",
+    "name": "scatter（散点图）",
+    "category": "蚂蚁图表",
+    "description": "Generate scatter chart for correlation and distribution;生成散点图，展示变量相关性",
+    "directive": "AI:antvchart;scatter",
+    "directive_zh": "AI:蚂蚁图表;散点图",
+    "parameters": [
+      {
+        "name": "config",
+        "type": "json",
+        "description": "图表配置"
+      }
+    ],
+    "prompt_template": "AI:antvchart;scatter,{config}",
+    "trigger_keywords": [
+      "散点图",
+      "散点",
+      "相关性",
+      "回归",
+      "气泡图",
+      "scatter chart",
+      "scatter plot",
+      "bubble chart"
+    ],
+    "response_type": "text",
+    "routing": {
+      "type": "mcp",
+      "backends": [
+        {
+          "type": "mcp",
+          "server": "antv",
+          "tool": "generate_scatter_chart",
+          "adapter": "json_parse",
+          "timeout_ms": 30000
+        }
+      ]
+    }
+  }
+}
