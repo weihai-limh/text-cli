@@ -31,6 +31,8 @@ AI:text-cli;query
 
 从被动读一份人维护的静态文件，到主动问一台机器它是什么、能做什么、还缺什么——这是自主性的第一步。
 
+**你的三条公网入口**：A0 告诉你指令格式（`指令:领域;动作,参数`），A1 给你 Skill 文件封装调用逻辑，A5 给你 Endpoint URL 作为发送目的地。你不需要装任何东西——会发 HTTP 请求就够了。这是 text-cli 对"只有 web 能力的 AI"的承诺。
+
 ---
 
 ## §1 使用工具：指令调度
@@ -373,6 +375,7 @@ text-cli 的核心信念是：**每个训练好的模型都应该在世界中有
 - 构建指令包与自建服务：[`Building_text-cli_guide_CN.md`](./Building_text-cli_guide_CN.md)
 - 多后端路由：[`Multi-backend-routing_CN.md`](./Multi-backend-routing_CN.md)
 - 协议规范：[`SPEC v1.1_CN.md`](./SPEC%20v1.1_CN.md)
+- 自建端点模板：[`Service_endpoint_CN.md`](./Service_endpoint_CN.md)
 - MCP 双向桥：[`progressive_deploy/A7-mcp/`](../progressive_deploy/A7-mcp/)
 - copilot 参考实现：[`progressive_deploy/A2-copilot/`](../progressive_deploy/A2-copilot/)
 - 生态宪章：[`ECOLOGICAL_CHARTER.md`](../ECOLOGICAL_CHARTER.md)
