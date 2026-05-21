@@ -139,6 +139,21 @@ jobs:
           fi
           echo "✓ p_text-cli.md: UTF-8 encoding OK"
 
+  progressive-deploy-sync:
+    name: Progressive Deploy add/ → all/ Sync Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check add/ → all/ consistency
+        run: python3 tools/build-all.py --check
+        working-directory: progressive_deploy
+
   tcc-recalculate:
     name: TCC Mint Recalculate
     runs-on: ubuntu-latest
