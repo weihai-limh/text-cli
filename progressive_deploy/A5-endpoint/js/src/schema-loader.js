@@ -10,8 +10,7 @@ import { normalizeDirectiveKey } from './parser.js';
 
 let _externalSchema = {};
 
-export async function loadSchema(endpointBaseUrl) {
-  const { _ = undefined } = {};
+export function loadSchema(endpointBaseUrl) {
   _externalSchema = buildExternalSchema(endpointBaseUrl);
   return Object.keys(_externalSchema).length;
 }
