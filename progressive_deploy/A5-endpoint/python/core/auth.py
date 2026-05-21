@@ -1,9 +1,40 @@
+import os
 import hashlib
 import time
 import logging
 from core.database import query_db, execute_db
 
 logger = logging.getLogger(__name__)
+
+_registered_prefixes = None
+_blocked_prefixes = None
+
+
+def _load_st_prefixes():
+    global _registered_prefixes, _blocked_prefixes
+    raw_reg = os.getenv("A3_REGISTERED_PREFIXES", "")
+    _registered_prefixes = set(p.strip() for p in raw_reg.split(",") if p.strip())
+    raw_blk = os.getenv("ST_PREFIX_BLACKLIST", "")
+    _blocked_prefixes = set(p.strip() for p in raw_blk.split(",") if p.strip())
+
+
+def update_registered_prefixes(prefixes: set[str]):
+    global _registered_prefixes
+    _registered_prefixes = prefixes
+
+
+def is_st_prefix_blocked(prefix: str) -> bool:
+    if _blocked_prefixes is None:
+        _load_st_prefixes()
+    return prefix in _blocked_prefixes
+
+
+def is_st_prefix_registered(prefix: str) -> bool:
+    if _registered_prefixes is None:
+        _load_st_prefixes()
+    if not _registered_prefixes:
+        return True
+    return prefix in _registered_prefixes
 
 _token_bucket: dict[str, list[float]] = {}
 

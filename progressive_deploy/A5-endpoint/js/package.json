@@ -6,8 +6,7 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "test": "vitest run",
-    "seed": "node scripts/seed-schema.js"
+    "test": "vitest run"
   },
   "devDependencies": {
     "wrangler": "^4.14.0",
