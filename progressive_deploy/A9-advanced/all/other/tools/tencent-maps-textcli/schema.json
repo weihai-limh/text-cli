@@ -1,0 +1,656 @@
+{
+  "tencent-maps_action_geocode": {
+    "id": "tencent-maps_action_geocode",
+    "name": "geocode（地址解析）",
+    "category": "地图",
+    "description": "Convert address to lat/lng;将包含省市区的地址转换为经纬度",
+    "directive": "AI:map;geocode",
+    "directive_zh": "AI:地图;地址解析",
+    "parameters": [
+      {
+        "name": "address",
+        "type": "string",
+        "description": "地址"
+      }
+    ],
+    "prompt_template": "AI:map;geocode,{address}",
+    "trigger_keywords": [
+      "地址解析",
+      "经纬度",
+      "坐标",
+      "地理编码",
+      "geocode",
+      "latlng",
+      "coordinates"
+    ],
+    "response_type": "text",
+    "routing": {
+      "type": "mcp",
+      "backends": [
+        {
+          "type": "mcp",
+          "server": "tencent-maps",
+          "tool": "geocoder",
+          "adapter": "passthrough",
+          "timeout_ms": 30000
+        }
+      ]
+    }
+  },
+  "tencent-maps_action_reverse_geocode": {
+    "id": "tencent-maps_action_reverse_geocode",
+    "name": "reverse_geocode（逆地址解析）",
+    "category": "地图",
+    "description": "Convert lat/lng to address;将经纬度转换为结构化地址",
+    "directive": "AI:map;reverse_geocode",
+    "directive_zh": "AI:地图;逆地址解析",
+    "parameters": [
+      {
+        "name": "location",
+        "type": "string",
+        "description": "经纬度"
+      }
+    ],
+    "prompt_template": "AI:map;reverse_geocode,{location}",
+    "trigger_keywords": [
+      "逆地址",
+      "反查地址",
+      "坐标转地址",
+      "经纬度转地址",
+      "reverse geocode",
+      "location to address"
+    ],
+    "response_type": "text",
+    "routing": {
+      "type": "mcp",
+      "backends": [
+        {
+          "type": "mcp",
+          "server": "tencent-maps",
+          "tool": "reverseGeocoder",
+          "adapter": "passthrough",
+          "timeout_ms": 30000
+        }
+      ]
+    }
+  },
+  "tencent-maps_action_ip_location": {
+    "id": "tencent-maps_action_ip_location",
+    "name": "ip_location（IP定位）",
+    "category": "地图",
+    "description": "Get location by IP address;通过IP地址获取当前位置",
+    "directive": "AI:map;ip_location",
+    "directive_zh": "AI:地图;IP定位",
+    "parameters": [
+      {
+        "name": "ip",
+        "type": "string",
+        "description": "IP地址"
+      }
+    ],
+    "prompt_template": "AI:map;ip_location,{ip}",
+    "trigger_keywords": [
+      "IP定位",
+      "IP地址",
+      "IP归属地",
+      "ip location",
+      "geoip",
+      "ip lookup"
+    ],
+    "response_type": "text",
+    "routing": {
+      "type": "mcp",
+      "backends": [
+        {
+          "type": "mcp",
+          "server": "tencent-maps",
+          "tool": "ipLocation",
+          "adapter": "passthrough",
+          "timeout_ms": 30000
+        }
+      ]
+    }
+  },
+  "tencent-maps_action_place_search": {
+    "id": "tencent-maps_action_place_search",
+    "name": "place_search（地点搜索）",
+    "category": "地图",
+    "description": "Search places by keyword and region;按关键词和区域搜索地点",
+    "directive": "AI:map;place_search",
+    "directive_zh": "AI:地图;地点搜索",
+    "parameters": [
+      {
+        "name": "keyword",
+        "type": "string",
+        "description": "关键词"
+      },
+      {
+        "name": "region",
+        "type": "string",
+        "description": "区域"
+      }
+    ],
+    "prompt_template": "AI:map;place_search,{keyword},{region}",
+    "trigger_keywords": [
+      "地点搜索",
+      "搜索地点",
+      "查找",
+      "附近",
+      "place search",
+      "poi search",
+      "find place"
+    ],
+    "response_type": "text",
+    "routing": {
+      "type": "mcp",
+      "backends": [
+        {
+          "type": "mcp",
+          "server": "tencent-maps",
+          "tool": "placeSuggestion",
+          "adapter": "passthrough",
+          "timeout_ms": 30000
+        }
+      ]
+    }
+  },
+  "tencent-maps_action_nearby_search": {
+    "id": "tencent-maps_action_nearby_search",
+    "name": "nearby_search（周边搜索）",
+    "category": "地图",
+    "description": "Search places near a location;搜索指定位置周边的地点",
+    "directive": "AI:map;nearby_search",
+    "directive_zh": "AI:地图;周边搜索",
+    "parameters": [
+      {
+        "name": "keyword",
+        "type": "string",
+        "description": "关键词"
+      },
+      {
+        "name": "location",
+        "type": "string",
+        "description": "位置"
+      }
+    ],
+    "prompt_template": "AI:map;nearby_search,{keyword},{location}",
+    "trigger_keywords": [
+      "周边搜索",
+      "附近",
+      "周边",
+      "附近搜索",
+      "nearby",
+      "around",
+      "near me"
+    ],
+    "response_type": "text",
+    "routing": {
+      "type": "mcp",
+      "backends": [
+        {
+          "type": "mcp",
+          "server": "tencent-maps",
+          "tool": "placeSearchNearby",
+          "adapter": "passthrough",
+          "timeout_ms": 30000
+        }
+      ]
+    }
+  },
+  "tencent-maps_action_place_detail": {
+    "id": "tencent-maps_action_place_detail",
+    "name": "place_detail（地点详情）",
+    "category": "地图",
+    "description": "Get detailed info of a place by ID;通过地点ID获取详细信息",
+    "directive": "AI:map;place_detail",
+    "directive_zh": "AI:地图;地点详情",
+    "parameters": [
+      {
+        "name": "id",
+        "type": "string",
+        "description": "地点ID"
+      }
+    ],
+    "prompt_template": "AI:map;place_detail,{id}",
+    "trigger_keywords": [
+      "地点详情",
+      "详细信息",
+      "查看地点",
+      "POI详情",
+      "place detail",
+      "poi detail",
+      "place info"
+    ],
+    "response_type": "text",
+    "routing": {
+      "type": "mcp",
+      "backends": [
+        {
+          "type": "mcp",
+          "server": "tencent-maps",
+          "tool": "placeDetail",
+          "adapter": "passthrough",
+          "timeout_ms": 30000
+        }
+      ]
+    }
+  },
+  "tencent-maps_action_along_route": {
+    "id": "tencent-maps_action_along_route",
+    "name": "along_route（沿途搜索）",
+    "category": "地图",
+    "description": "Search places along a route;在指定路线沿途搜索地点",
+    "directive": "AI:map;along_route",
+    "directive_zh": "AI:地图;沿途搜索",
+    "parameters": [
+      {
+        "name": "keyword",
+        "type": "string",
+        "description": "关键词"
+      },
+      {
+        "name": "route_id",
+        "type": "string",
+        "description": "路线ID"
+      }
+    ],
+    "prompt_template": "AI:map;along_route,{keyword},{route_id}",
+    "trigger_keywords": [
+      "沿途",
+      "沿途搜索",
+      "路线搜索",
+      "途经",
+      "along route",
+      "on the way",
+      "route search"
+    ],
+    "response_type": "text",
+    "routing": {
+      "type": "mcp",
+      "backends": [
+        {
+          "type": "mcp",
+          "server": "tencent-maps",
+          "tool": "placeAlongby",
+          "adapter": "passthrough",
+          "timeout_ms": 30000
+        }
+      ]
+    }
+  },
+  "tencent-maps_action_driving_route": {
+    "id": "tencent-maps_action_driving_route",
+    "name": "driving_route（驾车路线）",
+    "category": "地图",
+    "description": "Plan driving route from origin to destination;驾车路线规划，支持路况偏好",
+    "directive": "AI:map;driving_route",
+    "directive_zh": "AI:地图;驾车路线",
+    "parameters": [
+      {
+        "name": "from",
+        "type": "string",
+        "description": "起点"
+      },
+      {
+        "name": "to",
+        "type": "string",
+        "description": "终点"
+      }
+    ],
+    "prompt_template": "AI:map;driving_route,{from},{to}",
+    "trigger_keywords": [
+      "驾车",
+      "开车",
+      "路线规划",
+      "导航",
+      "driving",
+      "car route",
+      "navigation"
+    ],
+    "response_type": "text",
+    "routing": {
+      "type": "mcp",
+      "backends": [
+        {
+          "type": "mcp",
+          "server": "tencent-maps",
+          "tool": "directionDriving",
+          "adapter": "passthrough",
+          "timeout_ms": 30000
+        }
+      ]
+    }
+  },
+  "tencent-maps_action_bicycling_route": {
+    "id": "tencent-maps_action_bicycling_route",
+    "name": "bicycling_route（骑行路线）",
+    "category": "地图",
+    "description": "Plan cycling route;自行车骑行路线规划",
+    "directive": "AI:map;bicycling_route",
+    "directive_zh": "AI:地图;骑行路线",
+    "parameters": [
+      {
+        "name": "from",
+        "type": "string",
+        "description": "起点"
+      },
+      {
+        "name": "to",
+        "type": "string",
+        "description": "终点"
+      }
+    ],
+    "prompt_template": "AI:map;bicycling_route,{from},{to}",
+    "trigger_keywords": [
+      "骑行",
+      "自行车",
+      "骑车",
+      "骑行路线",
+      "bicycling",
+      "cycling",
+      "bike route"
+    ],
+    "response_type": "text",
+    "routing": {
+      "type": "mcp",
+      "backends": [
+        {
+          "type": "mcp",
+          "server": "tencent-maps",
+          "tool": "directionBicycling",
+          "adapter": "passthrough",
+          "timeout_ms": 30000
+        }
+      ]
+    }
+  },
+  "tencent-maps_action_walking_route": {
+    "id": "tencent-maps_action_walking_route",
+    "name": "walking_route（步行路线）",
+    "category": "地图",
+    "description": "Plan walking route;步行路线规划",
+    "directive": "AI:map;walking_route",
+    "directive_zh": "AI:地图;步行路线",
+    "parameters": [
+      {
+        "name": "from",
+        "type": "string",
+        "description": "起点"
+      },
+      {
+        "name": "to",
+        "type": "string",
+        "description": "终点"
+      }
+    ],
+    "prompt_template": "AI:map;walking_route,{from},{to}",
+    "trigger_keywords": [
+      "步行",
+      "走路",
+      "徒步",
+      "walking",
+      "on foot",
+      "pedestrian"
+    ],
+    "response_type": "text",
+    "routing": {
+      "type": "mcp",
+      "backends": [
+        {
+          "type": "mcp",
+          "server": "tencent-maps",
+          "tool": "directionWalking",
+          "adapter": "passthrough",
+          "timeout_ms": 30000
+        }
+      ]
+    }
+  },
+  "tencent-maps_action_transit_route": {
+    "id": "tencent-maps_action_transit_route",
+    "name": "transit_route（公交路线）",
+    "category": "地图",
+    "description": "Plan public transit route;公共交通路线规划，支持地铁优先、少换乘等偏好",
+    "directive": "AI:map;transit_route",
+    "directive_zh": "AI:地图;公交路线",
+    "parameters": [
+      {
+        "name": "from",
+        "type": "string",
+        "description": "起点"
+      },
+      {
+        "name": "policy",
+        "type": "string",
+        "description": "策略"
+      },
+      {
+        "name": "to",
+        "type": "string",
+        "description": "终点"
+      }
+    ],
+    "prompt_template": "AI:map;transit_route,{from},{policy},{to}",
+    "trigger_keywords": [
+      "公交",
+      "地铁",
+      "公共交通",
+      "换乘",
+      "transit",
+      "bus",
+      "subway",
+      "metro"
+    ],
+    "response_type": "text",
+    "routing": {
+      "type": "mcp",
+      "backends": [
+        {
+          "type": "mcp",
+          "server": "tencent-maps",
+          "tool": "directionTransit",
+          "adapter": "passthrough",
+          "timeout_ms": 30000
+        }
+      ]
+    }
+  },
+  "tencent-maps_action_future_driving": {
+    "id": "tencent-maps_action_future_driving",
+    "name": "future_driving（未来驾车）",
+    "category": "地图",
+    "description": "Plan future driving route with predicted traffic;基于未来路况预测的驾车路线",
+    "directive": "AI:map;future_driving",
+    "directive_zh": "AI:地图;未来驾车",
+    "parameters": [
+      {
+        "name": "departure_time",
+        "type": "string",
+        "description": "出发时间"
+      },
+      {
+        "name": "from",
+        "type": "string",
+        "description": "起点"
+      },
+      {
+        "name": "to",
+        "type": "string",
+        "description": "终点"
+      }
+    ],
+    "prompt_template": "AI:map;future_driving,{departure_time},{from},{to}",
+    "trigger_keywords": [
+      "未来出行",
+      "预测路况",
+      "出发时间",
+      "预估时间",
+      "future driving",
+      "predicted traffic",
+      "eta"
+    ],
+    "response_type": "text",
+    "routing": {
+      "type": "mcp",
+      "backends": [
+        {
+          "type": "mcp",
+          "server": "tencent-maps",
+          "tool": "futureDrivingDirection",
+          "adapter": "passthrough",
+          "timeout_ms": 30000
+        }
+      ]
+    }
+  },
+  "tencent-maps_action_distance_matrix": {
+    "id": "tencent-maps_action_distance_matrix",
+    "name": "distance_matrix（距离矩阵）",
+    "category": "地图",
+    "description": "Calculate distances between multiple points;批量计算多点间距离",
+    "directive": "AI:map;distance_matrix",
+    "directive_zh": "AI:地图;距离矩阵",
+    "parameters": [
+      {
+        "name": "from",
+        "type": "string",
+        "description": "起点"
+      },
+      {
+        "name": "mode",
+        "type": "string",
+        "description": "方式"
+      },
+      {
+        "name": "to",
+        "type": "string",
+        "description": "终点"
+      }
+    ],
+    "prompt_template": "AI:map;distance_matrix,{from},{mode},{to}",
+    "trigger_keywords": [
+      "距离矩阵",
+      "距离计算",
+      "批量距离",
+      "多点距离",
+      "distance matrix",
+      "travel distance",
+      "route matrix"
+    ],
+    "response_type": "text",
+    "routing": {
+      "type": "mcp",
+      "backends": [
+        {
+          "type": "mcp",
+          "server": "tencent-maps",
+          "tool": "matrix",
+          "adapter": "passthrough",
+          "timeout_ms": 30000
+        }
+      ]
+    }
+  },
+  "tencent-maps_action_waypoint_order": {
+    "id": "tencent-maps_action_waypoint_order",
+    "name": "waypoint_order（途经点排序）",
+    "category": "地图",
+    "description": "Optimize waypoint order for route;途经点最优顺序排列",
+    "directive": "AI:map;waypoint_order",
+    "directive_zh": "AI:地图;途经点排序",
+    "parameters": [
+      {
+        "name": "from",
+        "type": "string",
+        "description": "起点"
+      },
+      {
+        "name": "need_waypoint_order",
+        "type": "string",
+        "description": "排序模式"
+      },
+      {
+        "name": "to",
+        "type": "string",
+        "description": "终点"
+      },
+      {
+        "name": "waypoints",
+        "type": "string",
+        "description": "途经点"
+      }
+    ],
+    "prompt_template": "AI:map;waypoint_order,{from},{need_waypoint_order},{to},{waypoints}",
+    "trigger_keywords": [
+      "途经点",
+      "多点路线",
+      "路线优化",
+      "中途点",
+      "waypoint",
+      "multi stop",
+      "optimized route"
+    ],
+    "response_type": "text",
+    "routing": {
+      "type": "mcp",
+      "backends": [
+        {
+          "type": "mcp",
+          "server": "tencent-maps",
+          "tool": "waypointOrder",
+          "adapter": "passthrough",
+          "timeout_ms": 30000
+        }
+      ]
+    }
+  },
+  "tencent-maps_action_weather": {
+    "id": "tencent-maps_action_weather",
+    "name": "weather（天气查询）",
+    "category": "地图",
+    "description": "Query weather by adcode or location;根据行政区划代码或位置查询天气",
+    "directive": "AI:map;weather",
+    "directive_zh": "AI:地图;天气查询",
+    "parameters": [
+      {
+        "name": "adcode",
+        "type": "string",
+        "description": "行政区划代码"
+      },
+      {
+        "name": "type",
+        "type": "string",
+        "description": "预报类型"
+      },
+      {
+        "name": "location",
+        "type": "string",
+        "description": "位置"
+      }
+    ],
+    "prompt_template": "AI:map;weather,{adcode},{type},{location}",
+    "trigger_keywords": [
+      "天气",
+      "气温",
+      "湿度",
+      "下雨",
+      "晴天",
+      "weather",
+      "temperature",
+      "forecast"
+    ],
+    "response_type": "text",
+    "routing": {
+      "type": "mcp",
+      "backends": [
+        {
+          "type": "mcp",
+          "server": "tencent-maps",
+          "tool": "weather",
+          "adapter": "passthrough",
+          "timeout_ms": 30000
+        }
+      ]
+    }
+  }
+}
