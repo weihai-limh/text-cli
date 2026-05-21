@@ -1,37 +1,17 @@
 """
 SQLite thin wrapper — structured SQL generation + adaptive result parsing.
 Pure functions, zero external dependencies, db_path injected externally.
-
-Design principles:
-  - No imports from any project modules
-  - No persistent connection state (connect → execute → close per call)
-  - get_sql_by_datas returns SQL string, composable with any executor
-  - post_sql_by_dbname auto-adapts return shape (single value / list / dict)
-
-Origin: lemondy's design pattern
 """
 
 import sqlite3
 
 
 def post_sql_by_dbname(db_path: dict, sql: str):
-    """
-    Execute SQL, adaptive result parsing.
-
-    db_path: {'config': '/path/to/db', 'logs': '/path/to/logs.db'}
-    Returns:
-      - SELECT single value: the value itself
-      - SELECT single column, multiple rows: list
-      - SELECT multiple columns: dict {col0: [col1, col2, ...]}
-      - INSERT/UPDATE/DELETE: execution result
-    """
     db_file = list(db_path.values())[0] if isinstance(db_path, dict) else db_path
-
     rst_list = []
     rst_dict = {}
     conn = sqlite3.connect(db_file)
     cursor = conn.cursor()
-
     if 'SELECT' in sql.upper():
         cursor.execute(sql)
         rows = cursor.fetchall()
@@ -53,43 +33,24 @@ def post_sql_by_dbname(db_path: dict, sql: str):
     else:
         rst = cursor.execute(sql)
         conn.commit()
-
     conn.close()
     return rst
 
 
 def get_sql_by_datas(types: str, datas: dict) -> str:
-    """
-    Convert a dict-described structured query intent into an SQL string.
-
-    types: 'q'(query) / 'in'(insert) / 'up'(update) / 'del'(delete)
-
-    datas structure:
-    {
-        'table_name': 'key_registry',
-        'q_str': 'value,key_type',           # SELECT columns
-        'where1': ['service', 'smtp-tide'],  # WHERE condition
-        'in_data': {'service': '...', 'value': '...'},  # INSERT data
-        'up_list1': ['value', 'new_value'],  # UPDATE SET
-    }
-    """
     if 'where1' in datas:
         where_part = f" WHERE {datas['where1'][0]} ='{datas['where1'][1]}'"
     else:
         where_part = ''
-
     if 'q_str' in datas:
         q_obj_part = datas['q_str']
     else:
         q_obj_part = '*'
-
     if 'in_data' in datas:
         data_k = ','.join(list(datas["in_data"].keys()))
         data_v = "','".join(list(datas["in_data"].values()))
-
     if 'up_list1' in datas:
         set_part = f" SET {datas['up_list1'][0]} ='{datas['up_list1'][1]}'"
-
     if types == 'q':
         sql = f"SELECT {q_obj_part} FROM {datas['table_name']}{where_part}"
     elif types == 'up' and 'up_list1' in datas:
@@ -99,14 +60,11 @@ def get_sql_by_datas(types: str, datas: dict) -> str:
     elif types == 'del' and 'where1' in datas:
         sql = f"DELETE FROM {datas['table_name']}{where_part}"
     else:
-        raise ValueError(f"Unsupported query type or missing params: types={types}, keys={list(datas.keys())}")
-
+        raise ValueError(f"Unsupported query type: types={types}")
     return sql
 
 
-
 def _migrate_key_registry(cursor):
-    """Add v2 columns if missing (safe on repeated runs)."""
     existing = {row[1] for row in cursor.execute("PRAGMA table_info(key_registry)").fetchall()}
     for col, col_def in [
         ("value2",      "TEXT"),
@@ -118,10 +76,8 @@ def _migrate_key_registry(cursor):
 
 
 def init_db(db_path: str) -> None:
-    """Initialize SQLite database and table schemas."""
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS key_registry (
             service TEXT PRIMARY KEY,
@@ -130,8 +86,6 @@ def init_db(db_path: str) -> None:
             registered_at TEXT NOT NULL DEFAULT (datetime('now'))
         )
     """)
-
-    # Call log table
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS call_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -141,7 +95,6 @@ def init_db(db_path: str) -> None:
             detail TEXT
         )
     """)
-
     _migrate_key_registry(cursor)
     conn.commit()
     conn.close()

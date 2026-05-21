@@ -1,0 +1,12 @@
+{
+  "_comment": "Skill exposure configuration — controls which published skills appear on /skills endpoint.",
+  "_comment_visibility": "internal=hidden | restricted=requires scope | public=open",
+  "_example": "photo_analysis",
+  "photo_analysis": {
+    "visibility": "public",
+    "description_public": "Upload a photo, receive a 50-char summary via 4-step AI pipeline",
+    "description_public_en": "Upload a photo, receive a 50-char summary via 4-step AI pipeline",
+    "rate_limit": {"per_hour": 20},
+    "credit_cost": 0
+  }
+}

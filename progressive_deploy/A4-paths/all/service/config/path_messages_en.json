@@ -1,0 +1,54 @@
+{
+  "PATH_START": "═══ {name} ═══",
+  "PATH_OK": "Completed",
+  "PATH_OK_RESULT": "Result:\n{final}",
+
+  "STEP_OK": "[{i}] {directive} ✓ → {output_as}",
+  "STEP_OK_PREVIEW": "         └─ {short}",
+  "STEP_SKIP": "[{i}] {directive} ⊘ skipped ({reason})",
+  "STEP_ERR": "[{i}] {directive} ✗ {reason}",
+  "STEP_ERR_NO_DIRECTIVE": "[{i}] missing directive field",
+  "STEP_ERR_PARSE": "[{i}] parse failed: {raw} → {resolved}",
+  "STEP_ERR_EXCEPTION": "[{i}] {domain};{action} exception: {e}",
+  "STEP_ERR_HANDLER": "[{i}] {domain};{action}: {reason}",
+  "STEP_TIMEOUT": "[{i}] {directive} ⏱ timeout ({ms}ms)",
+  "STEP_DELEGATED": "[{i}] {directive} ⤴ delegated",
+
+  "DEGRADE_TRY": "[{i}] {directive} ⇣ trying degradation: {degrade_id}",
+  "DEGRADE_OK": "         └─ {degrade_id} ✓ (recovered)",
+  "DEGRADE_FAIL": "         └─ {degrade_id} ✗ {reason}",
+  "DEGRADE_TIMEOUT": "         └─ {degrade_id} ⏱ timeout ({ms}ms)",
+  "DEGRADE_EXHAUSTED": "[{i}] degradation chain exhausted",
+  "DEGRADE_EXHAUSTED_TIMEOUT": "[{i}] degradation chain exhausted (last step timed out)",
+
+  "PARALLEL_START": "─── parallel group ({strategy}) ───",
+  "PARALLEL_WIN": "  [{id}] ✓ first_ok winner",
+  "PARALLEL_WIN_PREVIEW": "         └─ {short}",
+  "PARALLEL_FAIL": "  [{id}] ✗ {reason}",
+  "PARALLEL_ALL_OK": "  [{id}] ✓ → {output_as}",
+
+  "BRANCH_NO_MATCH": "[{i}] no executable branch — all if conditions unmatched",
+
+  "CIRCUIT_BREAK": "[{i}/{total}] {directive} ✗ {reason}",
+
+  "PATH_PARTIAL": "Partial: {done}/{total} steps completed",
+  "PATH_PARTIAL_DELEGATED": "Delegated: {json}",
+  "PATH_PARTIAL_RESULT": "Current output: {final}",
+
+  "REGISTER_OK": "Registered: {name} (v{ver})",
+  "REGISTER_OK_DETAIL": "  id: {id} | type: {type} | requires: {reqs}",
+  "REGISTER_OK_PATH": "  schema → {path}",
+  "REGISTER_WARN_DEPS": "  ⚠ missing dependencies: {deps}",
+  "REGISTER_ERR_FAILED": "Registration failed: {msg}",
+  "REGISTER_ERR_VALIDATION": "Validation failed: {msg}",
+  "REGISTER_ERR_MISSING_FIELDS": "Missing required fields: {fields}",
+  "REGISTER_ERR_UNSUPPORTED_TYPE": "Unsupported type \"{type}\" (skill/pipeline only)",
+  "REGISTER_ERR_UNSUPPORTED_MODE": "Unsupported mode \"{mode}\" (toolchain/parallel only)",
+
+  "LOAD_ERR_NOT_FOUND": "Path file not found: {path}",
+  "LOAD_ERR_PARSE": "Parse failed: {e}",
+  "LOAD_ERR_NO_STEPS": "No steps defined",
+  "LOAD_ERR_UNSUPPORTED_MODE": "Unsupported mode \"{mode}\" (toolchain only)",
+
+  "USAGE": "Usage:\n  AI:text-cli;path,<file>[,<input>]               → execute (text)\n  AI:text-cli;path,<file>,--json[,<input>]         → execute (json)\n  AI:text-cli;path,<file>,--register               → register\n  AI:text-cli;path,<file>,--register,<input>      → register + execute\n\nPath file is a declarative JSON defining step chain.\nRegistered paths appear in text-cli;query as composite directives."
+}
