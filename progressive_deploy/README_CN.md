@@ -38,9 +38,9 @@ A7-mcp/
 ## 十级全览
 
 ```
-A0  通过 GET/POST 使用 text-cli — 零部署，公共端点
+A0  协议规范 — 定义指令格式（prompt 怎么拼、参数怎么传），通过公共端点调用
     ⬇
-A1  通过本地辅助使用 text-cli — Skill（聚合 Schema、同步指令）
+A1  调用封装 — Skill 让 Agent 学会消费指令（封装调哪个 URL、传什么 body）
     ⬇
 A2  通过本地辅助使用 text-cli — Agent-Copilot（本地指令 + cmd_engine + path_engine + Skill Bridge + output_adapter）
     ⬇
@@ -48,7 +48,7 @@ A3  通过本地辅助使用 text-cli — Service（平台管理核心：安装/
     ⬇
 A4  通过指令路径使用 text-cli — Paths（路径声明、委托调度、技能发布）
     ⬇
-A5  通过私有端点使用 text-cli — Endpoints（自建集成端点）
+A5  公网入口 — Endpoint（自建集成端点）：鉴权 + 路由 + 转发，任意 HTTP AI 可调用
     ⬇
 A6  集成 SQL 模块使用 text-cli — 从个人玩具到小企业工具（密钥管理 + 配额追踪 + 异步任务）
     ⬇
