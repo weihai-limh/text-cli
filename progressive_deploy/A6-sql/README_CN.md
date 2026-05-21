@@ -2,6 +2,34 @@
 
 从个人玩具到小企业工具的分界线。SQLite 为密钥管理、配额追踪、异步任务提供持久化。
 
+> `all/` 自 A4 累积。本层新增：handler 升级版（key/task_manager）、quota_handler、key_registry v2、schema.sql。`add/other/` 收纳待消解的 scripts/ 和 key-mgmt/。
+
+## 目录结构
+
+```
+A6-sql/
+├── all/                               ← 本层完整可部署产物
+│   ├── copilot/                       ← 自 A4 累积
+│   ├── service/                       ← 自 A4 累积 + A6 升级
+│   │   ├── handlers/
+│   │   │   ├── key.py                 ← A6 升级版（重构版，含 dispatch 注入）
+│   │   │   ├── task_manager.py        ← A6 升级版（含 _set_task_dispatch）
+│   │   │   └── quota_handler.py       ← A6 新增 — 配额 handler
+│   │   └── text_cli_modules/
+│   │       ├── key/
+│   │       │   ├── key_registry.py    ← A6 升级版（v2，双凭据 + 配额追踪）
+│   │       │   └── key_registry_init.py ← A6 新增
+│   │       └── sqlite/
+│   │           └── schema.sql         ← A6 新增 — 数据库 schema
+│   └── media/                         ← 共享基础设施占位
+├── add/                               ← A6 纯增量
+│   ├── service/                       ← A6 handler + text_cli_modules 升级
+│   ├── media/                         ← 占位
+│   └── other/                         ← 待消解（scripts/ + key-mgmt/）
+├── README_CN.md                       ← 本文档
+└── README.md                          ← 已删除
+```
+
 ## quota-manage：amount 扩展
 
 `quota;check,<target>[,<amount>]` — amount 默认 1（按调用次数），可传具体数值实现用量维度配额：

@@ -3,6 +3,10 @@
 > Path is text-cli's orchestration layer.
 > It composes atomic directives into declarative, fault-tolerant pipelines.
 
+`all/copilot/` + `all/service/` 自 A3 累积。本层新增：引擎版 `text_cli_path.py` 替换骨架版，增加国际化消息配置。
+
+路径示例、技能市场、Schema 注册表已迁出至项目顶级目录 `examples/paths/` 和 `registry/paths/`。
+
 ---
 
 ## 定位
@@ -38,22 +42,34 @@ AI 读 JSON 理解步骤             引擎解析 if/degradation/timeout
 
 ```
 A4-paths/
-├── README.md                    # 本文件：路径定位声明
-├── engine/
-│   ├── text_cli_path.py         # 路径引擎源码
-│   └── config/
-│       ├── path_messages_en.json # EN 消息模板（规范 + fallback）
-│       └── path_messages_cn.json # CN 消息模板（仅覆盖差异 key）
-├── examples/
-│   └── geo_panoramic_query.json # 全景管道：6 步含条件+降级
-├── registry/                    # 路径 Schema 注册表
-│   ├── README.md
-│   └── path-schema.json
-└── marketplace/                 # 路径市场：可发现的能力声明
-    ├── README.md
-    ├── README_CN.md
-    └── skill/
+├── all/                               ← 本层完整可部署产物
+│   ├── copilot/                       ← 自 A3 累积
+│   ├── service/                       ← 自 A3 累积 + A4 新增
+│   │   ├── handlers/
+│   │   │   └── text_cli_path.py       ← 引擎版（替换 A3 骨架版）
+│   │   └── config/
+│   │       ├── path_messages_cn.json  ← A4 新增 — 中文消息模板
+│   │       └── path_messages_en.json  ← A4 新增 — 英文消息模板（规范 + fallback）
+│   └── media/                         ← 共享基础设施占位
+├── add/                               ← A4 纯增量
+│   └── service/
+│       ├── handlers/
+│       │   └── text_cli_path.py       ← 引擎版
+│       └── config/
+│           ├── path_messages_cn.json
+│           └── path_messages_en.json
+└── README_CN.md                       ← 本文档
 ```
+
+## 已迁出资产
+
+以下文件已移至项目顶级目录：
+
+| 原位置 | 现位置 | 说明 |
+|--------|--------|------|
+| `examples/` | `examples/paths/` | 路径示例（如 geo_panoramic_query.json） |
+| `marketplace/` | `examples/paths/marketplace/` | 技能市场（photo-analysis 等） |
+| `registry/` | `registry/paths/` | 路径 Schema 注册表（path-schema.json） |
 
 ---
 
@@ -62,7 +78,7 @@ A4-paths/
 ### 运行示例路径
 
 ```
-AI:text-cli;path,A4-paths/examples/geo_panoramic_query.json,威海
+AI:text-cli;path,examples/paths/geo_panoramic_query.json,威海
 ```
 
 ### 使用条件分支
@@ -103,9 +119,8 @@ AI:text-cli;path,A4-paths/examples/geo_panoramic_query.json,威海
 
 ## 依赖
 
-- A0：协议核心（指令解析、注册表）
-- A1：指令系统（被路径编排的原子指令）
 - A3：服务端点（`/cli/text_cli` 入口）
+- A3 累积：copilot 本地代理 + service 平台核心
 
 ---
 
@@ -113,3 +128,5 @@ AI:text-cli;path,A4-paths/examples/geo_panoramic_query.json,威海
 
 - 路径语法完整设计：`tide-scripts/other_MD/path-syntax-2026-05-16_CN.md`
 - 实施计划与记录：`tide-scripts/other_MD/path-engine-v1-implementation-plan_CN.md`
+- 路径市场：`examples/paths/marketplace/`
+- 路径 Schema 注册表：`registry/paths/`
