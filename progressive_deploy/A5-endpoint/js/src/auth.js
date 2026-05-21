@@ -4,6 +4,31 @@ async function sha256Hex(text) {
   return [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+let _registeredPrefixes = null;
+let _blockedPrefixes = null;
+
+function loadSTPrefixes(env) {
+  const rawReg = env.A3_REGISTERED_PREFIXES || '';
+  _registeredPrefixes = new Set(rawReg.split(',').map((s) => s.trim()).filter(Boolean));
+  const rawBlk = env.ST_PREFIX_BLACKLIST || '';
+  _blockedPrefixes = new Set(rawBlk.split(',').map((s) => s.trim()).filter(Boolean));
+}
+
+export function updateRegisteredPrefixes(prefixes) {
+  _registeredPrefixes = new Set(prefixes);
+}
+
+export function isSTPrefixBlocked(prefix, env) {
+  if (_blockedPrefixes === null) loadSTPrefixes(env);
+  return _blockedPrefixes.has(prefix);
+}
+
+export function isSTPrefixRegistered(prefix, env) {
+  if (_registeredPrefixes === null) loadSTPrefixes(env);
+  if (_registeredPrefixes.size === 0) return true;
+  return _registeredPrefixes.has(prefix);
+}
+
 export function extractTokenPrefix(token) {
   if (!token) return '';
   const clean = token.startsWith('Bearer ') ? token.slice(7).trim() : token.trim();

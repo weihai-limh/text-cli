@@ -1,59 +1,39 @@
-import staticSchema from './config/schema.json';
+import {
+  refreshBackends,
+  buildExternalSchema,
+  findBackendSource,
+  getExternalSchema as getAggregatedSchema,
+  getBackendBaseUrl as getAggregatedBaseUrl,
+  ensureSkillsLoaded,
+} from './backend-registry.js';
 import { normalizeDirectiveKey } from './parser.js';
 
-let _internalSchema = {};
 let _externalSchema = {};
 
-export function loadSchema(endpointBaseUrl) {
-  _internalSchema = {};
-
-  for (const [key, entry] of Object.entries(staticSchema)) {
-    if (key.startsWith('_')) continue;
-    _internalSchema[key] = entry;
-  }
-
-  _externalSchema = JSON.parse(JSON.stringify(_internalSchema));
-
-  if (endpointBaseUrl) {
-    const base = endpointBaseUrl.replace(/\/+$/, '');
-    const targetUrl = `${base}/cli/text_cli`;
-    for (const key of Object.keys(_externalSchema)) {
-      _externalSchema[key].url = targetUrl;
-    }
-  }
-
-  return Object.keys(_internalSchema).length;
+export async function loadSchema(endpointBaseUrl) {
+  const { _ = undefined } = {};
+  _externalSchema = buildExternalSchema(endpointBaseUrl);
+  return Object.keys(_externalSchema).length;
 }
 
-export function getInternalSchema() {
-  return _internalSchema;
+export async function loadSkillsFromBackends(env, endpointBaseUrl) {
+  await refreshBackends(env);
+  _externalSchema = buildExternalSchema(endpointBaseUrl);
+  return Object.keys(_externalSchema).length;
 }
 
-export function getExternalSchema() {
-  return _externalSchema;
-}
+export async function loadSchemaFromD1(db, endpointBaseUrl) {
+  if (db) {
+    try {
+      const { results } = await db
+        .prepare(
+          `SELECT id, name, category, description, domain, action, backend_url,
+                  parameters_json, prompt_template, trigger_keywords_json,
+                  response_type, response_example_json, directive_key
+           FROM directives WHERE enabled = 1`
+        )
+        .all();
 
-export function findBackendUrl(directiveKey) {
-  const normalized = normalizeDirectiveKey(directiveKey);
-  for (const entry of Object.values(_internalSchema)) {
-    const entryNormalized = normalizeDirectiveKey(entry.directive || '');
-    if (entryNormalized === normalized) {
-      return entry.url;
-    }
-  }
-  return null;
-}
-
-export function loadSchemaFromD1(db, endpointBaseUrl) {
-  return db
-    .prepare(
-      `SELECT id, name, category, description, domain, action, backend_url,
-              parameters_json, prompt_template, trigger_keywords_json,
-              response_type, response_example_json, directive_key
-       FROM directives WHERE enabled = 1`
-    )
-    .all()
-    .then(({ results }) => {
       const schema = {};
       for (const row of results) {
         const base = endpointBaseUrl ? endpointBaseUrl.replace(/\/+$/, '') : '';
@@ -75,8 +55,34 @@ export function loadSchemaFromD1(db, endpointBaseUrl) {
       }
       _externalSchema = schema;
       return schema;
-    })
-    .catch(() => null);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+export function getExternalSchema() {
+  if (Object.keys(_externalSchema).length > 0) return _externalSchema;
+  return getAggregatedSchema();
+}
+
+export function findBackendUrl(directiveKey) {
+  const source = findBackendSource(directiveKey);
+  if (source) return source;
+
+  const normalized = normalizeDirectiveKey(directiveKey);
+  for (const entry of Object.values(_externalSchema)) {
+    const entryNormalized = normalizeDirectiveKey(entry.directive || '');
+    if (entryNormalized === normalized) {
+      return entry.url;
+    }
+  }
+  return null;
+}
+
+export function getBackendBaseUrl(env) {
+  return getAggregatedBaseUrl(env);
 }
 
 export function findBackendUrlFromD1(db, directiveKey) {

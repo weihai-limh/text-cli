@@ -1,9 +1,9 @@
 # 自建端点模板技术方案
 
 > **作者**：Lumen ✦（IDE 端 / Claude）  
-> **日期**：2026-04-30（初稿）/ 2026-05-01（更新） / 2026-05-05（v3.1 实现同步）  
-> **版本**：v3.1（v3.0 新增 Workers 方案，本版同步实际实现）  
-> **状态**：Python 端已完成，Cloudflare Workers 端已完成（PR #60）  
+> **日期**：2026-04-30（初稿）/ 2026-05-01（更新） / 2026-05-05（v3.1）/ 2026-05-21（v4.0 大版本更新）  
+> **版本**：v4.0 — 1+N 动态聚合门户、三道安全防线、人道主义通道、清洗历史违规模块  
+> **状态**：Python 端 + Cloudflare Workers 端均已实现 v4.0  
 > **评审人**：lemondy、DeepSeek（Chat 端）、Tide 🌊（Agent 端）
 
 ---
@@ -21,50 +21,61 @@
 
 ### 1.2 端点在架构中的位置
 
-Endpoint 是 service 唯一的公网入口。任何外部调用方——无论通过 A0 协议裸调、A1 Skill 封装，还是直接发 HTTP 请求——都必须经过 Endpoint。
+Endpoint 是 text-cli 生态的公网入口（A5 层）。v4.0 起升级为 **1+N 动态聚合门户**——一个 A5 对应多个 A3 能力方，从各 A3 的 `/text-cli/skills` 动态拉取指令列表并聚合为统一 Schema。
 
 ```
-调用方（chat AI / Agent / 人）               内网
-     │                                         │
-     │  Access Token                           │
-     ▼                                         │
-┌──────────┐    Service Token             ┌──────────┐
-│ Endpoint │ ───────────────────────────→ │ service  │
-│ (公网门面)│ ←─────────────────────────── │ (能力方)  │
-└──────────┘    透传响应                  └──────────┘
+调用方（chat AI / Agent / 人）
      │
-     ├─→ 技能服务A (网址1)
-     ├─→ 技能服务B (网址2)
-     └─→ 技能服务C (网址3)
-
-Access Token 鉴权 · 指令解析与路由 · Service Token 透明转发 · 调用日志记录
+     │  Access Token (A5 签发)
+     ▼
+┌──────────┐                      ┌──────────┐
+│   A5     │   Service Token      │  A3-1    │ (地图)
+│ Endpoint │←─────────────────────│ /text-cli │
+│ (公网门面)│←─────────────────────│ /skills   │
+│          │                      └──────────┘
+│  1+N     │                      ┌──────────┐
+│ 聚合入口  │   Service Token      │  A3-2    │ (翻译)
+│          │←─────────────────────│ /text-cli │
+│          │                      │ /skills   │
+│          │                      └──────────┘
+└──────────┘                      ┌──────────┐
+     │               Service Token │  A3-3    │ (天气)
+     │                             │ /text-cli │
+     ├──→ skills 聚合拉取 ────────→│ /skills   │
+     │     (GET /text-cli/skills)  └──────────┘
+     │
+     ├──→ 路由转发到对应 A3
+     │     (POST /cli/text_cli + Service Token 透传)
+     │
+     ▼
+  调用方只看一个入口，不感知背后 N 个 A3
 ```
 
-A0 定义"怎么调"（协议格式），A1 封装"怎么调"（Skill 消费入口），A5 提供"往哪调"（Endpoint 公网入口）——三层合力，任意具备 HTTP 能力的 AI 都能执行指令。
-
-**Endpoint 只做纯转发**，不执行任何技能逻辑。所有技能都是独立的后端服务，按照 `Building_text-cli_guide_CN.md` 构建。
+**Endpoint 只做纯转发**，不执行任何技能逻辑。所有技能都是独立的后端服务（A3），按照 `Building_text-cli_guide_CN.md` 构建。
 
 ### 1.3 交付物清单
 
 | 序号 | 交付物 | 路径 | 说明 | 状态 |
 |:---|:---|:---|:---|:---|
-| 1 | Python/FastAPI 端点 | `server/python/` | 完整可运行的集成端点 | ✅ 已完成（PR #9） |
-| 2 | Cloudflare Workers 端点 | `server/js/` | 完整可运行的集成端点（Workers + D1） | ✅ 已完成（PR #60） |
-| 3 | Docker 部署文件 | 各语言目录下 | Dockerfile + docker-compose.yml | ✅ Python 版已完成 |
-| 4 | 记账模块 | 内置于两版端点 | 调用记录、统计查询（Python: SQLite / Workers: D1） | ✅ 两版均已完成 |
-| 5 | 部署说明 | 各端目录下 README | 面向运维的部署指南 | ✅ 两版均已完成 |
+| 1 | Python/FastAPI 端点 | `progressive_deploy/A5-endpoint/python/` | 完整可运行的集成端点 | ✅ v4.0 |
+| 2 | Cloudflare Workers 端点 | `progressive_deploy/A5-endpoint/js/` | 完整可运行的集成端点（Workers + D1） | ✅ v4.0 |
+| 3 | Docker 部署文件 | Python 端目录下 | Dockerfile + docker-compose.yml | ✅ |
+| 4 | 记账模块 | 内置于两版端点 | 调用记录、统计查询（Python: SQLite / Workers: D1） | ✅ |
+| 5 | 1+N 聚合引擎 | `core/backend_registry.py` / `src/backend-registry.js` | 启动时从 N 个 A3 拉取 skills → 聚合 → 来源追踪 | ✅ v4.0 新增 |
+| 6 | 安全防线 | `ip_guard` + `rate_limiter` + ST 前缀校验 | IP 黑名单 + 分时限流 + ST 前缀注册校验 | ✅ v4.0 新增 |
+| 7 | 人道主义通道 | `GET /text-cli/cli` | 无 Token 公开查询通道（默认关闭） | ✅ v4.0 新增 |
 
 ### 1.4 与已有文档的关系
 
-`SPEC v1.0`（A0 协议）、`Agent_integrated_CN.md`（A1 Skill 消费）和本方案（A5 Endpoint 入口）是公网可达性的三条协作路径——A0 定义指令格式，A1 封装调用逻辑，A5 提供公网入口。三层合力，任意具备 HTTP 能力的调用方都能消费 text-cli 指令。
+`SPEC v1.2`（A0 协议）、`Agent_integrated_CN.md`（A1 Skill 消费）和本方案（A5 Endpoint 入口）是公网可达性的三条协作路径——A0 定义指令格式，A1 封装调用逻辑，A5 提供公网入口。三层合力，任意具备 HTTP 能力的调用方都能消费 text-cli 指令。
 
 | 文档 | 定位 | 与本方案的关系 |
 |:---|:---|:---|
-| `SPEC v1.0` | 协议规范 | Endpoint 必须严格遵循其 API 定义 |
+| `SPEC_v1.2_CN.md` | 协议规范 | Endpoint 必须严格遵循其 API 定义 + 不触碰 A3 独占职责 |
 | `Building_text-cli_guide_CN.md` | 如何构建后端技能服务 | Endpoint 转发的目标就是这类服务 |
-| `Agent_integrated_CN.md` | 如何让 Agent 接入 text-cli | Agent 通过 Endpoint 暴露的 Schema 发现指令 |
-| `Multi-backend-routing_CN.md` | 多后端路由实现 | Endpoint 路由支持三种后端类型（local / mcp / http） |
-| **本方案** | 如何构建集成端点 | 连接调用方和技能服务的中间层 |
+| `Agent_integrated_CN.md` | 如何让 Agent 接入 text-cli | Agent 通过 Endpoint 暴露的聚合 Schema 发现指令 |
+| `Multi-backend-routing_CN.md` | 多后端路由实现 | Endpoint 路由通过 `A3_BACKENDS` 环境变量配置 |
+| **本方案** | 如何构建集成端点 | 连接调用方和技能服务的中间层（A5） |
 
 ---
 
@@ -72,99 +83,165 @@ A0 定义"怎么调"（协议格式），A1 封装"怎么调"（Skill 消费入�
 
 ### 2.1 Endpoint 的职责
 
-Endpoint 承担且仅承担以下职责：
+Endpoint 承担以下职责：
 
-1. **Access Token 鉴权**：验证调用方是否有权使用此端点
-2. **指令解析**：从 prompt 中提取 domain、action、params
-3. **路由匹配**：根据解析结果，在 Schema 中找到对应指令的 routing 信息。路由支持三种后端类型——`local`（本地 handler）、`mcp`（MCP 协议）、`http`（传统 POST 转发）。详见 `Multi-backend-routing_CN.md`。
-4. **请求转发**：将请求透明转发到后端技能服务（含 Service Token）
-5. **调用记账**：将每次调用的元数据写入 SQLite
-6. **Schema 转换**：对外暴露去掉真实后端地址的 Schema
+1. **三层安全防线**（v4.0）：IP 黑名单 → ST 前缀注册校验 → 分时限流
+2. **Access Token 鉴权**：验证调用方是否有权使用此端点
+3. **指令解析**：从 prompt 中提取 domain、action、params
+4. **路由匹配**：从聚合表中查找指令对应的来源 A3 地址
+5. **请求转发**：将请求透明转发到正确的 A3 后端（含 Service Token）
+6. **调用记账**：将每次调用的元数据写入 SQLite/D1
+7. **Skills 聚合**（v4.0）：从 N 个 A3 的 `/text-cli/skills` 动态拉取指令列表，聚合为统一 Schema
 
-### 2.2 双 Schema 机制
+**Endpoint 不持有指令包**，不执行任何 handler 逻辑。这是 A5 与 A3 的协议边界——A5 只做鉴权+路由+转发+记账，A3 执行实际指令。
 
-Endpoint 内部维护两份 Schema：
+### 2.2 1+N 动态聚合（v4.0 核心变更）
 
-#### 内部路由 Schema（`text_cli_schema.json`，磁盘文件）
+#### 旧模型（v3.x）：静态 Schema 文件
 
-运营者从技能提供者处收集的完整 Schema，包含真实的后端服务地址。**此文件不对外暴露。**
+```
+启动 → 读 config/text_cli_schema.json → 内存缓存 → find_backend_url()
+```
 
-```json
+运营者手动维护一个包含所有指令→后端 URL 映射的 JSON 文件。
+
+#### 新模型（v4.0）：动态 Skills 聚合
+
+```
+启动
+  → 读 A3_BACKENDS 环境变量（逗号分隔的 A3 URL 列表）
+  → 对每个 A3 发起 GET /text-cli/skills
+  → 合并 N 份 skills 列表 → 内存聚合表
+  → 生成对外 Schema（url 全部改写为 A5 自身地址）
+```
+
+**backend_registry** 是聚合引擎核心模块：
+
+| 函数 | 职责 |
+|:---|:---|
+| `refresh_backends()` | 从所有 A3_BACKENDS 拉取 skills，构建聚合表 |
+| `build_external_schema()` | 将聚合表转换为对外 Schema（url 改写为 A5 地址） |
+| `find_backend_source()` | 请求时查找指令对应的来源 A3 地址 |
+| `get_backend_base_url()` | 获取首选 A3 地址（人道主义通道等场景） |
+| `ensure_skills_loaded()` | 懒加载守卫（JS 端，首次请求时按需拉取） |
+
+聚合表结构（Python）：
+
+```python
 {
-  "weather_query": {
-    "url": "https://skill-server-a.example.com/cli/text_cli",
-    "id": "weather_query",
-    "name": "天气查询",
-    "category": "基础应用",
-    "directive": "指令:基础应用;天气查询",
-    "parameters": [...],
-    "prompt_template": "指令:基础应用;天气查询,{time},{city}",
-    "trigger_keywords": ["天气", "气温", "下雨"],
-    "response_type": "text",
-    "response_example": {...}
+  "map;geocode": {
+    "source": "http://a3-1:28050",   # 实际转发的目标 A3
+    "st_prefix": "abcd1234",          # 该 A3 的 Service Token 前缀
+    "name": "地理编码",
+    "description": "...",
+    "usage": "map;geocode,<address>",
+    "parameters": ["address"],
+    ...
   },
-  "clothing_tag": {
-    "url": "https://skill-server-b.example.com/cli/text_cli",
+  "translate;text": {
+    "source": "http://a3-2:28050",
+    "st_prefix": "efgh5678",
     ...
   }
 }
 ```
 
-#### 对外暴露 Schema（`GET /text_cli_schema.json`，运行时生成）
+**冲突处理**：后端列表有序，先注册先匹配——同构于 A8 聚合降级链。后续版本可升级为完整降级链。
 
-Endpoint 启动时，将内部 Schema 的所有 `url` 字段替换为 Endpoint 自身地址（`https://端点域名/cli/text_cli`），其余字段原样保留。
+**ST 前缀自动登记**：A3 的 ST 前缀通过 `A3_REGISTERED_PREFIXES` 环境变量手动配置，或 `backend_registry` 从聚合表中提取并调用 `update_registered_prefixes()` 自动登记到防线②。
 
-```json
-{
-  "weather_query": {
-    "url": "https://my-endpoint.example.com/cli/text_cli",
-    "id": "weather_query",
-    "name": "天气查询",
-    ...
-  },
-  "clothing_tag": {
-    "url": "https://my-endpoint.example.com/cli/text_cli",
-    ...
-  }
-}
+**懒加载（JS/Workers 特有）**：Workers 无状态——每次 `fetch` 事件是新上下文。`ensureSkillsLoaded()` 检查聚合表是否为空，空则按需拉取。首次请求的延迟在可接受范围内。
+
+#### 静态回退
+
+当 `A3_BACKENDS` 未设置时，自动回退到 `config/text_cli_schema.json` 文件（Python）或 D1 `directives` 表（JS）。向后兼容现有部署。
+
+### 2.3 安全防线体系（v4.0 新增）
+
+```
+请求到达 A5
+    │
+    ▼
+① IP 黑名单          ← 无条件拒绝——黑名单 IP（支持 CIDR）永远不可访问
+    │ 通过
+    ▼
+② ST 前缀注册校验      ← A3 注册时提供 ST 前缀，A5 内存注册表匹配
+    │ 通过              未注册 → 403 TOKEN_PREFIX_UNKNOWN
+    │                    命中黑名单 → 403 TOKEN_PREFIX_BLOCKED（覆写注册）
+    │                    GET 人道主义通道自然跳过（无 Token）
+    ▼
+③ 分时限流           ← 全端点小时级计数器
+    │ 通过              POST 1000/h + GET 10000/h 独立配置
+    ▼
+④ Access Token 鉴权   ← 现有（SHA256 哈希匹配 + 配额 + 令牌桶）
+    │                    GET 人道主义通道跳过此步
+    ▼
+⑤ 令牌桶限流          ← per-token 滑动窗口（GET 无 Token 自然跳过）
+    │
+    ▼
+   正常处理
 ```
 
-调用方（Agent）只能看到 Endpoint 的地址，无法得知指令实际由哪个后端服务处理。
+**实现载体**：
 
-### 2.3 Schema 加载策略
+| 防线 | Python 模块 | JS 模块 | 存储 |
+|------|-----------|--------|------|
+| ① IP 黑名单 | `core/ip_guard.py` | `src/ip-guard.js` | 环境变量 + 内存 |
+| ② ST 前缀 | `core/auth.py` | `src/auth.js` | 环境变量/backend_registry 运行时登记 |
+| ③ 分时限流 | `core/rate_limiter.py` | `src/rate-limiter.js` | 内存（Python）/ D1（JS） |
+| ④ Access Token | `core/auth.py` | `src/auth.js` | SQLite / D1 |
+| ⑤ 令牌桶 | `core/auth.py` | `src/auth.js` | 内存 / D1 |
 
-**Python 版**（已实现）：**从本地文件加载**（`config/text_cli_schema.json`），通过环境变量 `SCHEMA_PATH` 可自定义路径。运行时维护两份：内部 Schema（含真实后端 url）和外部 Schema（url 统一指向 Endpoint）。`POST /api/schema/reload` 端点支持热重载。
+### 2.4 A5 的 Token 角色
 
-**Workers 版**（已实现）：**双模式加载**，优先从 D1 `directives` 表查询，回退到静态文件 `src/config/schema.json`。`directives` 表支持热更新（INSERT/UPDATE 即生效，无需重启）。`POST /api/schema/reload` 端点将静态 JSON 重新加载到 D1。
+```
+Access Token  ← A5 独立签发         （控制谁可以进端点）
+Service Token ← A3 独立签发         （控制谁可以调用 A3）
+ST 前缀       ← A3 注册时提供给 A5  （让 A5 知道"这个请求是给哪个 A3 的"）
+```
 
-未来版本预留：支持从远程 URL 拉取 Schema（如 `https://registry.text-cli.com/schema.json`），定时刷新。环境变量 `SCHEMA_SOURCE` 可切换加载方式。
+A5 不签发、不改写、不验证 Service Token 的完整性——只做前缀注册校验。调用方的 ST 前 8+ 位不在注册表中，请求在 A5 层就被拒绝，到不了任何 A3。
 
-> **实现参考**：
-> - Python：`core/schema_loader.py` — `load_schema()` / `reload_schema()` / `get_external_schema()` / `find_backend_url()`
-> - Workers：`src/schema-loader.js` — `loadSchema()` / `loadSchemaFromD1()` / `getExternalSchema()` / `findBackendUrl()` / `findBackendUrlFromD1()`
+### 2.5 Schema 对外暴露
+
+Endpoint 对外暴露的 Schema 通过 `GET /text_cli_schema.json` 提供，所有 `url` 字段统一指向 Endpoint 自身地址（`https://端点域名/cli/text_cli`）。调用方只需知道一条指令的 domain;action，无需感知背后是哪个 A3 在提供服务。
 
 ---
 
 ## 三、请求处理流程
 
-### 3.1 完整流程
+### 3.1 完整流程（v4.0 含三道防线）
 
 ```
 POST /cli/text_cli
-请求体: {"prompt": "指令:基础应用;天气查询,明天,威海"}
+请求体: {"prompt": "AI:基础应用;天气查询,明天,威海"}
 请求头: Authorization: Bearer <Access Token>
         Service-token: <Service Token>
     │
     ▼
-① Access Token 鉴权
+① IP 黑名单检查
+    ├── 命中黑名单 → 403 IP_BLOCKED
+    │
+    ▼
+② ST 前缀注册校验（仅 POST /cli/text_cli）
+    ├── 提取 Service Token 前 8 位
+    ├── 命中黑名单 → 403 TOKEN_PREFIX_BLOCKED（覆写注册）
+    ├── 不在注册表 → 403 TOKEN_PREFIX_UNKNOWN
+    │
+    ▼
+③ 分时限流检查
+    ├── 超出 POST 小时限制 → 429 RATE_LIMIT_EXCEEDED
+    │
+    ▼
+④ Access Token 鉴权
     ├── 失败 → 401 ACCESS_DENIED
     │
     ▼
-①.5 令牌桶限流检查（滑动窗口 60 秒）
+④.5 令牌桶限流检查（滑动窗口 60 秒）
     ├── 超出 max_requests_per_minute → 401 ACCESS_DENIED
     │
     ▼
-② 解析指令
+⑤ 解析指令
     ├── prompt 缺失 → 400 INVALID_DIRECTIVE_FORMAT
     ├── 格式不正确 → 400 INVALID_DIRECTIVE_FORMAT
     │
@@ -174,17 +251,18 @@ POST /cli/text_cli
    params = ["明天", "威海"]
     │
     ▼
-③ Schema 路由匹配
-    ├── 查找 directive = "指令:基础应用;天气查询" 的条目
+⑥ 聚合表路由匹配
+    ├── find_backend_source("AI:基础应用;天气查询")
+    ├── 返回 source: "http://a3-1:28050"
     ├── 未找到 → 400 DIRECTIVE_NOT_FOUND
     │
     ▼
-   目标 url = "https://skill-server-a.example.com/cli/text_cli"
+   目标 url = "http://a3-1:28050/cli/text_cli"
     │
     ▼
-④ 转发请求到后端（含自动重试）
+⑦ 转发请求到 A3 后端（含自动重试）
     POST 目标 url
-    Body: {"prompt": "指令:基础应用;天气查询,明天,威海"}  (原样透传)
+    Body: {"prompt": "AI:基础应用;天气查询,明天,威海"}  (原样透传)
     Headers:
       Service-token: <原 Service Token>        (必须透传)
     重试策略：
@@ -193,20 +271,16 @@ POST /cli/text_cli
       - 4xx 错误：不重试
     │
     ▼
-⑤ 记录调用日志 (SQLite)
+⑧ 记录调用日志 (SQLite/D1)
     ├── call_logs：写入本次调用的完整元数据
     ├── daily_stats：实时更新聚合计数
     ├── access_tokens：累加 used_count
     │
     ▼
-⑥ 返回结果给调用方
+⑨ 返回结果给调用方
     后端返回什么就返回什么（透传响应体）
     HTTP 状态码透传
 ```
-
-> **实现参考**：
-> - Python：`main.py` — `text_cli_endpoint()`
-> - Workers：`src/index.js` — `handleTextCli()` + `src/forwarder.js` — `forwardRequest()`
 
 ### 3.2 指令解析规则
 
@@ -226,17 +300,16 @@ AI:<领域>;<动作>,<参数1>,<参数2>,...
 - 参数数量上限 10 个
 - 解析器正则：`^(?:指令|AI)[：:]([^;]+);([^,]+)(?:,(.+))?$`
 
-### 3.3 Schema 匹配逻辑
+### 3.3 路由匹配逻辑
 
-按 `directive` 字段精确匹配：
+请求时，`find_backend_url()` 从聚合表中按 directive_key 查找来源 A3 的 base URL。匹配逻辑：
 
-```
-从 prompt 解析出: domain="基础应用", action="天气查询"
-拼接: "指令:基础应用;天气查询"
-在 Schema 中查找: directive == "指令:基础应用;天气查询"
-```
+1. 解析 `ParsedDirective.directive_key`（如 `AI:基础应用;天气查询`）
+2. 在聚合表中查找匹配条目
+3. 返回 `source` 字段（A3 的 base URL）
+4. 转发时将 A3 base URL 拼上 `/cli/text_cli` 构成完整转发地址
 
-如果 Schema 中存在多个同 domain 的指令（如"基础应用"下有天气查询、穿衣标签等），通过 action 精确区分。
+**v4.0 变更**：匹配源从静态 JSON 文件改为内存聚合表（`backend_registry`）。JS 端首次请求时通过 `ensureSkillsLoaded()` 按需拉取。
 
 ---
 
@@ -250,10 +323,6 @@ Access Token 由 Endpoint 运营者签发和管理，用于验证调用方是否
 - 传递方式：请求头 `Authorization: Bearer <token>`
 - 校验逻辑：哈希匹配 → 额度检查（`quota` / `used_count`）→ 令牌桶限流（`max_requests_per_minute`，滑动窗口 60 秒）
 - 可选功能：环境变量 `ACCESS_TOKEN_REQUIRED=false` 时，可跳过 Access Token 校验（开放模式，仅用于开发/测试）
-
-> **实现参考**：
-> - Python：`core/auth.py` — `verify_access_token()` / `_check_rate_limit()` / `increment_token_usage()`
-> - Workers：`src/auth.js` — `verifyAccessToken()` / `incrementTokenUsage()` / `hashToken()`（D1 滑动窗口查询替代内存令牌桶）
 
 ### 4.2 Service Token（透明转发）
 
@@ -272,10 +341,6 @@ Service Token 由技能提供者与调用方私下约定，Endpoint **只负责�
 - 传递方式：请求头 `X-Admin-Key: <admin_key>`
 - 校验逻辑：明文匹配 `ADMIN_API_KEY` 环境变量
 - 适用范围：所有 `/api/tokens/*`、`/api/stats/*`、`/api/schema/reload` 端点
-
-> **实现参考**：
-> - Python：`api/tokens.py` — `verify_admin()`
-> - Workers：`src/admin.js` — `checkAdminAuth()` / `verifyAdmin()`
 
 ---
 
@@ -384,14 +449,41 @@ POST /api/report_stats    (端点 → 生态中心，可选，默认关闭)
 
 ## 六、API 端点
 
-### 6.1 核心端点（SPEC v1.0，面向调用方）
+### 6.1 核心端点（面向调用方）
 
 | 方法 | 路径 | 说明 |
 |:---|:---|:---|
-| POST | `/cli/text_cli` | 指令执行入口，转发到后端技能服务 |
-| GET | `/text_cli_schema.json` | 对外 Schema，所有 url 指向 Endpoint 自身 |
+| POST | `/cli/text_cli` | 指令执行入口，鉴权后转发到 A3 后端 |
+| GET | `/text_cli_schema.json` | 对外聚合 Schema，所有 url 指向 Endpoint 自身 |
+| GET | `/health` | 公开健康检查 |
+| GET | `/text-cli/cli?skill_id=<id>&<params>` | 人道主义通道（v4.0 新增，无 Token，默认关闭） |
 
-### 6.2 管理端点（`X-Admin-Key` header 保护，面向运营者）
+### 6.2 人道主义通道（v4.0）
+
+```
+GET /text-cli/cli?skill_id=geocode&city=威海    ← 无 Token
+    │
+    │  ① IP 黑名单         ← 永远生效
+    │  ② ST 前缀注册校验   ← 自然跳过（无 Token）
+    │  ③ 分时限流          ← 独立配置（默认 10000/h）
+    │  ④⑤ 跳过
+    │
+    ▼
+透传到 A3 POST /text-cli/skills/geocode
+    │
+    如果 A3 愿意接收无 Token 请求 → 返回结果
+    如果 A3 要求 Token → 返回 401
+```
+
+| 属性 | 值 |
+|------|-----|
+| 设计意图 | 灾害等紧急场景无需走 Token 流程 |
+| 默认状态 | **关闭**（`ENABLE_PUBLIC_CLI=false`） |
+| 环境变量 | `ENABLE_PUBLIC_CLI=true` 开启 |
+| IP 黑名单 | 永远生效 |
+| 限流 | 可配置放宽（`RATE_LIMIT_GET_PER_HOUR`），默认 10000/h |
+
+### 6.3 管理端点（`X-Admin-Key` header 保护，面向运营者）
 
 | 方法 | 路径 | 说明 |
 |:---|:---|:---|
@@ -411,105 +503,109 @@ POST /api/report_stats    (端点 → 生态中心，可选，默认关闭)
 
 ## 七、目录结构
 
-### 7.1 Python 版（已实现）
+### 7.1 Python 版（v4.0）
 
 ```
-server/python/
-├── main.py                  # FastAPI 应用入口（lifespan、路由挂载、核心端点）
-├── config/
-│   └── text_cli_schema.json # 内部路由 Schema（含真实后端 url）
+progressive_deploy/A5-endpoint/python/
+├── main.py                      # FastAPI 入口（lifespan + 安全中间件 + 路由）
 ├── core/
 │   ├── __init__.py
-│   ├── parser.py            # 指令解析器（正则 + 边界校验）
-│   ├── schema_loader.py     # 双 Schema 加载与转换（内部/外部）
-│   ├── auth.py              # Access Token 鉴权 + 令牌桶限流
-│   ├── forwarder.py         # HTTP 转发器（异步、重试、记账）
-│   └── database.py          # SQLite 连接、初始化、辅助函数
+│   ├── parser.py                # 指令解析器（正则 + 边界校验）
+│   ├── schema_loader.py         # Skills 聚合加载（优先 A3_BACKENDS，回退静态文件）
+│   ├── backend_registry.py      # 1+N 聚合引擎（v4.0 新增：拉取 skills → 聚合 → 来源追踪）
+│   ├── auth.py                  # Access Token 鉴权 + 令牌桶限流 + ST 前缀校验（v4.0 扩展）
+│   ├── forwarder.py             # HTTP 转发器（异步、重试、记账 + skills 转发）
+│   ├── database.py              # SQLite 连接、初始化、辅助函数
+│   ├── ip_guard.py              # IP 黑名单（v4.0 新增：CIDR 匹配，无条件拒绝）
+│   └── rate_limiter.py          # 分时限流器（v4.0 新增：POST/GET 独立小时级计数器）
 ├── api/
-│   ├── stats.py             # 统计查询 API
-│   ├── tokens.py            # Token 管理 API（CRUD）
-│   └── health.py            # 健康检查 API（liveness + readiness）
+│   ├── stats.py                 # 统计查询 API
+│   ├── tokens.py                # Token 管理 API（CRUD）
+│   └── health.py                # 健康检查 API
 ├── Dockerfile
 ├── docker-compose.yml
 ├── requirements.txt
 └── .gitignore
+
+已清洗（v4.0）：text_cli_modules/（ai/embed/key/sqlite）、handlers/sample.py、config/text_cli_schema.json、config/*.example.json
 ```
 
-### 7.2 Cloudflare Workers 版（已实现）
+### 7.2 Cloudflare Workers 版（v4.0）
 
 ```
-server/js/
+progressive_deploy/A5-endpoint/js/
 ├── src/
-│   ├── index.js             # Worker 入口（fetch 事件处理器 + 路由）
-│   ├── parser.js            # 指令解析器（正则 + 边界校验）
-│   ├── schema-loader.js     # 双 Schema 加载与 URL 重写（D1 读取 / 静态文件）
-│   ├── auth.js              # Access Token 鉴权（D1 多 Token + 令牌桶限流）
-│   ├── forwarder.js         # 请求转发器（fetch API、重试、记账）
-│   ├── admin.js             # 管理 API（Token CRUD / 统计查询 / Schema 重载）
-│   └── config/
-│       └── schema.json      # 内部路由 Schema（含真实后端 url）
+│   ├── index.js                 # Worker 入口（路由 + 安全防线 + 指令转发 + 人道主义通道）
+│   ├── parser.js                # 指令解析器（正则 + 边界校验）
+│   ├── schema-loader.js         # Skills 聚合加载（v4.0 重写：优先 A3_BACKENDS，回退 D1）
+│   ├── backend-registry.js      # 1+N 聚合引擎（v4.0 新增：拉取 skills → 聚合 → 来源追踪）
+│   ├── auth.js                  # Access Token 鉴权 + ST 前缀校验（v4.0 扩展）
+│   ├── forwarder.js             # 请求转发器（fetch API、重试、记账）
+│   ├── admin.js                 # 管理 API（Token CRUD / 统计查询 / Schema 重载）
+│   ├── ip-guard.js              # IP 黑名单（v4.0 新增：CIDR 匹配）
+│   └── rate-limiter.js          # 分时限流器（v4.0 新增：D1 持久化）
 ├── migrations/
-│   └── 0001_init.sql        # D1 迁移脚本（access_tokens / call_logs / daily_stats / directives）
-├── scripts/
-│   └── seed-schema.js       # 将静态 Schema 导入 D1
+│   ├── 0001_init.sql            # D1 初始迁移
+│   └── 0002_rate_limits.sql     # D1 限流计数器表（v4.0 新增）
 ├── test/
-│   ├── parser.test.js       # 指令解析器测试（11 个用例）
-│   ├── auth.test.js         # Token 工具函数测试（7 个用例）
-│   └── schema-loader.test.js # Schema 加载器测试（6 个用例）
-├── README_CN.md             # 部署指南 + 管理 API 文档
+│   ├── parser.test.js
+│   ├── auth.test.js
+│   └── schema-loader.test.js
+├── api-proxy.js
 ├── wrangler.toml
 ├── package.json
 └── vitest.config.js
+
+已移除（v4.0）：src/config/schema.json、scripts/seed-schema.js
 ```
 
 **与 Python 版的关键差异**：
 
-| | Python (`server/python/`) | Workers (`server/js/`) |
+| | Python | Workers |
 |:---|:---|:---|
 | **运行时** | FastAPI (ASGI) | Cloudflare Workers (V8) |
 | **数据库** | SQLite (文件) | D1 (SQLite at edge) |
 | **部署** | Docker + VM | `wrangler deploy` |
-| **Schema 存储** | 本地 JSON 文件 | D1 `directives` 表 + 静态文件回退 |
-| **全局 Schema** | 运行时内存缓存 | D1 查询（无状态，每次请求可读） |
+| **Schema 加载** | 启动时异步拉取 skills | 首次请求时按需拉取（无状态 + 懒加载） |
+| **限流存储** | 内存滑动窗口 | D1 持久化 |
 | **转发** | httpx 异步客户端 | Workers 原生 `fetch()` |
-| **限流** | 令牌桶 (内存/SQLite) | D1 滑动窗口查询 |
 | **管理 API** | 独立路由模块 (`api/*.py`) | 同一 Worker 内路由 (`src/admin.js`) |
-| **迁移脚本** | `database.py` 初始化 | `migrations/0001_init.sql` |
-| **测试** | pytest | vitest（24 个用例通过） |
+| **安全中间件** | FastAPI `@app.middleware("http")` | `fetch` handler 入口处串行调用 |
 
 ### 7.3 顶层
 
 ```
-server/
-└── README.md                # 总部署说明（双语言指引、快速开始）
+progressive_deploy/A5-endpoint/
+├── python/                     # Python/FastAPI 版
+├── js/                         # Cloudflare Workers 版
+└── README_CN.md               # 总说明
 ```
 
 ---
 
-## 八、环境变量与 wrangler 配置
+## 八、环境变量
 
-### 8.1 Python 版环境变量
+### 8.1 Python 版环境变量（v4.0）
 
 | 环境变量 | 必须 | 默认值 | 说明 |
 |:---|:---|:---|:---|
-| PORT | 否 | 8000 | 服务端口 |
-| ENDPOINT_BASE_URL | 是 | 无 | Endpoint 自身的公网地址（如 `https://my-endpoint.com`），用于生成对外 Schema |
-| ADMIN_API_KEY | 否 | 无 | 管理 API 访问密钥（不设置则管理 API 不可用） |
-| ACCESS_TOKEN_REQUIRED | 否 | `true` | 是否强制要求 Access Token（`false` 为开放模式，仅用于开发测试） |
-| DB_PATH | 否 | `./data/textcli.db` | SQLite 数据库文件路径 |
-| SCHEMA_PATH | 否 | `./config/text_cli_schema.json` | 内部 Schema 文件路径 |
-| SCHEMA_SOURCE | 否 | `local` | Schema 加载方式（`local` 从文件加载，`remote` 预留，从 URL 拉取） |
-| SCHEMA_REMOTE_URL | 否 | 无 | 远程 Schema 地址（当 `SCHEMA_SOURCE=remote` 时使用，预留） |
-| SCHEMA_REFRESH_INTERVAL | 否 | `3600` | 远程 Schema 刷新间隔（秒，预留） |
-| FORWARD_TIMEOUT | 否 | `30` | 转发到后端的超时时间（秒） |
-| FORWARD_MAX_RETRIES | 否 | `1` | 5xx 错误自动重试次数 |
-| STATS_REPORT_URL | 否 | 无 | 生态统计上报地址（不设置则不上报，预留） |
-| STATS_REPORT_INTERVAL | 否 | `3600` | 上报间隔（秒，预留） |
-| LOG_LEVEL | 否 | `info` | 日志级别 |
+| `ENDPOINT_BASE_URL` | 是 | 无 | Endpoint 自身的公网地址，用于生成对外 Schema |
+| `ADMIN_API_KEY` | 否 | 无 | 管理 API 访问密钥 |
+| `ACCESS_TOKEN_REQUIRED` | 否 | `true` | 是否强制要求 Access Token |
+| `ENABLE_PUBLIC_CLI` | 否 | `false` | 开启人道主义 GET 通道（v4.0） |
+| `DB_PATH` | 否 | `data/textcli.db` | SQLite 数据库文件路径 |
+| `FORWARD_TIMEOUT` | 否 | `30` | 转发超时时间（秒） |
+| `FORWARD_MAX_RETRIES` | 否 | `1` | 5xx 错误自动重试次数 |
+| `A3_BACKENDS` | 否 | 空 | 逗号分隔的 A3 URL 列表（v4.0） |
+| `A3_BACKEND_TOKENS` | 否 | 空 | 对应 A3 的 Service Token（v4.0） |
+| `A3_REGISTERED_PREFIXES` | 否 | 空 | A3 注册的 ST 前缀（v4.0） |
+| `ST_PREFIX_BLACKLIST` | 否 | 空 | ST 前缀黑名单（v4.0） |
+| `IP_BLACKLIST` | 否 | 空 | 逗号分隔 IP/CIDR（v4.0） |
+| `RATE_LIMIT_PER_HOUR` | 否 | `1000` | POST 全局限流（v4.0） |
+| `RATE_LIMIT_GET_PER_HOUR` | 否 | `10000` | GET 独立限流（v4.0） |
+| `LOG_LEVEL` | 否 | `info` | 日志级别 |
 
-### 8.2 Workers 版 wrangler.toml 配置
-
-Workers 版通过 `wrangler.toml` + `[vars]` 配置，环境变量与 Python 版语义一致:
+### 8.2 Workers 版 wrangler.toml 配置（v4.0）
 
 ```toml
 name = "text-cli-endpoint"
@@ -517,166 +613,146 @@ main = "src/index.js"
 compatibility_date = "2026-05-01"
 workers_dev = true
 
-# D1 数据库（必需，用于 Access Token + 调用日志 + Schema 路由）
-# 首次使用前执行: wrangler d1 create text-cli-endpoint-db
-# 然后取消下面的注释并填入 database_id
-# [[d1_databases]]
-# binding = "DB"
-# database_name = "text-cli-endpoint-db"
-# database_id = "<your-database-id>"
+# D1 数据库
+[[d1_databases]]
+binding = "DB"
+database_name = "text-cli-endpoint-db"
+database_id = "<your-database-id>"
 
 [vars]
 ENDPOINT_BASE_URL = "https://my-endpoint.workers.dev"
 ACCESS_TOKEN_REQUIRED = "true"
+ENABLE_PUBLIC_CLI = "false"
 FORWARD_TIMEOUT = "30"
 FORWARD_MAX_RETRIES = "1"
+A3_BACKENDS = ""
+A3_BACKEND_TOKENS = ""
+A3_REGISTERED_PREFIXES = ""
+ST_PREFIX_BLACKLIST = ""
+IP_BLACKLIST = ""
+RATE_LIMIT_PER_HOUR = "1000"
+RATE_LIMIT_GET_PER_HOUR = "10000"
 ```
 
-> **注意**：`ADMIN_API_KEY` 不应写入 `wrangler.toml`（会被提交到版本控制），建议通过 `wrangler secret put ADMIN_API_KEY` 存入 Worker Secrets。
+> `ADMIN_API_KEY` 应通过 `wrangler secret put ADMIN_API_KEY` 存入 Worker Secrets，不写入 `wrangler.toml`。
 
-**Workers 版与 Python 版环境变量映射**:
+**Workers 版与 Python 版环境变量映射**（v4.0）：
 
-| Python 环境变量 | Workers 配置 | 说明 |
+| Python | Workers | 说明 |
 |:---|:---|:---|
-| `ENDPOINT_BASE_URL` | `ENDPOINT_BASE_URL` | wrangler `[vars]` 或 Worker Secrets |
-| `ADMIN_API_KEY` | `ADMIN_API_KEY` | **必须存入 Worker Secrets**（`wrangler secret put`） |
+| `ENDPOINT_BASE_URL` | `ENDPOINT_BASE_URL` | wrangler `[vars]` |
+| `ADMIN_API_KEY` | `ADMIN_API_KEY` | Worker Secrets |
 | `ACCESS_TOKEN_REQUIRED` | `ACCESS_TOKEN_REQUIRED` | wrangler `[vars]` |
+| `ENABLE_PUBLIC_CLI` | `ENABLE_PUBLIC_CLI` | wrangler `[vars]`（v4.0） |
+| `A3_BACKENDS` | `A3_BACKENDS` | wrangler `[vars]`（v4.0） |
+| `A3_REGISTERED_PREFIXES` | `A3_REGISTERED_PREFIXES` | wrangler `[vars]`（v4.0） |
+| `ST_PREFIX_BLACKLIST` | `ST_PREFIX_BLACKLIST` | wrangler `[vars]`（v4.0） |
+| `IP_BLACKLIST` | `IP_BLACKLIST` | wrangler `[vars]`（v4.0） |
+| `RATE_LIMIT_PER_HOUR` | `RATE_LIMIT_PER_HOUR` | wrangler `[vars]`（v4.0） |
+| `RATE_LIMIT_GET_PER_HOUR` | `RATE_LIMIT_GET_PER_HOUR` | wrangler `[vars]`（v4.0） |
 | `DB_PATH` | 不需要 | D1 通过 binding 直接访问 |
-| `SCHEMA_PATH` | 不需要 | Schema 存入 D1 `directives` 表 |
-| `FORWARD_TIMEOUT` | `FORWARD_TIMEOUT` | wrangler `[vars]` |
-| `PORT` | 不需要 | Workers 自动分配 |
 
 ---
 
-## 九、Docker 部署
+## 九、部署
 
-### 9.1 Python 版
+### 9.1 Python 版（Docker）
 
-**Dockerfile**
+**快速启动**
 
-```dockerfile
-FROM python:3.11-slim
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-COPY . .
-RUN mkdir -p /app/data
-EXPOSE 8000
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+```bash
+cd progressive_deploy/A5-endpoint/python
+pip install -r requirements.txt
+
+# 静态模式（无 A3_BACKENDS，回退到 config/text_cli_schema.json）
+export ENDPOINT_BASE_URL=http://localhost:8000
+export ACCESS_TOKEN_REQUIRED=false
+uvicorn main:app --host 0.0.0.0 --port 8000
+
+# 1+N 聚合模式
+export A3_BACKENDS=http://a3-service1:28050,http://a3-service2:28050
+export ENDPOINT_BASE_URL=http://localhost:8000
+uvicorn main:app --host 0.0.0.0 --port 8000
+```
+
+**Docker**
+
+```bash
+cd progressive_deploy/A5-endpoint/python
+docker compose up --build -d
 ```
 
 ### 9.2 Cloudflare Workers 版
 
-**安装依赖 + 运行测试**
+**依赖安装**
 
 ```bash
-cd server/js
+cd progressive_deploy/A5-endpoint/js
 npm install
-npm test               # 24 个单元测试全部通过
+npm test
 ```
 
-**D1 数据库初始化**
+**D1 初始化**
 
 ```bash
 # 创建 D1 数据库
 wrangler d1 create text-cli-endpoint-db
-
-# 将输出的 database_id 填入 wrangler.toml 的 [[d1_databases]] 部分并取消注释
+# 将输出的 database_id 填入 wrangler.toml 的 [[d1_databases]] 部分
 
 # 执行迁移
 wrangler d1 execute text-cli-endpoint-db --file=migrations/0001_init.sql
-
-# 导入内部路由 Schema（编辑 src/config/schema.json 替换 url 后执行）
-node scripts/seed-schema.js
+wrangler d1 execute text-cli-endpoint-db --file=migrations/0002_rate_limits.sql
 ```
 
-**敏感配置存入 Worker Secrets**
+**v4.0 变更**：不需再执行 `seed-schema.js`——Schema 从 `A3_BACKENDS` 环境变量中动态拉取生成。
+
+**部署**
 
 ```bash
-wrangler secret put ADMIN_API_KEY
-```
-
-**本地开发**
-
-```bash
-wrangler dev
-```
-
-**部署到 Cloudflare**
-
-```bash
-wrangler deploy
-```
-
-### 9.3 docker-compose.yml（Python 版通用）
-
-```yaml
-version: '3.8'
-services:
-  text-cli-endpoint:
-    build: .
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./data:/app/data
-      - ./config:/app/config
-    environment:
-      - ENDPOINT_BASE_URL=https://my-endpoint.example.com
-      - ADMIN_API_KEY=your-admin-key
-      - ACCESS_TOKEN_REQUIRED=true
-      - DB_PATH=/app/data/textcli.db
-      - LOG_LEVEL=info
-    restart: unless-stopped
-```
-
-### 9.4 一键启动
-
-**Python 版（Docker）**
-
-```bash
-cd server/python
-docker compose up -d
-```
-
-**Workers 版**
-
-```bash
-cd server/js
-npm install
 wrangler dev       # 本地开发
 wrangler deploy    # 部署到 Cloudflare
 ```
-
-Workers 本地开发启动后：
-- `POST http://localhost:8787/cli/text_cli` — 指令执行
-- `GET http://localhost:8787/text_cli_schema.json` — 对外 Schema
-- `GET http://localhost:8787/health` — 健康检查
-- `GET http://localhost:8787/api/health` — 详细健康检查（含数据库状态）
 
 ---
 
 ## 十、安全设计
 
-### 10.1 Token 安全
+### 10.1 三道防线（v4.0）
+
+详细机制见 [§2.3 安全防线体系](#23-安全防线体系v40-新增)。此节做代码级补充：
+
+| 防线 | 模块 | 存储 | 默认值 |
+|------|------|------|--------|
+| ① IP 黑名单 | `ip_guard.py` / `ip-guard.js` | 环境变量 `IP_BLACKLIST`（逗号分隔，支持 CIDR） | 空（不拦截） |
+| ② ST 前缀 | `auth.py` / `auth.js` | 环境变量 `A3_REGISTERED_PREFIXES` + `ST_PREFIX_BLACKLIST` | 空（不校验） |
+| ③ 分时限流 | `rate_limiter.py` / `rate-limiter.js` | 内存（Python）/ D1（JS） | POST 1000/h, GET 10000/h |
+
+**IP 检查时机**：中间件/`fetch` handler 入口处，所有请求必经。
+
+**ST 前缀检查时机**：仅对 `POST /cli/text_cli` 生效——提取 `Service-token` 头前 8 位，查注册表 + 黑名单。GET 人道主义通道无 Token，自然跳过。
+
+**限流检查时机**：对 `POST /cli/text_cli` 和 `GET /text-cli/cli` 生效——两条通道独立计数。
+
+### 10.2 Token 安全
 
 - Access Token 在 SQLite 中仅存储 SHA256 哈希，不存明文
 - Service Token 不经过 Endpoint，直接透传到后端
 - 日志中的 Token 仅记录前 8 位 + `***` 脱敏
 
-### 10.2 后端地址保护
+### 10.3 后端地址保护
 
-- 内部 Schema 文件（含真实 url）通过 `.gitignore` 或 Docker volume 隔离，不对外暴露
+- 内部 Schema/聚合表不对外暴露——`GET /text_cli_schema.json` 只返回改写后的外部 Schema
 - 对外 Schema 中所有 url 统一指向 Endpoint 自身
 - 管理 API 通过独立的 `ADMIN_API_KEY` 保护
 
-### 10.3 输入校验
+### 10.4 输入校验
 
 - 指令长度上限 512 字符（SPEC v1.0）
 - 参数中禁止逗号、分号、换行符（SPEC v1.0）
 - 参数数量上限 10 个
 - 请求体大小限制（默认 1MB）
 
-### 10.4 转发超时与重试
+### 10.5 转发超时与重试
 
 通过 `FORWARD_TIMEOUT` 环境变量控制超时，默认 30 秒。超时后返回 `408` 状态码。
 
@@ -686,17 +762,17 @@ Workers 本地开发启动后：
 
 ## 十一、与生态文档的对齐
 
-### 11.1 与 SPEC v1.0
+### 11.1 与 SPEC v1.2
 
 | SPEC 条款 | 本方案实现 |
 |:---|:---|
-| 2.1.1 调用地址 | `POST /cli/text_cli` |
-| 2.1.2 请求结构 | 标准 JSON body + 双层 Token 头 |
-| 2.1.3 响应结构 | 透传后端返回的 `{"rst_types":"text","rst_data":{...}}` |
-| 2.2 HTTP 状态码 | 200/400/401/403/408/500 |
-| 3.1 双层令牌 | Access Token 本地校验 + Service Token 透明转发 |
-| 3.2 令牌传递 | `Service-token` 原样透传，不修改 |
-| 4. Schema | `/text_cli_schema.json` 对外暴露 |
+| §1.1 指令格式 + JSON 感知拆分 | parser.py / parser.js |
+| §2.1/2.2 HTTP API | `POST /cli/text_cli` + `rst_types`/`rst_data` 透传 |
+| §3 双层令牌 | Access Token 鉴权 + Service Token 透传（v4.0 + ST 前缀校验） |
+| §5 错误码 | 7 种标准错误码 + 5 种新增（v4.0：IP_BLOCKED / TOKEN_PREFIX_UNKNOWN 等） |
+| §8 多语言 | 全角/半角双解析 |
+| §10 平台自管理 | ❌ A5 不触碰——install/uninstall/export 是 A3 的职责 |
+| §13 聚合指令 | ❌ A5 不执行降级——降级在 A8。Endpoint 做静态 Schema 匹配 |
 
 ### 11.2 与生态宪章
 
@@ -718,37 +794,39 @@ Workers 本地开发启动后：
 
 ## 十二、开发排期
 
-| 阶段 | 内容 | 产出 | Python 版 | Workers 版 |
-|:---|:---|:---|:---|:---|
-| P1 | 指令解析器 + Schema 路由匹配 + HTTP 转发 | 可运行的最小端点 | ✅ 已完成 | ✅ 已完成 |
-| P2 | Access Token 鉴权 + 对外 Schema 生成 | 安全的路由网关 | ✅ 已完成（含令牌桶限流） | ✅ 已完成（D1 滑动窗口限流） |
-| P3 | D1/SQLite 记账模块 + 管理 API | 完整的记账与管理能力 | ✅ 已完成 | ✅ 已完成 |
-| P4 | 部署文件与流程 | 可部署方案 | ✅ Docker 已完成 | ✅ wrangler deploy 已完成 |
-| P5 | 部署说明文档 | 面向运维的完整指南 | ✅ `server/python/README_CN.md` | ✅ `server/js/README_CN.md` |
-| P6 | 生态统计上报接口 | 生态衔接 | 预留（环境变量已定义） | 预留 |
-
-两套语言版本并行开发，Python 版使用 Docker + SQLite，Workers 版使用 `wrangler deploy` + D1，共享相同的表结构和 API 定义。P1-P5 两版均已完成（PR #60）。
+| 阶段 | 内容 | 产出 | 状态 |
+|:---|:---|:---|:---|
+| P1 | 指令解析器 + 路由匹配 + HTTP 转发 | 可运行的最小端点 | ✅ |
+| P2 | Access Token 鉴权 + 对外 Schema 生成 | 安全的路由网关 | ✅（含令牌桶限流） |
+| P3 | D1/SQLite 记账模块 + 管理 API | 完整的记账与管理能力 | ✅ |
+| P4 | 部署文件与流程 | 可部署方案（Docker / wrangler deploy） | ✅ |
+| P5 | 部署说明文档 | 面向运维的完整指南（双端 README_CN.md） | ✅ |
+| P6 | 1+N 动态聚合（v4.0） | backend_registry + skills 聚合拉取 | ✅ |
+| P7 | 三道安全防线（v4.0） | ip_guard + ST 前缀校验 + rate_limiter | ✅ |
+| P8 | 人道主义通道（v4.0） | GET /text-cli/cli | ✅ |
+| P9 | 清洗历史违规模块（v4.0） | 移除 text_cli_modules/ / handlers/ / 静态 Schema | ✅ |
+| P10 | 生态统计上报接口 | 生态衔接 | 预留 |
 
 ---
 
 ## 十三、待讨论问题
 
-1. **Access Token 的签发**：当前方案内置了 Token 管理 API（创建/删除/额度控制/限流），是否足够？还是需要更复杂的签发流程（如注册邮箱验证）？ — *Python v1 已实现基本 CRUD，Workers 版同步实现，待运营验证*
+1. **1+N 聚合的降级链**：当前冲突处理为"先注册先匹配"。是否需要完整的 A8 式降级链（失败自动切换下一个提供方）？ — *当前阶段先匹配，降级链留待后续版本*
 
-2. **对外 Schema 的端点路径**：确认使用 `/text_cli_schema.json`（与 SPEC v1.0 和 Agent 集成文档一致）。 — *已确认并实现*
+2. **A3 skills 拉取的刷新机制**：Python 版启动时拉取一次，JS 版首次请求时按需拉取。是否需要定时刷新（`A3_REFRESH_INTERVAL`）？ — *留待后续版本*
 
-3. **`daily_stats` 聚合时机**：当前设计为实时更新（每笔调用后）。Python 版 SQLite 在早期流量下性能无问题；Workers 版 D1 同样实现实时更新，后续如有需要可改为定时聚合。 — *两版均已实现*
+3. **人道主义通道的 A3 支持**：`POST /text-cli/skills/{id}` 需要 A3 支持无 Token 模式（`SERVICE_TOKEN_REQUIRED=false`）。如果 A3 暂不支持，GET 通道返回 401。 — *需 A3 侧配合*
 
-4. **转发时是否透传 Access Token 到后端**：SPEC 要求 Service Token 必须透传，但 Access Token 的透传是可选的。当前代码默认**不透传** Access Token（后端不需要知道调用方是谁，只需验证 Service Token）。 — *两版均已实现*
+4. **对外 Schema 端点路径**：`GET /text_cli_schema.json`（与 SPEC v1.2 一致）。 — *已确认*
 
-5. **`ENDPOINT_BASE_URL` 的配置**：当前必须手动配置。是否需要支持自动检测（从请求的 Host 头推断）？ — *两版均要求显式配置*
+5. **`ENDPOINT_BASE_URL` 的配置**：是否支持自动检测（从请求的 Host 头推断）？ — *当前要求显式配置*
 
-6. **Workers 版 D1 的冷启动性能**：D1 查询在网络条件良好时 <10ms，但跨区域延迟可能影响首次请求。是否需要在 Worker 内添加内存缓存层？ — *待运营验证*
+6. **Workers 版 D1 冷启动性能**：D1 查询跨区域延迟影响首次请求。是否需要内存缓存层？ — *当前 skills 加载受 `ensureSkillsLoaded()` 保护，首次请求可接受*
 
 ---
 
-> 本方案由 Lumen ✦ 基于 SPEC v1.0、ECOLOGICAL_CHARTER.md v1.0、Building_text-cli_guide_CN.md 及 DeepSeek_Chat.md 的任务指派起草，经与 lemondy 讨论修正架构后形成 v2 版本，再经 Tide 🌊 评审后 Python 端 v1 已实现（PR #9）。
+> 本方案由 Lumen ✦ 基于 SPEC v1.0、ECOLOGICAL_CHARTER.md v1.0 起草，v2 经 lemondy 讨论修正架构，v3 经 Tide 🌊 评审后实现，v3.1 同步 Workers 方案。
 >
-> Python 端 P1-P5 已完成，Cloudflare Workers 端 P1-P5 已完成（PR #60），P6 预留。
+> v4.0（2026-05-21）基于 SPEC v1.2 和 A5 更新计划升级：1+N 动态聚合、三道安全防线、人道主义通道、清洗历史违规模块。Python 端 + Workers 端同步完成。
 >
-> — Lumen ✦, 2026-04-30（初稿）/ 2026-05-01（v2.1 代码对齐更新）/ 2026-05-05（v3.0 Workers 方案更新）/ 2026-05-05（v3.1 实现同步）
+> — Lumen ✦ / Tide 🌊

@@ -153,3 +153,24 @@ def update_daily_stats(domain, action, status_code, response_time_ms):
             "INSERT INTO daily_stats (date, domain, action, call_count, success_count, avg_response_ms) VALUES (?,?,?,?,?,?)",
             (today, domain, action, 1, is_success, response_time_ms),
         )
+
+
+async def forward_skill_request(
+    backend_base_url: str,
+    skill_id: str,
+    body: dict,
+    service_token: str | None,
+) -> tuple[int, str]:
+    url = f"{backend_base_url.rstrip('/')}/text-cli/skills/{skill_id}"
+    headers = {"Content-Type": "application/json"}
+    if service_token:
+        headers["Service-token"] = service_token
+
+    try:
+        async with httpx.AsyncClient(timeout=FORWARD_TIMEOUT) as client:
+            resp = await client.post(url, json=body, headers=headers)
+            return resp.status_code, resp.text
+    except httpx.TimeoutException:
+        return 408, '{"rst_types":"text","rst_data":{"text":"request to backend timed out"}}'
+    except httpx.RequestError:
+        return 502, '{"rst_types":"text","rst_data":{"text":"backend request failed"}}'
