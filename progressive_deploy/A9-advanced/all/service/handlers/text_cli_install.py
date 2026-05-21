@@ -129,7 +129,7 @@ def text_cli_install(params: list[str]) -> str:
         manifest_register(
             name, pkg_domain, pkg_type, pkg_source,
             files={
-                "handler": f"handlers/{safe}.py",
+                "handler": f"packages/{name}/handler.py",
                 "schema": f"handlers/schema/{safe}_schema.json",
             },
             directives=[f"{d.get('domain',name)};{d.get('action','')}" for d in schema.get("directives", [])]
@@ -138,7 +138,7 @@ def text_cli_install(params: list[str]) -> str:
         init_fn = _find_init_fn(meta.get("handler_path", ""))
         if init_fn is None:
             init_fn = f"init_{safe}_handler"
-        _append_handler_init(f"handlers.{safe}", init_fn)
+        _append_handler_init(f"packages.{name}.handler", init_fn)
     except Exception:
         pass  # manifest/init optional, don't block install
 

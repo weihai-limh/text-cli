@@ -30,14 +30,9 @@ def install_files(name: str, meta: dict, runtime: str = "python", force: bool = 
     schema_src = pathlib.Path(meta["schema_path"])
     schema_dst = SCHEMA_DIR / f"{safe}_schema.json"
 
-    # Check existing
+    # Check existing (schema-based, handler lives in packages/ now)
     if schema_dst.exists() and not force:
-        handler_dst = HANDLERS_DIR / f"{safe}.py"
-        if not handler_dst.exists() and runtime == "python":
-            pass
-        elif handler_dst.exists() and runtime == "python":
-            return False, f"包 \"{name}\" 已安装。使用 AI:text-cli;install,{name},--force 强制覆盖"
-        elif runtime == "mcp" and schema_dst.exists():
+        if runtime in ("python", "mcp"):
             return False, f"包 \"{name}\" 已安装。使用 AI:text-cli;install,{name},--force 强制覆盖"
 
     try:
@@ -49,13 +44,8 @@ def install_files(name: str, meta: dict, runtime: str = "python", force: bool = 
     lines = []
     pkg_dir = pathlib.Path(meta.get("path", ""))
     if runtime == "python":
-        handler_src = pathlib.Path(meta["handler_path"])
-        handler_dst = HANDLERS_DIR / f"{safe}.py"
-        try:
-            shutil.copy2(handler_src, handler_dst)
-        except OSError as e:
-            return False, f"handler 复制失败: {e}"
-        lines.append(f"文件部署完成: {name}.py + {name}_schema.json")
+        # handler.py stays in packages/<name>/ — no copy to handlers/
+        lines.append(f"文件部署完成: packages/{name}/handler.py + {name}_schema.json")
 
     elif runtime == "mcp":
         lines.append(f"MCP schema 注册完成: {name}_schema.json")
