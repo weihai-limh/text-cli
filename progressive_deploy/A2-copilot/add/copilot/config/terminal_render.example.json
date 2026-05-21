@@ -1,0 +1,21 @@
+{
+  "_note": "terminal_render — 终端渲染配置。触发类型→代理+渲染指令的映射表。适配不同终端只需换此配置。",
+  "_sample_config": true,
+
+  "triggers": {
+    "image_url": {
+      "match": "响应中含 https?://...\\.(png|jpg|jpeg|gif|webp|svg) 或 data:image/...",
+      "proxy": "AI:media;download,{url}",
+      "instruction": "AI:resource;render,picture,{proxied_url},{alt}",
+      "description": "外部图片 → 下载到本地代理 → markdown 图片渲染"
+    },
+    "plain_text": {
+      "match": "无媒体数据",
+      "proxy": null,
+      "instruction": "AI:resource;render,text,{text}",
+      "description": "纯文本 → 透传"
+    }
+  },
+
+  "detection_order": ["image_url", "video_url", "audio_url", "base64_img", "file_path", "plain_text"]
+}
