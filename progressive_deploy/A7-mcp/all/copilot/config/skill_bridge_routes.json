@@ -1,0 +1,99 @@
+{
+  "_comment": "Skill Bridge Routes — ClawHub skill → text-cli instruction mapping. One rule = one instruction.",
+  "routes": {
+    "websearch;tavily": {
+      "skill": "tavily-search",
+      "command": "node {skill_dir}/scripts/search.mjs '{query}'",
+      "params": [
+        {"name": "query", "position": 0}
+      ],
+      "adapter": "md2tcjson",
+      "adapter_config": {
+        "sections": ["answer", "sources"]
+      },
+      "timeout_ms": 15000,
+      "description": "Web search via Tavily API. Returns normalized JSON with answer and sources.",
+      "description_cn": "通过 Tavily API 搜索网页。返回标准化 JSON，含 answer 和 sources。"
+    },
+    "csv2json;convert": {
+      "skill": "csv2json",
+      "command": "python3 {skill_dir}/scripts/convert.py {input}",
+      "params": [
+        {"name": "input", "position": 0}
+      ],
+      "adapter": "json_parse",
+      "timeout_ms": 10000,
+      "description": "Convert CSV file to JSON array. Supports custom delimiter and stdin.",
+      "description_cn": "将 CSV 文件转换为 JSON 数组。支持自定义分隔符和标准输入。"
+    },
+    "skill-bdmap;geocode": {
+      "skill": "baidu-ai-map",
+      "command": "python3 {skill_dir}/scripts/baidumap.py geocode '{address}'",
+      "params": [
+        {"name": "address", "position": 0}
+      ],
+      "adapter": "baidumap",
+      "output_adapter": "baidu-map/geocode",
+      "timeout_ms": 15000,
+      "description": "Baidu Maps geocoding — address to coordinates (bd09ll).",
+      "description_cn": "百度地图地理编码 — 地址转坐标 (bd09ll)。"
+    },
+    "skill-bdmap;reverse": {
+      "skill": "baidu-ai-map",
+      "command": "python3 {skill_dir}/scripts/baidumap.py reverse '{location}'",
+      "params": [
+        {"name": "location", "position": 0}
+      ],
+      "adapter": "baidumap",
+      "timeout_ms": 15000,
+      "description": "Baidu Maps reverse geocoding — coordinates to address.",
+      "description_cn": "百度地图逆地理编码 — 坐标转地址。"
+    },
+    "skill-bdmap;place": {
+      "skill": "baidu-ai-map",
+      "command": "python3 {skill_dir}/scripts/baidumap.py place '{query}' '{region}'",
+      "params": [
+        {"name": "query", "position": 0},
+        {"name": "region", "position": 1}
+      ],
+      "adapter": "baidumap",
+      "timeout_ms": 15000,
+      "description": "Baidu Maps semantic place search.",
+      "description_cn": "百度地图语义化地点检索。"
+    },
+    "skill-bdmap;direction": {
+      "skill": "baidu-ai-map",
+      "command": "python3 {skill_dir}/scripts/baidumap.py direction '{query}' '{location}'",
+      "params": [
+        {"name": "query", "position": 0},
+        {"name": "location", "position": 1}
+      ],
+      "adapter": "baidumap",
+      "timeout_ms": 15000,
+      "description": "Baidu Maps route planning (driving/walking/cycling/transit).",
+      "description_cn": "百度地图路线规划（驾车/步行/骑行/公交）。"
+    },
+    "skill-bdmap;weather": {
+      "skill": "baidu-ai-map",
+      "command": "python3 {skill_dir}/scripts/baidumap.py weather '{location}'",
+      "params": [
+        {"name": "location", "position": 0}
+      ],
+      "adapter": "baidumap",
+      "timeout_ms": 15000,
+      "description": "Baidu Maps weather query by region or coordinates.",
+      "description_cn": "百度地图天气查询（按区域或坐标）。"
+    },
+    "skill-bdmap;maprender": {
+      "skill": "baidu-ai-map",
+      "command": "python3 {skill_dir}/scripts/baidumap.py maprender '{resource_key}'",
+      "params": [
+        {"name": "resource_key", "position": 0}
+      ],
+      "adapter": "baidumap",
+      "timeout_ms": 5000,
+      "description": "Baidu Maps map render — generates map visualization URL from resource_key.",
+      "description_cn": "百度地图展示 — 根据 resource_key 生成地图可视化 URL。"
+    }
+  }
+}
