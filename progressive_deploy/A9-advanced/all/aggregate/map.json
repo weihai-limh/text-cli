@@ -1,0 +1,38 @@
+{
+  "id": "map",
+  "type": "aggregate",
+  "domain": "map",
+  "description_cn": "地图服务：多提供方自动降级",
+  "default": ["tx-map", "tencent-maps", "gd-map", "bd-map", "skill-bdmap"],
+  "providers": {
+    "tx-map": {
+      "geocode": "tx-map;geocode",
+      "reverse-geocode": "tx-map;reverse-geocode",
+      "route": "tx-map;route",
+      "static-map": "tx-map;static-map",
+      "ip": "tx-map;ip"
+    },
+    "tencent-maps": {
+      "geocode": "tencent-maps;geocode",
+      "ip": "tencent-maps;ip",
+      "weather": "tencent-maps;weather"
+    },
+    "gd-map": {
+      "geocode": "gd-map;geocode",
+      "reverse-geocode": "gd-map;reverse-geocode",
+      "route": "gd-map;route",
+      "static-map": "gd-map;static-map",
+      "search": "gd-map;search"
+    },
+    "bd-map": {
+      "geocode": "bd-map;geocode",
+      "route": "bd-map;route",
+      "static-map": "bd-map;static-map",
+      "ip": "bd-map;ip",
+      "tfcoords": "bd-map;tfcoords"
+    },
+    "skill-bdmap": {
+      "geocode": "skill-bdmap;geocode"
+    }
+  }
+}
