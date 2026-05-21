@@ -1,0 +1,265 @@
+{
+  "server": {
+    "name": "antv",
+    "label": "蚂蚁图表",
+    "transport": "sse"
+  },
+  "domain": {
+    "semantic_id": "domain.antvchart",
+    "aliases": {"zh": "蚂蚁图表", "en": "antvchart"},
+    "description": "AntV visualization charts;蚂蚁数据可视化图表，支持 25 种图表类型"
+  },
+  "env_params": [],
+  "tools": {
+    "generate_area_chart": {
+      "semantic_id": "action.area_chart",
+      "aliases": {"zh": "面积图", "en": "area"},
+      "description": "Generate area chart for continuous data trends;生成面积图，展示连续数据趋势",
+      "params": [
+        {"name": "config", "type": "json", "position": 0, "alias_zh": "图表配置", "alias_en": "config"}
+      ],
+      "trigger_keywords": {"zh": ["面积图", "区域图", "趋势面积", "堆叠面积"], "en": ["area chart", "area plot"]},
+      "adapter": "json_parse"
+    },
+    "generate_bar_chart": {
+      "semantic_id": "action.bar_chart",
+      "aliases": {"zh": "条形图", "en": "bar"},
+      "description": "Generate horizontal bar chart for category comparison;生成条形图，横向分类对比",
+      "params": [
+        {"name": "config", "type": "json", "position": 0, "alias_zh": "图表配置", "alias_en": "config"}
+      ],
+      "trigger_keywords": {"zh": ["条形图", "横向柱状图", "水平柱图", "条形"], "en": ["bar chart", "horizontal bar"]},
+      "adapter": "json_parse"
+    },
+    "generate_boxplot_chart": {
+      "semantic_id": "action.boxplot_chart",
+      "aliases": {"zh": "箱线图", "en": "boxplot"},
+      "description": "Generate boxplot for statistical distribution across categories;生成箱线图，展示分类数据分布",
+      "params": [
+        {"name": "config", "type": "json", "position": 0, "alias_zh": "图表配置", "alias_en": "config"}
+      ],
+      "trigger_keywords": {"zh": ["箱线图", "箱型图", "盒须图", "四分位"], "en": ["boxplot", "box plot", "whisker"]},
+      "adapter": "json_parse"
+    },
+    "generate_column_chart": {
+      "semantic_id": "action.column_chart",
+      "aliases": {"zh": "柱状图", "en": "column"},
+      "description": "Generate vertical column chart for comparing values;生成柱状图，纵向数值对比",
+      "params": [
+        {"name": "config", "type": "json", "position": 0, "alias_zh": "图表配置", "alias_en": "config"}
+      ],
+      "trigger_keywords": {"zh": ["柱状图", "柱图", "纵向柱图", "直方"], "en": ["column chart", "vertical bar"]},
+      "adapter": "json_parse"
+    },
+    "generate_district_map": {
+      "semantic_id": "action.district_map",
+      "aliases": {"zh": "区域地图", "en": "district_map"},
+      "description": "Generate China administrative division map with data overlay;生成中国行政区划数据分布图",
+      "params": [
+        {"name": "config", "type": "json", "position": 0, "alias_zh": "地图配置", "alias_en": "config"}
+      ],
+      "trigger_keywords": {"zh": ["区域地图", "行政地图", "中国地图", "省份分布", "城市地图"], "en": ["district map", "china map", "choropleth"]},
+      "adapter": "json_parse"
+    },
+    "generate_dual_axes_chart": {
+      "semantic_id": "action.dual_axes_chart",
+      "aliases": {"zh": "双轴图", "en": "dual_axes"},
+      "description": "Generate dual axes chart combining bar and line;生成双轴图，组合柱状+折线",
+      "params": [
+        {"name": "config", "type": "json", "position": 0, "alias_zh": "图表配置", "alias_en": "config"}
+      ],
+      "trigger_keywords": {"zh": ["双轴图", "双Y轴", "组合图", "混合图表"], "en": ["dual axes", "combo chart", "mixed chart"]},
+      "adapter": "json_parse"
+    },
+    "generate_fishbone_diagram": {
+      "semantic_id": "action.fishbone_diagram",
+      "aliases": {"zh": "鱼骨图", "en": "fishbone"},
+      "description": "Generate fishbone diagram for root cause analysis;生成鱼骨图/因果分析图",
+      "params": [
+        {"name": "config", "type": "json", "position": 0, "alias_zh": "图表配置", "alias_en": "config"}
+      ],
+      "trigger_keywords": {"zh": ["鱼骨图", "因果图", "石川图", "根本原因分析"], "en": ["fishbone", "ishikawa", "cause effect"]},
+      "adapter": "json_parse"
+    },
+    "generate_flow_diagram": {
+      "semantic_id": "action.flow_diagram",
+      "aliases": {"zh": "流程图", "en": "flow"},
+      "description": "Generate flow diagram for process steps and decisions;生成流程图，展示流程步骤与决策",
+      "params": [
+        {"name": "config", "type": "json", "position": 0, "alias_zh": "图表配置", "alias_en": "config"}
+      ],
+      "trigger_keywords": {"zh": ["流程图", "流程", "步骤图", "决策图"], "en": ["flow diagram", "flowchart", "process diagram"]},
+      "adapter": "json_parse"
+    },
+    "generate_funnel_chart": {
+      "semantic_id": "action.funnel_chart",
+      "aliases": {"zh": "漏斗图", "en": "funnel"},
+      "description": "Generate funnel chart for conversion analysis;生成漏斗图，展示转化率递减过程",
+      "params": [
+        {"name": "config", "type": "json", "position": 0, "alias_zh": "图表配置", "alias_en": "config"}
+      ],
+      "trigger_keywords": {"zh": ["漏斗图", "转化漏斗", "转化率", "递减"], "en": ["funnel chart", "conversion funnel"]},
+      "adapter": "json_parse"
+    },
+    "generate_histogram_chart": {
+      "semantic_id": "action.histogram_chart",
+      "aliases": {"zh": "直方图", "en": "histogram"},
+      "description": "Generate histogram for frequency distribution;生成直方图，展示数据频率分布",
+      "params": [
+        {"name": "config", "type": "json", "position": 0, "alias_zh": "图表配置", "alias_en": "config"}
+      ],
+      "trigger_keywords": {"zh": ["直方图", "频率分布", "分布图", "频数"], "en": ["histogram", "frequency distribution"]},
+      "adapter": "json_parse"
+    },
+    "generate_line_chart": {
+      "semantic_id": "action.line_chart",
+      "aliases": {"zh": "折线图", "en": "line"},
+      "description": "Generate line chart for time series and trends;生成折线图，展示时序变化趋势",
+      "params": [
+        {"name": "config", "type": "json", "position": 0, "alias_zh": "图表配置", "alias_en": "config"}
+      ],
+      "trigger_keywords": {"zh": ["折线图", "趋势图", "时间序列", "走势", "变化"], "en": ["line chart", "trend line", "time series"]},
+      "adapter": "json_parse"
+    },
+    "generate_liquid_chart": {
+      "semantic_id": "action.liquid_chart",
+      "aliases": {"zh": "水波图", "en": "liquid"},
+      "description": "Generate liquid fill chart for percentage visualization;生成水波图，展示百分比进度",
+      "params": [
+        {"name": "config", "type": "json", "position": 0, "alias_zh": "图表配置", "alias_en": "config"}
+      ],
+      "trigger_keywords": {"zh": ["水波图", "水位图", "进度球", "百分比球"], "en": ["liquid chart", "liquid fill", "progress ball"]},
+      "adapter": "json_parse"
+    },
+    "generate_mind_map": {
+      "semantic_id": "action.mind_map",
+      "aliases": {"zh": "思维导图", "en": "mind_map"},
+      "description": "Generate mind map for hierarchical idea organization;生成思维导图，层级化组织思路",
+      "params": [
+        {"name": "config", "type": "json", "position": 0, "alias_zh": "图表配置", "alias_en": "config"}
+      ],
+      "trigger_keywords": {"zh": ["思维导图", "脑图", "心智图", "树形图", "大纲"], "en": ["mind map", "mindmap", "thinking map"]},
+      "adapter": "json_parse"
+    },
+    "generate_network_graph": {
+      "semantic_id": "action.network_graph",
+      "aliases": {"zh": "网络图", "en": "network"},
+      "description": "Generate network/graph visualization for relationships;生成网络关系图，展示节点与连线",
+      "params": [
+        {"name": "config", "type": "json", "position": 0, "alias_zh": "图表配置", "alias_en": "config"}
+      ],
+      "trigger_keywords": {"zh": ["网络图", "关系图", "节点图", "拓扑图", "知识图谱"], "en": ["network graph", "graph visualization", "node edge"]},
+      "adapter": "json_parse"
+    },
+    "generate_organization_chart": {
+      "semantic_id": "action.organization_chart",
+      "aliases": {"zh": "组织架构图", "en": "org_chart"},
+      "description": "Generate organization chart for hierarchical structure;生成组织架构图，展示层级结构",
+      "params": [
+        {"name": "config", "type": "json", "position": 0, "alias_zh": "图表配置", "alias_en": "config"}
+      ],
+      "trigger_keywords": {"zh": ["组织架构图", "架构图", "组织图", "层级图", "部门图"], "en": ["organization chart", "org chart", "hierarchy"]},
+      "adapter": "json_parse"
+    },
+    "generate_path_map": {
+      "semantic_id": "action.path_map",
+      "aliases": {"zh": "路径地图", "en": "path_map"},
+      "description": "Generate path map with route lines on map;生成路径地图，在地图上绘制路线",
+      "params": [
+        {"name": "config", "type": "json", "position": 0, "alias_zh": "地图配置", "alias_en": "config"}
+      ],
+      "trigger_keywords": {"zh": ["路径地图", "路线地图", "轨迹图", "行程图"], "en": ["path map", "route map", "trajectory map"]},
+      "adapter": "json_parse"
+    },
+    "generate_pie_chart": {
+      "semantic_id": "action.pie_chart",
+      "aliases": {"zh": "饼图", "en": "pie"},
+      "description": "Generate pie chart for proportion comparison;生成饼图，展示占比分布",
+      "params": [
+        {"name": "config", "type": "json", "position": 0, "alias_zh": "图表配置", "alias_en": "config"}
+      ],
+      "trigger_keywords": {"zh": ["饼图", "圆饼图", "占比", "比例", "百分比"], "en": ["pie chart", "donut chart", "proportion"]},
+      "adapter": "json_parse"
+    },
+    "generate_pin_map": {
+      "semantic_id": "action.pin_map",
+      "aliases": {"zh": "标记地图", "en": "pin_map"},
+      "description": "Generate pin/marker map for point locations;生成标记地图，在地图上标注点位",
+      "params": [
+        {"name": "config", "type": "json", "position": 0, "alias_zh": "地图配置", "alias_en": "config"}
+      ],
+      "trigger_keywords": {"zh": ["标记地图", "点位地图", "标注地图", "散点地图"], "en": ["pin map", "marker map", "point map"]},
+      "adapter": "json_parse"
+    },
+    "generate_radar_chart": {
+      "semantic_id": "action.radar_chart",
+      "aliases": {"zh": "雷达图", "en": "radar"},
+      "description": "Generate radar chart for multi-dimensional comparison;生成雷达图，多维指标对比",
+      "params": [
+        {"name": "config", "type": "json", "position": 0, "alias_zh": "图表配置", "alias_en": "config"}
+      ],
+      "trigger_keywords": {"zh": ["雷达图", "蛛网图", "多维对比", "星形图", "极坐标"], "en": ["radar chart", "spider chart", "web chart"]},
+      "adapter": "json_parse"
+    },
+    "generate_sankey_chart": {
+      "semantic_id": "action.sankey_chart",
+      "aliases": {"zh": "桑基图", "en": "sankey"},
+      "description": "Generate Sankey diagram for flow and transfer analysis;生成桑基图，展示流量与转移关系",
+      "params": [
+        {"name": "config", "type": "json", "position": 0, "alias_zh": "图表配置", "alias_en": "config"}
+      ],
+      "trigger_keywords": {"zh": ["桑基图", "流量图", "能量流", "转移图", "资金流"], "en": ["sankey", "sankey diagram", "flow chart"]},
+      "adapter": "json_parse"
+    },
+    "generate_scatter_chart": {
+      "semantic_id": "action.scatter_chart",
+      "aliases": {"zh": "散点图", "en": "scatter"},
+      "description": "Generate scatter chart for correlation and distribution;生成散点图，展示变量相关性",
+      "params": [
+        {"name": "config", "type": "json", "position": 0, "alias_zh": "图表配置", "alias_en": "config"}
+      ],
+      "trigger_keywords": {"zh": ["散点图", "散点", "相关性", "回归", "气泡图"], "en": ["scatter chart", "scatter plot", "bubble chart"]},
+      "adapter": "json_parse"
+    },
+    "generate_treemap_chart": {
+      "semantic_id": "action.treemap_chart",
+      "aliases": {"zh": "矩形树图", "en": "treemap"},
+      "description": "Generate treemap for hierarchical proportion visualization;生成矩形树图，层级占比可视化",
+      "params": [
+        {"name": "config", "type": "json", "position": 0, "alias_zh": "图表配置", "alias_en": "config"}
+      ],
+      "trigger_keywords": {"zh": ["矩形树图", "树图", "马赛克图", "层级占比"], "en": ["treemap", "tree map", "mosaic"]},
+      "adapter": "json_parse"
+    },
+    "generate_venn_chart": {
+      "semantic_id": "action.venn_chart",
+      "aliases": {"zh": "韦恩图", "en": "venn"},
+      "description": "Generate Venn diagram for set relationships;生成韦恩图，展示集合交并关系",
+      "params": [
+        {"name": "config", "type": "json", "position": 0, "alias_zh": "图表配置", "alias_en": "config"}
+      ],
+      "trigger_keywords": {"zh": ["韦恩图", "文氏图", "集合图", "交集", "并集"], "en": ["venn diagram", "venn", "set diagram"]},
+      "adapter": "json_parse"
+    },
+    "generate_violin_chart": {
+      "semantic_id": "action.violin_chart",
+      "aliases": {"zh": "小提琴图", "en": "violin"},
+      "description": "Generate violin chart for density distribution;生成小提琴图，展示数据密度分布",
+      "params": [
+        {"name": "config", "type": "json", "position": 0, "alias_zh": "图表配置", "alias_en": "config"}
+      ],
+      "trigger_keywords": {"zh": ["小提琴图", "密度图", "分布密度"], "en": ["violin chart", "violin plot", "density plot"]},
+      "adapter": "json_parse"
+    },
+    "generate_word_cloud_chart": {
+      "semantic_id": "action.word_cloud_chart",
+      "aliases": {"zh": "词云图", "en": "word_cloud"},
+      "description": "Generate word cloud for text frequency visualization;生成词云图，展示关键词频率",
+      "params": [
+        {"name": "config", "type": "json", "position": 0, "alias_zh": "图表配置", "alias_en": "config"}
+      ],
+      "trigger_keywords": {"zh": ["词云", "词云图", "标签云", "文字云", "关键词"], "en": ["word cloud", "wordcloud", "tag cloud"]},
+      "adapter": "json_parse"
+    }
+  }
+}

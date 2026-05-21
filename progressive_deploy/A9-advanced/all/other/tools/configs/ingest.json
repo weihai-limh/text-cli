@@ -1,0 +1,14 @@
+{
+  "sources": [
+    "tencent-maps",
+    "antv"
+  ],
+  "targets": {
+    "schema": [
+      "/root/text-cli-service/config/text_cli_schema.json"
+    ],
+    "registry": [
+      "/root/.openclaw/workspace/text-cli/schema/semantic-registry_bge-m3.json"
+    ]
+  }
+}
