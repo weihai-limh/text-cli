@@ -213,6 +213,25 @@ class CopilotHandler(BaseHTTPRequestHandler):
                 except Exception:
                     pass
 
+        # 3. 从 skill_bridge_routes.json 读 skill 指令
+        try:
+            routes_path = Path(__file__).parent / 'config' / 'skill_bridge_routes.json'
+            if routes_path.exists():
+                skill_data = json.loads(routes_path.read_text(encoding='utf-8'))
+                for op_id, route in skill_data.get('routes', {}).items():
+                    if op_id in seen:
+                        continue
+                    directives.append({
+                        'id': op_id,
+                        'description': route.get('description', ''),
+                        'description_en': route.get('description', ''),
+                        'parameters': [p.get('name', '') for p in route.get('params', [])],
+                        'returns': 'rst_data.text',
+                    })
+                    seen.add(op_id)
+        except Exception:
+            pass
+
         return {
             'endpoint': {
                 'name': cfg['endpoint_info']['name'],

@@ -230,8 +230,27 @@ class CopilotCore:
         # @directive 注册的 handler 默认 level: read
         # auxiliary_config 里有条目的可以覆盖
 
+        # 5. Skill bridge 路由自动发现
+        #    每个 skill 路由注册为一个 handler，统一指向 _try_skill_bridge
+        #    world 上几十万个 skill 包，安装后自动出现在 schema 和 query 中
+        _skill_count = 0
+        try:
+            routes_path = self.config_dir / "config" / "skill_bridge_routes.json"
+            if routes_path.exists():
+                with open(routes_path) as _f:
+                    skill_routes = json.load(_f).get("routes", {})
+                for op_id in skill_routes:
+                    if op_id in self._handlers:
+                        continue  # 本地 handler 优先
+                    self._handlers[op_id] = lambda p, o=op_id: self._try_skill_bridge(o, p)
+                    self._alias_map[op_id] = op_id
+                    _skill_count += 1
+        except Exception as e:
+            print(f"[copilot] ⚠ skill bridge 路由加载失败: {e}")
+
         print(f"[copilot] 已注册 {len(self._handlers)} 个 handler"
-              f"（其中 {_registered_from_directive} 个来自 @directive 自动发现），"
+              f"（其中 {_registered_from_directive} 个来自 @directive 自动发现，"
+              f"{_skill_count} 个来自 skill bridge），"
               f"{len(self._alias_map)} 个别名映射，"
               f"{len(self._security_overrides)} 条安全策略覆盖")
 
