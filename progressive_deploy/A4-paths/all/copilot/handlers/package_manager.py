@@ -150,7 +150,22 @@ class PackageManagerHandlers:
 
         For immediate use after co-install (before restart).
         On restart, handlers/__init__.py properly mixes *Handlers into Copilot MRO.
+        Also calls init_* function if present, passing project_root from config.
         """
+        # ── Auto-call init function ──
+        safe = pkg_id.replace("-", "_")
+        for init_name in (f"init_{safe}_handler", f"init_{pkg_id.replace('-', '_')}_handler"):
+            init_fn = getattr(mod, init_name, None)
+            if init_fn and callable(init_fn):
+                try:
+                    pkg_dir = pathlib.Path(__file__).resolve().parent.parent / "packages" / pkg_id
+                    init_fn(project_root=str(pkg_dir))
+                    logger.info("co-install %s: called %s(project_root=%s)", pkg_id, init_name, pkg_dir)
+                except Exception as e:
+                    logger.warning("co-install %s: %s failed: %s", pkg_id, init_name, e)
+                break
+
+        # ── Wire _handle_* methods ──
         for attr in dir(mod):
             if attr.endswith("Handlers") and not attr.startswith("_"):
                 cls = getattr(mod, attr)
@@ -159,7 +174,6 @@ class PackageManagerHandlers:
                         method = getattr(cls, method_name)
                         if callable(method):
                             # Bind to self (CopilotCore instance)
-                            import types
                             bound = types.MethodType(method, self)
                             setattr(self, method_name, bound)
                             logger.debug("Wired %s → %s", method_name, pkg_id)
