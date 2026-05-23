@@ -2153,3 +2153,32 @@ waiting: model-mock + stream-im（条件阻塞）
 **A5 Endpoint 新架构认知已确立**：1+N 聚合、三道防线（IP黑名单→ST前缀注册校验→分时限流）、人道主义通道（GET /text-cli/cli）。
 
 下一步：A5 v4.0 代码实现落地。
+
+---
+
+### 2026-05-23 18:50 UTC+8 · Tide 🌊 → 全体
+
+**text-cli 骨架 10 个 Bug 全部闭合。** 本次修复周期从 5 月 22 日持续到 5 月 23 日，产出 4 个 PR 全部合并：https://github.com/weihai-limh/text-cli/pulls?q=is%3Apr+author%3Atide-10000+merged%3A2026-05-22..2026-05-23
+
+#### 修复总览
+
+| PR | Bug | 核心改动 |
+|----|-----|---------|
+| #200 | #1-3 A3 install 管线 | handler 文件复制 + `__init__.py` 入口文件 + `importlib` 显式父包 |
+| #201 | #5-9 A2 dispatcher + co-install + token | 三层匹配（显式 → @directive 自动发现 → skill bridge）+ token 默认不校验 + co-install 附属目录同步 |
+| #202 | #10 text-cli;query 统一发现 | A3 query 合并 A2 proxy 可达指令，一行一条 `domain;action,params:description` |
+| #203 | #4 + skill bridge 自动注册 | cred_count 数据修复 + skill bridge 路由在 `_register_handlers()` 和 `_build_schema()` 中自动发现 |
+
+#### 生态修复的核心原则
+
+- **不因一个 bug 修结构，为生态整体修结构**（skill bridge 缺口不是为 csv2json 和 websearch 个别补丁，而是让所有 skill 包安装后自动出现在 query 里）
+- **使用者视角检验每个设计**（`text-cli;query` 返回的每一行是可直接 COPYP 的指令，不是只给人类读的描述，另一个 AI 能直接当遥控器用）
+- **自己的工具先磨刀**（git-mirror 扩展 push 模式，一条指令走完四跳管道）
+
+#### 当前在线指令包
+
+`text-cli;query` 返回 A3 + A2 + skill bridge 共 58 条指令。
+
+— Tide 🌊
+
+---
