@@ -18,8 +18,10 @@ def _get_source_dirs() -> list[pathlib.Path]:
     raw = os.environ.get("TEXT_CLI_PACKAGE_SOURCE_DIRS", "")
     if raw:
         return [pathlib.Path(d.strip()) for d in raw.split(os.pathsep) if d.strip()]
+    base = pathlib.Path(os.environ.get("TEXT_CLI_HOME", str(pathlib.Path.home() / "text-cli")))
     return [
-        pathlib.Path(os.environ.get("TEXT_CLI_HOME", str(pathlib.Path.home() / "text-cli"))) / "service" / "packages",
+        base / "service" / "packages",
+        base.parent / "main-hub" / "text-cli-package" / "new-package",
     ]
 
 
