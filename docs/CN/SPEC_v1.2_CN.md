@@ -113,6 +113,20 @@ GET /health
 - **Access Token**：端点签发，验证调用者身份。
 - **Service Token**：调用方与技能提供方私下约定，端点透传。
 
+**Service Token 结构**（15 位三段）：
+
+```
+XXXXX-XX-XXXXXX
+│      │  │
+│      │  └── 后 6 位：用户身份码
+│      └───── 中间 2 位：策略控制面（段位翻转 = 批量拦截 / 集中轮换）
+└──────────── 前 5 位：A3 实例标识
+```
+
+**前缀不变性原则**：不管 token 总长度多长，前 8 位永远固定。
+A5 的 `extract_st_prefix()` 只做 `token[:8]`，不关心后段结构。
+身份码位数可扩展（6→10），A5 无感知。
+
 ### 3.2 配额保护
 
 指令可在执行前通过 `quota;check,<target>[,<amount>]` 进行配额检查。配额耗尽返回 `{"status":"stop"}`——聚合层将其作为降级信号，自动切换到下一个提供方。
@@ -185,6 +199,8 @@ GET /health
 | `requires.tc_packages` | 否 | 指令包间依赖 |
 | `requires.modules` | 否 | `text_cli_modules/` 运行时依赖 |
 | `requires.binaries` | 否 | 系统二进制依赖 |
+| `requires.service_db` | 否 | A6 骨架表依赖（`["token_registry", "token_call_logs"]`） |
+| `tables` | 否 | 应用自建表的 CREATE TABLE 声明。install 时自动建表，uninstall 时自动 DROP |
 | `credentials` | 否 | 需要的凭据（key name → source） |
 | `entry` | 否 | 公开端点 URL |
 | `mcp_server` | 否 | MCP server 名 |
@@ -402,7 +418,7 @@ text-cli;install,<包名>
 
 | runtime | 安装器行为 |
 |---------|-----------|
-| `python` | 部署 handler.py + schema.json + text_cli_modules/ + config/ |
+| `python` | 部署 handler.py + schema.json + text_cli_modules/ + config/ + 建表（`tables`） |
 | `path` | 部署 schema.json + path/*.json → `service/paths/<pkg>/` + knowledge/* → `service/knowledge/<pkg>/` |
 | `aggregate` | 部署 schema.json + 路由表 *.json → `A8-discovery/aggregate/` |
 
@@ -414,7 +430,7 @@ text-cli;install,<包名>
 text-cli;uninstall,<包名>
 ```
 
-移除文件 + 清理 handler_inits 条目 + 清理 manifest。
+移除文件 + 清理 handler_inits 条目 + 清理 manifest + 删表（`tables` → `DROP TABLE`）。
 
 ### 10.3 handler_inits 参数约定
 

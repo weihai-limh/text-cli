@@ -62,3 +62,68 @@ dispatch_fn 通过 `_set_task_dispatch()` 注入，与 key_registry 的 dispatch
 ## 安装层级
 
 task-manager 和 quota-manage 均为 A6+ 指令包。依赖它们的包（如 tx-cloud）必须在 A6 就绪后安装。
+
+## Token 身份管理
+
+A6 骨架新增两张表，A3 中间件在请求入口提取身份码，应用通过各自的 identity 表映射 token → 外部服务凭据。
+
+### 骨架表（A6 基础设施）
+
+**`token_registry`** — token 准入控制。管理员直接 SQLite 管理，无配套指令包。
+
+```sql
+CREATE TABLE IF NOT EXISTS token_registry (
+    token       TEXT PRIMARY KEY,   -- 身份码（token 后 6 位）
+    enabled     INTEGER DEFAULT 1,  -- 0=吊销
+    quota_limit INTEGER DEFAULT -1, -- 调用次数上限，-1=无限
+    used_count  INTEGER DEFAULT 0,  -- 已用次数
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+    expires_at  DATETIME            -- NULL=永不过期
+);
+```
+
+**`token_call_logs`** — 调用审计记录。token 是跨应用聚合 key。
+
+```sql
+CREATE TABLE IF NOT EXISTS token_call_logs (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    token       TEXT    NOT NULL,   -- 身份码
+    domain      TEXT    NOT NULL,   -- 领域
+    action      TEXT    NOT NULL,   -- 动作
+    status      TEXT    NOT NULL,   -- ok / error
+    error_msg   TEXT,
+    duration_ms INTEGER,
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+### 应用自建表
+
+每个应用在 `schema.json` 中声明 `tables`，安装时自动建表，卸载时自动 `DROP TABLE`。
+字段由应用自行定义——syno-file 需要 `user + password`，ai-im 只需要 `im_user`。
+
+```json
+{
+  "requires": {
+    "service_db": ["token_registry", "token_call_logs"]
+  },
+  "tables": [
+    {
+      "name": "syno_identity",
+      "sql": "CREATE TABLE IF NOT EXISTS syno_identity (token TEXT PRIMARY KEY, user TEXT NOT NULL, password TEXT NOT NULL)"
+    }
+  ]
+}
+```
+
+### A3 中间件
+
+请求入口提取 `Service-token` 后 6 位 → 查 `token_registry` 准入 → 注入 `identity_code` 到 ContextVar。
+兼容 `X-Text-CLI-Identity` header（A5 未来注入）。
+
+### 实例级配置
+
+| 配置 | 默认值 | 控制 |
+|------|--------|------|
+| `A3_ALLOW_ANONYMOUS` | `true` | 无 token 请求是否放行。人道主义通道——灾害时管理员本地开启 |
+| `A3_COUNT_CALLS` | `false` | `true`=写 `token_call_logs` + 扣配额。`false`=只做准入检查 |
