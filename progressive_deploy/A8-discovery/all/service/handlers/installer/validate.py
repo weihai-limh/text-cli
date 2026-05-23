@@ -18,11 +18,7 @@ def _get_source_dirs() -> list[pathlib.Path]:
     raw = os.environ.get("TEXT_CLI_PACKAGE_SOURCE_DIRS", "")
     if raw:
         return [pathlib.Path(d.strip()) for d in raw.split(os.pathsep) if d.strip()]
-    base = pathlib.Path(os.environ.get("TEXT_CLI_HOME", str(pathlib.Path.home() / "text-cli")))
-    return [
-        base / "service" / "packages",
-        base.parent / "main-hub" / "text-cli-package" / "new-package",
-    ]
+    return []
 
 
 def _find_package_dir(name: str, source_dirs: list[pathlib.Path] = None):
@@ -74,6 +70,8 @@ def validate_package(name: str, source_dirs: list[pathlib.Path] = None) -> tuple
     pkg_dir = _find_package_dir(name, source_dirs)
     if pkg_dir is None:
         searched = ", ".join(str(d) for d in (source_dirs or _get_source_dirs()))
+        if not searched:
+            return False, f"未设置 TEXT_CLI_PACKAGE_SOURCE_DIRS 环境变量。请将其设为指令包所在目录（如 /home/xxx/text-cli-package/new-package）", None
         return False, f"Package not found \"{name}\"。Searched: {searched}", None
 
     # 2. schema.json required (for all runtime types)
