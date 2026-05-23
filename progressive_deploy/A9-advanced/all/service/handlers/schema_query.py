@@ -1,5 +1,5 @@
 """
-text-cli;query — 元指令：动态发现当前运行时全部Available directives。
+text-cli;query — 元指令：动态发现当前运行时全量可调用指令（A3 + A2 proxy）。
 
 读取 handlers/schema/*.json，合并为统一指令表。
 支持多种输出格式和过滤器。尊重 no_schema.json 的隐藏规则。
@@ -7,7 +7,7 @@ text-cli;query — 元指令：动态发现当前运行时全部Available direct
 text-cli 是平台自管理域（system runtime），不参与包安装/卸载生命周期。
 
 Directives:
-    AI:text-cli;query                  → 全量纯文本
+    AI:text-cli;query                  → 全量纯文本（含 A2 proxy）
     AI:text-cli;query,json             → JSON 格式
     AI:text-cli;query,compact          → 极简格式
     AI:text-cli;query,python|js|mcp    → 按 runtime 过滤
@@ -25,11 +25,29 @@ import json
 import logging
 import os
 import pathlib
+import urllib.request
+import urllib.error
 from typing import Optional
 
 from core.registry import directive
 
 logger = logging.getLogger("text-cli.schema_query")
+
+# ── A2 proxy discovery ──
+
+def _fetch_a2_directives() -> list[dict]:
+    """Fetch A2 copilot directive list via GET /text_cli_schema.json."""
+    try:
+        req = urllib.request.Request(
+            "http://127.0.0.1:20260/text_cli_schema.json",
+            method="GET",
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            return data.get("directives", [])
+    except Exception as e:
+        logger.debug("A2 copilot unreachable: %s", e)
+        return []
 
 SCHEMA_DIR = pathlib.Path(__file__).resolve().parent / "schema"
 
@@ -222,6 +240,21 @@ def _render_text(directives: list[dict]) -> str:
                 lines.append(f"    ─ {ddesc}")
         lines.append("")
 
+    # 追加 A2 proxy 可达指令
+    a2_directives = _fetch_a2_directives()
+    if a2_directives:
+        lines.append("A2 copilot (127.0.0.1:20260)")
+        for d in a2_directives:
+            op_id = d.get("id") or f"{d.get('domain', '')};{d.get('action', '')}"
+            usage = d.get("usage", d.get("usage_cn", op_id))
+            desc = d.get("description", d.get("description_cn", ""))
+            line = usage if usage else op_id
+            if desc:
+                lines.append(f"  {line}:{desc}")
+            else:
+                lines.append(f"  {line}")
+        lines.append("")
+
     return "\n".join(lines)
 
 
@@ -238,11 +271,18 @@ def _render_json(directives: list[dict]) -> str:
 
 
 def _render_compact(directives: list[dict]) -> str:
-    """极简格式：每行一个指令"""
+    """极简格式：每行一个指令（含 A2 代理可达指令）"""
     lines = []
     for d in directives:
         usage = d.get("usage", f"{d['domain']};{d['action']}")
         lines.append(usage)
+    # 追加 A2 代理可达的指令
+    a2_directives = _fetch_a2_directives()
+    if a2_directives:
+        for d in a2_directives:
+            op_id = d.get("id") or f"{d.get('domain', '')};{d.get('action', '')}"
+            usage = d.get("usage", d.get("usage_cn", op_id))
+            lines.append(usage if usage else op_id)
     return "\n".join(lines)
 
 
