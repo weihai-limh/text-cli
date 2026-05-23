@@ -1,4 +1,3 @@
-import importlib
 import json
 import logging
 import os
@@ -19,7 +18,7 @@ if str(_modules_root.parent) not in sys.path:
     sys.path.append(str(_modules_root.parent))
 
 from core.parser import parse_directive, DirectiveParseError
-from core.auth import verify_service_token
+from core.auth import verify_service_token, write_call_log
 from core.registry import dispatch, get_registered_directives
 from core.response import ok, error
 from handlers.proxy import proxy_dispatch
@@ -157,7 +156,7 @@ try:
 
     for mod_path, fn_name, arg_key, _ in HANDLER_INITS:
         try:
-            mod = importlib.import_module(mod_path)
+            mod = __import__(mod_path, fromlist=[fn_name])
             init_fn = getattr(mod, fn_name)
             if arg_key:
                 init_fn(_ARG_MAP[arg_key])
@@ -169,7 +168,7 @@ try:
 
     for mod_path, setter_fn in DISPATCH_INJECTS:
         try:
-            mod = importlib.import_module(mod_path)
+            mod = __import__(mod_path, fromlist=[setter_fn])
             fn = getattr(mod, setter_fn)
             fn(_internal_dispatch)
             logger.info("%s dispatch injected", mod_path)
@@ -272,7 +271,7 @@ async def health(request: Request):
 
     # Check if authenticated (for extended capabilities view)
     service_token = request.headers.get("Service-token")
-    auth = verify_service_token(service_token)
+    auth = verify_service_token(service_token, None)
 
     if auth.allowed:
         # Authenticated: full capabilities snapshot
@@ -331,14 +330,20 @@ async def stct():
 @app.post("/cli/text_cli")
 async def handle_directive(request: Request):
     service_token = request.headers.get("Service-token")
-    auth = verify_service_token(service_token)
+    identity_header = request.headers.get("X-Text-CLI-Identity")
+    import time
+    _req_start = time.time()
+    auth = verify_service_token(service_token, identity_header)
     if not auth.allowed:
         return JSONResponse(
             status_code=403,
             content=error(auth.message),
         )
 
-    # 注入 auth_name 到线程上下文 (供 ai-im handler 读取)
+    # 注入 identity_code 到异步安全上下文（供 handler 读取）
+    # 兼容旧代码：同时保留 _ai_im_auth_name（threading 方式）
+    from core.identity_context import set_identity, _IDENTITY_CTX as _identity_ctx
+    _identity_ctx.set(auth.identity_code)
     import threading
     threading.current_thread()._ai_im_auth_name = auth.client_name
 
@@ -373,7 +378,9 @@ async def handle_directive(request: Request):
     # 0. 聚合指令优先（降级链多提供方调度）
     agg_result = _aggregate_dispatch(parsed.domain, parsed.action, parsed.params)
     if agg_result is not None:
-        return ok(agg_result)
+        response = ok(agg_result)
+        _write_call_log(request, auth, parsed, _req_start, True)
+        return response
 
     # 1. MCP 优先路由（显式偏好 mcp 时优先）
     from core.mcp_dispatch import decide_backend, get_mcp_route, adapt_params
@@ -476,7 +483,9 @@ async def handle_directive(request: Request):
         return JSONResponse(content=proxy_result)
 
     # 5. 都没有 → 返回本地结果
-    return ok(result)
+    response = ok(result)
+    _write_call_log(request, auth, parsed, _req_start, True)
+    return response
 
 
 # ── Skills 发现与执行端点 ──
@@ -518,7 +527,7 @@ async def skills_execute(skill_id: str, request: Request):
     access_token = auth_header[7:]
     # For now: accept service token or the local copilot token
     service_token = request.headers.get("Service-token")
-    auth = verify_service_token(service_token)
+    auth = verify_service_token(service_token, None)
     if not auth.allowed and access_token != "a712478cd1c64e2b9052ee2162e814b4":
         return JSONResponse(
             status_code=401,
@@ -608,3 +617,21 @@ if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", "28050"))
     uvicorn.run(app, host="0.0.0.0", port=port)
+
+# ── 调用审计辅助函数 ──────────────────────
+
+def _write_call_log(request: Request, auth, parsed, req_start: float,
+                    success: bool) -> None:
+    """在请求完成后写入审计日志。受 A3_COUNT_CALLS 控制。"""
+    import time
+    try:
+        from core.auth import write_call_log
+        domain = parsed.domain if parsed else (
+            getattr(request.state, '_last_domain', '') if hasattr(request.state, '_last_domain') else ''
+        )
+        action = parsed.action if parsed else ''
+        status = 'ok' if success else 'error'
+        duration_ms = int((time.time() - req_start) * 1000) if req_start else 0
+        write_call_log(auth.identity_code, domain, action, status, duration_ms=duration_ms)
+    except Exception:
+        pass  # 日志写入失败不阻断业务
