@@ -71,7 +71,7 @@ def validate_package(name: str, source_dirs: list[pathlib.Path] = None) -> tuple
     # 1. Find package directory
     pkg_dir = _find_package_dir(name, source_dirs)
     if pkg_dir is None:
-        searched = ", ".join(str(d) for d in (source_dirs or DEFAULT_SOURCE_DIRS))
+        searched = ", ".join(str(d) for d in (source_dirs or _get_source_dirs()))
         return False, f"Package not found \"{name}\"。Searched: {searched}", None
 
     # 2. schema.json required (for all runtime types)
