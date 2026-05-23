@@ -9,6 +9,10 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response
 
 project_root = Path(__file__).parent
+# 设置 TEXT_CLI_HOME 为 project_root 的父目录（text-cli 根），
+# 确保所有文件部署和路径查找使用正确的项目根。
+if not os.environ.get("TEXT_CLI_HOME"):
+    os.environ["TEXT_CLI_HOME"] = str(project_root.parent)
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
