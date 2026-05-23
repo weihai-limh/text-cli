@@ -70,17 +70,13 @@ class CopilotHandler(BaseHTTPRequestHandler):
             self._send_error_json(404, 'not_found', 'Endpoint not found')
             return
 
-        auth = self.headers.get('Authorization', '')
-        if not auth.startswith('Bearer '):
-            self.copilot.track_error()
-            self._send_error_json(401, 'unauthorized', 'Bearer Token required')
-            return
-
-        token = auth[7:]
-        if token != self.copilot.token:
-            self.copilot.track_error()
-            self._send_error_json(401, 'unauthorized', 'Token invalid')
-            return
+        # token: null → 不校验（A2 绑在 127.0.0.1，安全由 OS 文件权限保证）
+        if self.copilot.token is not None:
+            auth = self.headers.get('Authorization', '')
+            if not auth.startswith('Bearer ') or auth[7:] != self.copilot.token:
+                self.copilot.track_error()
+                self._send_error_json(401, 'unauthorized', 'Token invalid')
+                return
 
         try:
             length = int(self.headers.get('Content-Length', '0'))
@@ -136,10 +132,12 @@ class CopilotHandler(BaseHTTPRequestHandler):
 
     def _handle_ai_status(self):
         """POST /ai_status — Agent writes current session status"""
-        auth = self.headers.get('Authorization', '')
-        if not auth.startswith('Bearer ') or auth[7:] != self.copilot.token:
-            self._send_error_json(401, 'unauthorized', 'Token invalid')
-            return
+        # token: null → 不校验
+        if self.copilot.token is not None:
+            auth = self.headers.get('Authorization', '')
+            if not auth.startswith('Bearer ') or auth[7:] != self.copilot.token:
+                self._send_error_json(401, 'unauthorized', 'Token invalid')
+                return
 
         try:
             length = int(self.headers.get('Content-Length', '0'))
@@ -165,9 +163,13 @@ class CopilotHandler(BaseHTTPRequestHandler):
         self._send_json(200, {'status': 'ok'})
 
     def _build_schema(self) -> dict:
+        """Build schema from auxiliary_config + installed package schema.json files."""
         cfg = self.copilot.config
-        ops = cfg['security']['operations']
         directives = []
+        seen = set()
+
+        # 1. 从 auxiliary_config operations 读（含安全策略覆盖）
+        ops = cfg['security'].get('operations', {})
         for op_id, op_cfg in ops.items():
             if op_cfg.get('enabled') is False:
                 continue
@@ -180,6 +182,37 @@ class CopilotHandler(BaseHTTPRequestHandler):
                 'parameters_en': op_cfg.get('parameters_en', []),
                 'returns': op_cfg.get('returns', ''),
             })
+            seen.add(op_id)
+
+        # 2. 从 packages/<pkg>/schema.json 读（动态安装的包）
+        packages_dir = Path(__file__).parent / 'packages'
+        if packages_dir.is_dir():
+            for pkg_dir in sorted(packages_dir.iterdir()):
+                if pkg_dir.name.startswith(('_', '.')) or not pkg_dir.is_dir():
+                    continue
+                schema_file = pkg_dir / 'schema.json'
+                if not schema_file.is_file():
+                    continue
+                try:
+                    pkg_schema = json.loads(schema_file.read_text(encoding='utf-8'))
+                    for d in pkg_schema.get('directives', []):
+                        # schema.json 用 domain+action 或 id 字段
+                        op_id = d.get('id') or f"{d['domain']};{d['action']}"
+                        if op_id in seen:
+                            continue
+                        directives.append({
+                            'id': op_id,
+                            'aliases': d.get('aliases', []),
+                            'description': d.get('description', ''),
+                            'description_en': d.get('description_en', ''),
+                            'parameters': d.get('parameters', []),
+                            'parameters_en': d.get('parameters_en', []),
+                            'returns': d.get('returns', ''),
+                        })
+                        seen.add(op_id)
+                except Exception:
+                    pass
+
         return {
             'endpoint': {
                 'name': cfg['endpoint_info']['name'],
@@ -211,7 +244,10 @@ def main():
     server = HTTPServer((host, port), CopilotHandler)
     print(f"[copilot] ✅ text-cli-copilot v{copilot.config['endpoint_info']['version']}")
     print(f"[copilot] 📡 listening on http://{host}:{port}")
-    print(f"[copilot] 🔑 token: {'*' * 8} (TEXT_CLI_TOKEN_LOCAL)")
+    if copilot.token:
+        print(f"[copilot] 🔑 token: {'*' * 8}")
+    else:
+        print(f"[copilot] 🔓 token: null（不校验，127.0.0.1 本地安全）")
 
     try:
         server.serve_forever()

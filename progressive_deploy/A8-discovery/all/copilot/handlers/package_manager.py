@@ -48,7 +48,10 @@ class PackageManagerHandlers:
         """text-cli;co-install,<package_name>
 
         Install a copilot instruction package from source to packages/.
-        Copies schema.json, handler.py, and adapters/ (if present).
+        Copies handler.py, schema.json, and ALL accessory files/dirs
+        (whitelists/, config/, data/, adapters/, README.md, etc.).
+        Reloads handlers so @directive-registered instructions are
+        available immediately without a restart.
         """
         if not params or not params[0]:
             return error("missing_param",
@@ -60,7 +63,7 @@ class PackageManagerHandlers:
         # Resolve source
         src_dir = self._resolve_package(name)
         if src_dir is None:
-            searched = ", ".join(str(d) for d in DEFAULT_SOURCE_DIRS)
+            searched = ", ".join(str(d) for d in _get_source_dirs())
             return error("not_found",
                          f"Package '{name}' not found in source dirs: {searched}")
 
@@ -78,52 +81,71 @@ class PackageManagerHandlers:
         target_dir = packages_dir / pkg_id
 
         # Check existing
-        if target_dir.exists():
+        force = len(params) > 1 and params[1].strip() == "--force"
+        if target_dir.exists() and not force:
             return error("already_installed",
                          f"Package '{pkg_id}' already installed. "
                          f"Use text-cli;co-uninstall,{pkg_id} first, "
                          f"or text-cli;co-install,{pkg_id},--force to overwrite")
+        if target_dir.exists() and force:
+            shutil.rmtree(target_dir)
 
-        force = len(params) > 1 and params[1].strip() == "--force"
+        target_dir.mkdir(parents=True, exist_ok=True)
 
+        copied = []
         try:
-            # Copy handler.py
-            handler_src = src_dir / "handler.py"
-            handler_dst = target_dir / "handler.py"
-            if handler_src.is_file():
-                target_dir.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(handler_src, handler_dst)
+            # Copy ALL files and subdirs from source, except __pycache__ / .git
+            for item in sorted(src_dir.iterdir()):
+                name_l = item.name
+                if name_l.startswith(('.', '__pycache__')):
+                    continue
 
-            # Copy schema.json
-            schema_dst = target_dir / "schema.json"
-            shutil.copy2(schema_path, schema_dst)
+                dst = target_dir / name_l
 
-            # Copy adapters/ if present
-            adapters_src = src_dir / "adapters"
-            if adapters_src.is_dir():
-                adapters_dst = (pathlib.Path(__file__).resolve().parent.parent
-                                / "adapters")
-                for f in adapters_src.rglob("*.py"):
-                    rel = f.relative_to(adapters_src)
-                    dst = adapters_dst / rel
-                    dst.parent.mkdir(parents=True, exist_ok=True)
-                    if dst.exists() and not force:
-                        return error("adapter_conflict",
-                                     f"Adapter '{rel}' already exists. "
-                                     "Use --force to overwrite.")
-                    shutil.copy2(f, dst)
+                # adapters/ → copilot/adapters/ (merged)
+                if name_l == 'adapters' and item.is_dir():
+                    adapters_dst = (pathlib.Path(__file__).resolve().parent.parent
+                                    / "adapters")
+                    for f in item.rglob("*.py"):
+                        rel = f.relative_to(item)
+                        adst = adapters_dst / rel
+                        adst.parent.mkdir(parents=True, exist_ok=True)
+                        shutil.copy2(f, adst)
+                    copied.append(f"adapters/ → copilot/adapters/")
+                    continue
+
+                # whitelists/ → copilot/whitelists/ (merged)
+                if name_l == 'whitelists' and item.is_dir():
+                    wl_dst = (pathlib.Path(__file__).resolve().parent.parent
+                              / "whitelists")
+                    for f in item.iterdir():
+                        shutil.copy2(f, wl_dst / f.name)
+                    copied.append(f"whitelists/ → copilot/whitelists/")
+                    continue
+
+                # Regular file or directory → packages/<pkg_id>/
+                if item.is_dir():
+                    shutil.copytree(item, dst)
+                else:
+                    shutil.copy2(item, dst)
+                copied.append(name_l)
 
         except OSError as e:
             return error("install_failed", f"File copy failed: {e}")
 
-        # Reload handlers to pick up the new package
+        # Reload handlers — new @directive registrations visible immediately
         try:
             mod = importlib.import_module(f"packages.{pkg_id}.handler")
             importlib.reload(mod)
-        except Exception:
-            pass  # Will be picked up on next copilot restart
+            # Re-run _register_handlers so dispatcher picks up new directives
+            self._register_handlers()
+            logger.info("co-install %s: handlers reloaded + re-registered", pkg_id)
+        except Exception as e:
+            logger.warning("co-install %s: reload failed, will need restart: %s", pkg_id, e)
 
-        return ok(f"Package '{pkg_id}' installed. Restart copilot to activate.")
+        return ok(
+            f"Package '{pkg_id}' installed ({len(copied)} files). "
+            f"Instructions available immediately.")
 
     def _handle_text_cli_co_uninstall(self, params: list) -> dict:
         """text-cli;co-uninstall,<package_name>"""

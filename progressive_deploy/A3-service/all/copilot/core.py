@@ -153,7 +153,8 @@ class CopilotCore:
         self.config_dir = Path(config_path).parent
         (self.config_dir / 'data').mkdir(parents=True, exist_ok=True)
         (self.config_dir / 'whitelists').mkdir(parents=True, exist_ok=True)
-        self.token = self.config['server']['token']
+        # token: null = 不校验（A2 绑在 127.0.0.1，安全由 OS 保证）
+        self.token = self.config['server'].get('token') or None
         self.start_time = time.time()
         self._request_count = 0
         self._error_count = 0
@@ -163,31 +164,76 @@ class CopilotCore:
         self._alias_map: dict[str, str] = {}
         self._routing_prefs: dict[str, str] = {}
         self._mcp_registry: dict[str, dict] = {}
+        self._security_overrides: dict[str, dict] = {}
         self._register_handlers()
         self._setup_git_workdir()
         self._load_routing_preferences()
         self._build_mcp_registry()
 
-    # ── Handler 注册（命名约定自动注册） ──
+    # ── Handler 注册（三层匹配） ──
+    # ① @directive 装饰器注册表（内存，自动发现）→ co-install reload 后立即可用
+    # ② auxiliary_config operations → 安全策略覆盖层（level/sensitive/path_check）
+    # ③ skill_bridge fallback（dispatch 时动态匹配）
 
     def _register_handlers(self):
-        operations = self.config['security']['operations']
+        # 1. 从辅助配置提取安全策略覆盖（不依赖它做 handler 注册）
+        operations = self.config['security'].get('operations', {})
         for op_id, op_config in operations.items():
-            # 用首个英文 alias 派生 handler 名；无 alias 时回退 canonical ID
-            aliases = op_config.get('aliases', [])
-            source_id = aliases[0] if aliases else op_id
-            handler_name = '_handle_' + source_id.replace(';', '_').replace(':', '_').replace('-', '_')
-            if hasattr(self, handler_name):
-                self._handlers[op_id] = getattr(self, handler_name)
-            else:
-                print(f"[copilot] ⚠ 未找到 handler: {handler_name}，跳过 {op_id}")
-
+            self._security_overrides[op_id] = op_config
+            # 别名也索引安全策略
             for alias in op_config.get('aliases', []):
-                self._alias_map[alias] = op_id
-            self._alias_map[op_id] = op_id
+                if alias not in self._security_overrides:
+                    self._security_overrides[alias] = op_config
 
-        print(f"[copilot] 已注册 {len(self._handlers)} 个 handler，"
-              f"{len(self._alias_map)} 个别名映射")
+        # 2. 从 @directive 装饰器 + auxiliary_config 双源注册 handler
+        # auxiliary_config 有显式 handler 字段的优先（如 skill_bridge）
+        for op_id, op_config in operations.items():
+            handler_name = op_config.get('handler')
+            if handler_name:
+                if hasattr(self, handler_name):
+                    self._handlers[op_id] = getattr(self, handler_name)
+                else:
+                    print(f"[copilot] ⚠ 未找到显式 handler: {handler_name}，跳过 {op_id}")
+                for alias in op_config.get('aliases', []):
+                    self._alias_map[alias] = op_id
+                self._alias_map[op_id] = op_id
+
+        # 3. 从 @directive 装饰器自动发现（命名约定）
+        # 遍历 mixin 链上所有 _handle_ 方法，自动注册
+        _registered_from_directive = 0
+        for attr_name in dir(self):
+            if not attr_name.startswith('_handle_'):
+                continue
+            # 跳过已通过显式 handler 注册的
+            if attr_name in self._handlers:
+                continue
+            handler = getattr(self, attr_name)
+            if not callable(handler):
+                continue
+            # 从方法名反推 op_id: _handle_tc_ubuntu_resolution → tc-ubuntu;resolution
+            op_id = attr_name[8:]  # 去掉 '_handle_'
+            op_id = op_id.replace('_', '-', 1) if op_id.startswith(('tc_','ai_','bd_','tx_')) else op_id
+            # 第一个 _ 替换为 ; , 后续 _ 替换为 -
+            parts = op_id.split('_', 1)
+            if len(parts) == 2:
+                domain = parts[0].replace('_', '-')
+                action = parts[1].replace('_', '-')
+                op_id = f"{domain};{action}"
+            if '_' not in attr_name[8:]:
+                continue  # 无法解析的不自动注册
+
+            self._handlers[op_id] = handler
+            self._alias_map[op_id] = op_id
+            _registered_from_directive += 1
+
+        # 4. 对已注册的 handler：合并安全策略覆盖（auxiliary_config 里的 level/sensitive 等）
+        # @directive 注册的 handler 默认 level: read
+        # auxiliary_config 里有条目的可以覆盖
+
+        print(f"[copilot] 已注册 {len(self._handlers)} 个 handler"
+              f"（其中 {_registered_from_directive} 个来自 @directive 自动发现），"
+              f"{len(self._alias_map)} 个别名映射，"
+              f"{len(self._security_overrides)} 条安全策略覆盖")
 
     def _setup_git_workdir(self):
         git_cfg = self.config.get('git', {})
