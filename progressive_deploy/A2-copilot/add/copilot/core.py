@@ -224,6 +224,11 @@ class CopilotCore:
 
             self._handlers[op_id] = handler
             self._alias_map[op_id] = op_id
+            # 注册 auxiliary_config 里的 aliases（如果有）
+            sec = self._security_overrides.get(op_id, {})
+            for alias in sec.get('aliases', []):
+                if alias not in self._alias_map:
+                    self._alias_map[alias] = op_id
             _registered_from_directive += 1
 
         # 4. 对已注册的 handler：合并安全策略覆盖（auxiliary_config 里的 level/sensitive 等）
