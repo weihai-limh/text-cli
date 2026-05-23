@@ -325,7 +325,7 @@ def _deploy_tables(schema: dict, name: str) -> tuple[bool, str]:
 
     db_path = os.environ.get(
         "TEXT_CLI_SERVICE_DB",
-        str(_PROJECT / "service" / "service.db")
+        str(_PROJECT / "service" / "text_cli_modules" / "sqlite" / "service.db")
     )
 
     try:
@@ -387,7 +387,7 @@ def _drop_tables(schema_json_path: pathlib.Path, name: str) -> tuple[bool, str]:
 
     db_path = os.environ.get(
         "TEXT_CLI_SERVICE_DB",
-        str(_PROJECT / "service" / "service.db")
+        str(_PROJECT / "service" / "text_cli_modules" / "sqlite" / "service.db")
     )
 
     try:

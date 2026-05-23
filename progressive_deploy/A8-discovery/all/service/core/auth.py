@@ -12,7 +12,11 @@ A3_ALLOW_ANONYMOUS = os.getenv("A3_ALLOW_ANONYMOUS", "true").lower() == "true"
 A3_COUNT_CALLS = os.getenv("A3_COUNT_CALLS", "false").lower() == "true"
 
 # SQLite DB 路径（与 main.py 的 SQLITE_DB_FILE 一致，通过环境变量传入）
-A6_DB_FILE = os.getenv("TEXT_CLI_SERVICE_DB", "")
+import pathlib as _pl
+A6_DB_FILE = os.getenv(
+    "TEXT_CLI_SERVICE_DB",
+    str(_pl.Path(__file__).resolve().parent.parent / "text_cli_modules" / "sqlite" / "service.db")
+)
 
 
 @dataclass
