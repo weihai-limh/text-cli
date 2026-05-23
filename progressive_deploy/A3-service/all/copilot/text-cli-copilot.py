@@ -248,6 +248,8 @@ class CopilotHandler(BaseHTTPRequestHandler):
 
 def main():
     script_dir = Path(__file__).parent.resolve()
+    if not os.environ.get('TEXT_CLI_HOME'):
+        os.environ['TEXT_CLI_HOME'] = str(script_dir.parent)
     config_path = script_dir / 'auxiliary_config.json'
 
     if not config_path.exists():

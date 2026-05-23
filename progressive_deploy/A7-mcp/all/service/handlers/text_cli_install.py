@@ -32,16 +32,31 @@ def _safe_name(name: str) -> str:
     return name.replace("-", "_")
 
 
-def _find_init_fn(handler_path: str) -> str | None:
+def _find_init_fn(handler_path: str) -> tuple[str | None, str | None]:
+    """Parse init function and infer arg_key from parameter names.
+
+    Returns (fn_name, arg_key) where arg_key is one of:
+        "project_root", "db", "db_dict", "quota", None
+    """
+    _ARG_KEY_MAP = {"project_root": "project_root", "db_path": "db",
+                     "db_file": "quota", "db_dict": "db_dict"}
     try:
         with open(handler_path, "r", encoding="utf-8") as f:
             tree = ast.parse(f.read())
         for node in ast.walk(tree):
             if isinstance(node, ast.FunctionDef) and node.name.startswith("init_"):
-                return node.name
+                fn_name = node.name
+                for arg in node.args.args:
+                    if arg.arg in _ARG_KEY_MAP:
+                        return fn_name, _ARG_KEY_MAP[arg.arg]
+                # 有参数但不在映射表中，回退为None
+                if node.args.args:
+                    return fn_name, None
+                # 无参数
+                return fn_name, None
     except Exception:
         pass
-    return None
+    return None, None
 
 
 @directive("text-cli", "install")
@@ -135,10 +150,10 @@ def text_cli_install(params: list[str]) -> str:
             directives=[f"{d.get('domain',name)};{d.get('action','')}" for d in schema.get("directives", [])]
         )
 
-        init_fn = _find_init_fn(meta.get("handler_path", ""))
+        init_fn, arg_key = _find_init_fn(meta.get("handler_path", ""))
         if init_fn is None:
             init_fn = f"init_{safe}_handler"
-        _append_handler_init(f"packages.{name}.handler", init_fn)
+        _append_handler_init(f"packages.{name}.handler", init_fn, arg_key)
     except Exception:
         pass  # manifest/init optional, don't block install
 

@@ -44,8 +44,13 @@ def install_files(name: str, meta: dict, runtime: str = "python", force: bool = 
     lines = []
     pkg_dir = pathlib.Path(meta.get("path", ""))
     if runtime == "python":
-        # handler.py stays in packages/<name>/ — no copy to handlers/
-        lines.append(f"文件部署完成: packages/{name}/handler.py + {name}_schema.json")
+        # Copy handler.py + schema.json to packages/<name>/
+        pkg_dst = _PROJECT / "service" / "packages" / name
+        pkg_dst.mkdir(parents=True, exist_ok=True)
+        if (pkg_dir / "handler.py").is_file():
+            shutil.copy2(str(pkg_dir / "handler.py"), str(pkg_dst / "handler.py"))
+        shutil.copy2(schema_src, str(pkg_dst / "schema.json"))
+        lines.append(f"文件部署完成: packages/{name}/handler.py + packages/{name}/schema.json")
 
     elif runtime == "mcp":
         lines.append(f"MCP schema 注册完成: {name}_schema.json")
