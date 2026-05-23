@@ -12,107 +12,6 @@
       "${HOME}/"
     ],
     "operations": {
-      "file;write": {
-        "level": "write",
-        "path_check": true,
-        "aliases": [
-          "file;write",
-          "文件;写入"
-        ],
-        "description": "写入内容到本地文件（自动创建父目录）",
-        "description_en": "Write content to local file (auto-create parent dirs)",
-        "parameters": [
-          "文件路径",
-          "内容"
-        ],
-        "parameters_en": [
-          "file_path",
-          "content"
-        ],
-        "returns": "rst_data.text = write confirmation + bytes, rst_data.size = bytes"
-      },
-      "file;move": {
-        "level": "write",
-        "path_check": true,
-        "aliases": [
-          "file;move",
-          "文件;移动"
-        ],
-        "description": "移动/重命名文件或目录（同目录=重命名，跨目录=移动）",
-        "description_en": "Move/rename file or directory (same dir=rename, cross dir=move)",
-        "parameters": [
-          "源路径",
-          "目标路径"
-        ],
-        "parameters_en": [
-          "src_path",
-          "dst_path"
-        ],
-        "returns": "rst_data.text = move confirmation, rst_data.from_path, rst_data.to_path"
-      },
-      "git;push": {
-        "level": "push",
-        "allowed_branches": [
-          "feat/*",
-          "fix/*",
-          "main",
-          "master"
-        ],
-        "aliases": [
-          "git;push",
-          "Git;推送"
-        ],
-        "description": "推送本地提交到远程仓库（HTTPS/SSH 自动选择）",
-        "description_en": "Push local commits to remote (HTTPS/SSH auto)",
-        "parameters": [
-          "分支名"
-        ],
-        "parameters_en": [
-          "branch_name"
-        ],
-        "returns": "rst_data.text = push result, rst_data.auth_mode = https|ssh"
-      },
-      "email;send": {
-        "level": "send",
-        "aliases": [
-          "email;send",
-          "mail;send",
-          "邮件;发送"
-        ],
-        "description": "通过预配置 SMTP 发送邮件（支持附件）",
-        "description_en": "Send email via pre-configured SMTP (with attachment support)",
-        "parameters": [
-          "收件人",
-          "主题",
-          "正文",
-          "附件路径(可选)"
-        ],
-        "parameters_en": [
-          "recipient",
-          "subject",
-          "body",
-          "attachment_path(optional)"
-        ],
-        "returns": "rst_data.text = send status, rst_data.subject, rst_data.from_addr"
-      },
-      "ai;messages": {
-        "level": "read",
-        "enabled": false,
-        "_comment": "2026-05-09 temporarily disabled — push mode can write arbitrary JSON, key leak risk",
-        "aliases": [
-          "ai;messages",
-          "AI协作;消息"
-        ],
-        "description": "读取/推送 AI 协作者消息。读取=条数(默认1)，推送=推送,消息JSON (已禁用)",
-        "description_en": "Read/push AI collaborator messages. DISABLED.",
-        "parameters": [
-          "条数(默认1) 或 '推送',消息JSON"
-        ],
-        "parameters_en": [
-          "count(default 1) or '推送',message_json"
-        ],
-        "returns": "rst_data.text = message content list"
-      },
       "key;register": {
         "level": "write",
         "sensitive": true,
@@ -202,28 +101,6 @@
           "targets(optional,multiple)"
         ],
         "returns": "rst_data.text = delegated confirmation"
-      },
-      "ai;json;replace": {
-        "level": "write",
-        "aliases": [
-          "ai;json;replace",
-          "AI:json;replace",
-          "json;replace",
-          "json;替换"
-        ],
-        "description": "替换 JSON 中指定路径的值。纯机械操作，零 AI。文件路径会写回磁盘。",
-        "description_en": "Replace value at JSON path. Pure mechanical, zero AI. File paths are written back.",
-        "parameters": [
-          "JSON源(文件路径或内联JSON)",
-          "JSONPath(如$.key.sub)",
-          "新值"
-        ],
-        "parameters_en": [
-          "source",
-          "path",
-          "new_value"
-        ],
-        "returns": "rst_data.path, rst_data.old, rst_data.new, rst_data.wrote_to"
       },
       "text-cli;co-install": {
         "level": "write",
