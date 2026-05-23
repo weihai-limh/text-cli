@@ -9,6 +9,7 @@ import shutil
 _PROJECT = pathlib.Path(os.environ.get("TEXT_CLI_HOME", str(pathlib.Path.home() / "text-cli")))
 HANDLERS_DIR = _PROJECT / "service" / "handlers"
 SCHEMA_DIR = HANDLERS_DIR / "schema"
+PACKAGES_DIR = _PROJECT / "service" / "packages"
 COPILOT_WHITELIST_DIR = _PROJECT / "copilot" / "whitelists"
 
 
@@ -44,7 +45,16 @@ def install_files(name: str, meta: dict, runtime: str = "python", force: bool = 
     lines = []
     pkg_dir = pathlib.Path(meta.get("path", ""))
     if runtime == "python":
-        # handler.py stays in packages/<name>/ — no copy to handlers/
+        # Copy handler.py to packages/<name>/handler.py
+        handler_src = pathlib.Path(meta.get("handler_path", ""))
+        if handler_src.is_file():
+            dst_pkg_dir = PACKAGES_DIR / name
+            dst_pkg_dir.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(handler_src, dst_pkg_dir / "handler.py")
+            # Ensure __init__.py exists for importlib
+            init_py = dst_pkg_dir / "__init__.py"
+            if not init_py.exists():
+                init_py.touch()
         lines.append(f"文件部署完成: packages/{name}/handler.py + {name}_schema.json")
 
     elif runtime == "mcp":

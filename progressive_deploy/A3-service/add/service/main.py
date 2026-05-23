@@ -1,3 +1,4 @@
+import importlib
 import json
 import logging
 import os
@@ -156,7 +157,7 @@ try:
 
     for mod_path, fn_name, arg_key, _ in HANDLER_INITS:
         try:
-            mod = __import__(mod_path, fromlist=[fn_name])
+            mod = importlib.import_module(mod_path)
             init_fn = getattr(mod, fn_name)
             if arg_key:
                 init_fn(_ARG_MAP[arg_key])
@@ -168,7 +169,7 @@ try:
 
     for mod_path, setter_fn in DISPATCH_INJECTS:
         try:
-            mod = __import__(mod_path, fromlist=[setter_fn])
+            mod = importlib.import_module(mod_path)
             fn = getattr(mod, setter_fn)
             fn(_internal_dispatch)
             logger.info("%s dispatch injected", mod_path)
