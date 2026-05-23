@@ -40,7 +40,7 @@ service 是 text-cli 的核心运行时。它持有指令包、执行调度、�
 
 ## 二、copilot — 本地代理
 
-copilot 部署在终端本地。它不持有指令包——通过 proxy 转发到 service，或通过本地 handler 直接执行。
+copilot 部署在终端本地。通过 `text-cli;co-install` 管理自己的指令包（files、git、mail、terminal、browser 等），也通过 proxy 转发到 service。
 
 ### 核心能力
 
@@ -50,6 +50,34 @@ copilot 部署在终端本地。它不持有指令包——通过 proxy 转发�
 | path_engine | 匹配路径 schema → 执行多步指令链 |
 | skill_bridge | 桥接 ClawHub 等技能市场下载的 skill |
 | terminal | 代理本地终端操作（文件、邮件、shell） |
+| co-install | 安装 copilot 指令包，importlib.reload 立即生效 |
+
+### dispatch 三层匹配
+
+copilot 的指令匹配分三层：
+
+1. **显式 handler** — `auxiliary_config.json` 里有 `handler` 字段的直接注册
+2. **@directive 自动发现** — 遍历 `_handle_*` 方法，从方法名反推 op_id
+3. **skill bridge fallback** — 从 `skill_bridge_routes.json` 读路由，统一指向 `_try_skill_bridge`
+
+三层独立互补。co-install 安装的包通过 importlib.reload 立即加入第 2 层。skill 包通过 `skill_bridge_routes.json` 自动加入第 3 层（启动时注册）。
+
+### 指令包管理
+
+```
+AI:text-cli;co-install,<包名>        → 安装 copilot 指令包
+AI:text-cli;co-uninstall,<包名>      → 卸载
+AI:text-cli;co-list                  → 列出已安装
+```
+
+与 service 的 `text-cli;install` 对比：
+
+| | A3 service | A2 copilot |
+|------|------|------|
+| 安装指令 | `text-cli;install` | `text-cli;co-install` |
+| 重启生效 | 需要 | 不需要（importlib.reload） |
+| 覆盖安装 | 否 | `--force` |
+| handler 注册 | handler_inits.py | importlib.reload |
 
 ### skill_bridge 流程
 
@@ -70,13 +98,12 @@ Agent 调用 skill-bdmap;geocode
 ```
 用户 → AI Agent → copilot（本地） → proxy → service（远端）
                        │                        │
-                  终端操作（文件/邮件）      指令包（翻译/地图/配额）
+                  终端操作（文件/麦克风）      指令包（翻译/地图/配额）
 ```
 
-- copilot 做**本地操作**——文件读写、shell 命令、邮件发送
+- copilot 做**本地操作**——文件读写、shell 命令(操作opencli,终端的麦克风,摄像头等)
 - service 做**远端能力**——翻译、地图、搜索、OCR
 
-copilot 自己没有指令包——它通过 proxy_dispatch 把指令转发给 service。service 处理完后返回结果，copilot 透传。
 
 ### 关键交互点
 
