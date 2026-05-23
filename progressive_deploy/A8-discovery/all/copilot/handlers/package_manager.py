@@ -102,6 +102,9 @@ class PackageManagerHandlers:
                 config_path.write_text(
                     json.dumps(config, ensure_ascii=False, indent=2) + "\n",
                     encoding="utf-8")
+                # Sync in-memory config so _register_handlers sees new ops
+                if hasattr(self, 'config'):
+                    self.config = config
                 logger.info("Wrote %d ops to auxiliary_config.json for package '%s'",
                             written, pkg_id)
             except OSError as e:
@@ -140,6 +143,8 @@ class PackageManagerHandlers:
                 config_path.write_text(
                     json.dumps(config, ensure_ascii=False, indent=2) + "\n",
                     encoding="utf-8")
+                if hasattr(self, 'config'):
+                    self.config = config
             except OSError:
                 pass
 
@@ -322,6 +327,10 @@ class PackageManagerHandlers:
             return error("not_installed",
                          f"Package '{name}' is not installed")
 
+        # ── Remove operations from auxiliary_config.json FIRST ──
+        # (must happen before rmtree since _remove_package_ops reads schema.json)
+        self._remove_package_ops(name)
+
         try:
             # Remove package adapters (look up from source for file list)
             src_dir = self._resolve_package(name)
@@ -339,9 +348,6 @@ class PackageManagerHandlers:
             shutil.rmtree(target_dir)
         except OSError as e:
             return error("uninstall_failed", f"Remove failed: {e}")
-
-        # ── Remove operations from auxiliary_config.json ──
-        self._remove_package_ops(name)
 
         # ── Re-register (reload not needed since module is already gone) ──
         # Remove any dynamically attached _handle_ methods
