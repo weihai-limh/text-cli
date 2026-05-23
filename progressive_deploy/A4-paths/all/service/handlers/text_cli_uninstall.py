@@ -48,10 +48,25 @@ def text_cli_uninstall(params: list[str]) -> str:
         log_uninstall(name, False, msg)
         return f"卸载失败: {msg}"
 
+    # 2.5 Drop tables (schema.tables → DROP TABLE)
+    from pathlib import Path
+    from .installer.filesystem import _drop_tables
+    safe = name.replace("-", "_")
+    schema_path = Path(__file__).resolve().parent / "schema" / f"{safe}_schema.json"
+    tbl_msg = ""
+    try:
+        ok_tbl, tbl_msg = _drop_tables(schema_path, name)
+    except Exception:
+        pass
+
     # 3. Build result
     lines = [
         f"已卸载: {name}",
         f"  {msg}",
+    ]
+    if tbl_msg:
+        lines.append(f"  {tbl_msg}")
+    lines += [
         "",
         "  pip 依赖未移除（可能被其他包共用）。",
         "  如确认不再需要，手动清理:",

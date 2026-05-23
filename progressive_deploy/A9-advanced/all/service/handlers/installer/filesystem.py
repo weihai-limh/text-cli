@@ -9,7 +9,6 @@ import shutil
 _PROJECT = pathlib.Path(os.environ.get("TEXT_CLI_HOME", str(pathlib.Path.home() / "text-cli")))
 HANDLERS_DIR = _PROJECT / "service" / "handlers"
 SCHEMA_DIR = HANDLERS_DIR / "schema"
-PACKAGES_DIR = _PROJECT / "service" / "packages"
 COPILOT_WHITELIST_DIR = _PROJECT / "copilot" / "whitelists"
 
 
@@ -45,16 +44,7 @@ def install_files(name: str, meta: dict, runtime: str = "python", force: bool = 
     lines = []
     pkg_dir = pathlib.Path(meta.get("path", ""))
     if runtime == "python":
-        # Copy handler.py to packages/<name>/handler.py
-        handler_src = pathlib.Path(meta.get("handler_path", ""))
-        if handler_src.is_file():
-            dst_pkg_dir = PACKAGES_DIR / name
-            dst_pkg_dir.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(handler_src, dst_pkg_dir / "handler.py")
-            # Ensure __init__.py exists for importlib
-            init_py = dst_pkg_dir / "__init__.py"
-            if not init_py.exists():
-                init_py.touch()
+        # handler.py stays in packages/<name>/ — no copy to handlers/
         lines.append(f"文件部署完成: packages/{name}/handler.py + {name}_schema.json")
 
     elif runtime == "mcp":
@@ -109,6 +99,11 @@ def install_files(name: str, meta: dict, runtime: str = "python", force: bool = 
         ok_cfg, cfg_msg = _deploy_package_config(pkg_dir, name)
         if cfg_msg:
             lines.append(cfg_msg)
+
+        # Deploy tables (schema.tables → SQLite CREATE TABLE)
+        ok_tbl, tbl_msg = _deploy_tables(meta.get("schema", {}), name)
+        if tbl_msg:
+            lines.append(tbl_msg)
 
         # Check binaries
         ok_bin, bin_msg = _check_binary(pkg_dir, meta)
@@ -312,3 +307,96 @@ def remove_files(name: str) -> tuple[bool, str]:
         return False, f"包 \"{name}\" 未安装"
 
     return True, "已移除: " + ", ".join(removed)
+
+
+# ═══ Table management (schema.tables) ═══
+
+def _deploy_tables(schema: dict, name: str) -> tuple[bool, str]:
+    """Execute CREATE TABLE IF NOT EXISTS from schema.tables declaration.
+
+    先检查 requires.service_db 中的骨架表是否存在，
+    再执行 tables 中声明的建表 SQL。
+    """
+    requires = schema.get("requires", {})
+    tables = schema.get("tables", [])
+
+    if not requires.get("service_db") and not tables:
+        return True, ""
+
+    db_path = os.environ.get(
+        "TEXT_CLI_SERVICE_DB",
+        str(_PROJECT / "service" / "service.db")
+    )
+
+    try:
+        import sqlite3
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # ① 检查 requires.service_db 骨架表存在性
+        required_tables = requires.get("service_db", [])
+        missing = []
+        for tname in required_tables:
+            cursor.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
+                (tname,)
+            )
+            if not cursor.fetchone():
+                missing.append(tname)
+
+        if missing:
+            conn.close()
+            return False, (
+                f"  ⚠ 缺少 A6 骨架表: {', '.join(missing)}。"
+                f"请先部署 A6 基础设施（token_registry, token_call_logs）"
+            )
+
+        # ② 执行应用自建表
+        created = []
+        for t in tables:
+            conn.execute(t["sql"])
+            created.append(t["name"])
+
+        conn.commit()
+        conn.close()
+
+        parts = []
+        if required_tables:
+            parts.append(f"service_db: {', '.join(required_tables)} ✓")
+        if created:
+            parts.append(f"tables: {', '.join(created)}")
+        return True, "  " + " | ".join(parts) if parts else ""
+    except Exception as e:
+        return False, f"  ⚠ 建表失败 ({name}): {e}"
+
+
+def _drop_tables(schema_json_path: pathlib.Path, name: str) -> tuple[bool, str]:
+    """DROP TABLE for each table declared in schema.json[\"tables\"].
+
+    Called during uninstall. Table not found = no error.
+    """
+    try:
+        import json
+        schema = json.loads(schema_json_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return True, ""
+
+    tables = schema.get("tables", [])
+    if not tables:
+        return True, ""
+
+    db_path = os.environ.get(
+        "TEXT_CLI_SERVICE_DB",
+        str(_PROJECT / "service" / "service.db")
+    )
+
+    try:
+        import sqlite3
+        conn = sqlite3.connect(db_path)
+        for t in tables:
+            conn.execute(f"DROP TABLE IF EXISTS {t['name']}")
+        conn.commit()
+        conn.close()
+        return True, f"  tables dropped: {', '.join(t['name'] for t in tables)}"
+    except Exception as e:
+        return False, f"  ⚠ 删表失败 ({name}): {e}"
