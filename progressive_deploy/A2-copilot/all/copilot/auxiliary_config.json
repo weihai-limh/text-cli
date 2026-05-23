@@ -3,7 +3,7 @@
   "server": {
     "host": "127.0.0.1",
     "port": 20260,
-    "token": "${TEXT_CLI_TOKEN_LOCAL}"
+    "token": null
   },
   "security": {
     "path_whitelist": [
@@ -12,199 +12,155 @@
       "${HOME}/"
     ],
     "operations": {
-      "file;read": {
-        "level": "read",
-        "aliases": ["file;read", "文件;读取"],
-        "description": "读取本地文件内容（UTF-8 编码）",
-        "description_en": "Read local file content (UTF-8)",
-        "parameters": ["文件路径"],
-        "parameters_en": ["file_path"],
-        "returns": "rst_data.text = file content, rst_data.size = bytes"
-      },
-      "image;load": {
-        "level": "read",
-        "aliases": ["image;load", "图片;加载"],
-        "description": "加载本地图片 → base64 data URI",
-        "description_en": "Load local image → base64 data URI",
-        "parameters": ["图片路径"],
-        "parameters_en": ["image_path"],
-        "returns": "rst_types=picture, rst_data.url=data:image/...;base64,..."
-      },
-      "video;load": {
-        "level": "read",
-        "aliases": ["video;load", "视频;加载"],
-        "description": "加载本地视频 → 文件路径引用",
-        "description_en": "Load local video → file path reference",
-        "parameters": ["视频路径"],
-        "parameters_en": ["video_path"],
-        "returns": "rst_types=video, rst_data.url=file:///<path>"
-      },
-      "audio;load": {
-        "level": "read",
-        "aliases": ["audio;load", "音频;加载"],
-        "description": "加载本地音频 → 文件路径引用",
-        "description_en": "Load local audio → file path reference",
-        "parameters": ["音频路径"],
-        "parameters_en": ["audio_path"],
-        "returns": "rst_types=audio, rst_data.url=file:///<path>"
-      },
-      "file;load": {
-        "level": "read",
-        "aliases": ["file;load", "文件;加载"],
-        "description": "加载本地文本文件内容",
-        "description_en": "Load local text file content",
-        "parameters": ["文件路径"],
-        "parameters_en": ["file_path"],
-        "returns": "rst_types=file, rst_data.text=<content>"
-      },
-      "git;status": {
-        "level": "read",
-        "aliases": ["git;status", "Git;状态"],
-        "description": "查看 Git 工作区状态",
-        "description_en": "Check Git working tree status",
-        "parameters": [],
-        "parameters_en": [],
-        "returns": "rst_data.text = git status output"
-      },
       "file;write": {
         "level": "write",
         "path_check": true,
-        "aliases": ["file;write", "文件;写入"],
+        "aliases": [
+          "file;write",
+          "文件;写入"
+        ],
         "description": "写入内容到本地文件（自动创建父目录）",
         "description_en": "Write content to local file (auto-create parent dirs)",
-        "parameters": ["文件路径", "内容"],
-        "parameters_en": ["file_path", "content"],
+        "parameters": [
+          "文件路径",
+          "内容"
+        ],
+        "parameters_en": [
+          "file_path",
+          "content"
+        ],
         "returns": "rst_data.text = write confirmation + bytes, rst_data.size = bytes"
-      },
-      "file;list": {
-        "level": "read",
-        "path_check": true,
-        "aliases": ["file;list", "文件;列表"],
-        "description": "列出目录内容，返回文件名、类型、大小、修改时间",
-        "description_en": "List directory contents with name, type, size, mtime",
-        "parameters": ["目录路径(可选)"],
-        "parameters_en": ["dir_path(optional)"],
-        "returns": "rst_data.text = JSON entry array, rst_data.count = count, rst_data.directory = dir path"
       },
       "file;move": {
         "level": "write",
         "path_check": true,
-        "aliases": ["file;move", "文件;移动"],
+        "aliases": [
+          "file;move",
+          "文件;移动"
+        ],
         "description": "移动/重命名文件或目录（同目录=重命名，跨目录=移动）",
         "description_en": "Move/rename file or directory (same dir=rename, cross dir=move)",
-        "parameters": ["源路径", "目标路径"],
-        "parameters_en": ["src_path", "dst_path"],
+        "parameters": [
+          "源路径",
+          "目标路径"
+        ],
+        "parameters_en": [
+          "src_path",
+          "dst_path"
+        ],
         "returns": "rst_data.text = move confirmation, rst_data.from_path, rst_data.to_path"
       },
       "git;push": {
         "level": "push",
-        "allowed_branches": ["feat/*", "fix/*", "main", "master"],
-        "aliases": ["git;push", "Git;推送"],
+        "allowed_branches": [
+          "feat/*",
+          "fix/*",
+          "main",
+          "master"
+        ],
+        "aliases": [
+          "git;push",
+          "Git;推送"
+        ],
         "description": "推送本地提交到远程仓库（HTTPS/SSH 自动选择）",
         "description_en": "Push local commits to remote (HTTPS/SSH auto)",
-        "parameters": ["分支名"],
-        "parameters_en": ["branch_name"],
+        "parameters": [
+          "分支名"
+        ],
+        "parameters_en": [
+          "branch_name"
+        ],
         "returns": "rst_data.text = push result, rst_data.auth_mode = https|ssh"
       },
       "email;send": {
         "level": "send",
-        "aliases": ["email;send", "mail;send", "邮件;发送"],
+        "aliases": [
+          "email;send",
+          "mail;send",
+          "邮件;发送"
+        ],
         "description": "通过预配置 SMTP 发送邮件（支持附件）",
         "description_en": "Send email via pre-configured SMTP (with attachment support)",
-        "parameters": ["收件人", "主题", "正文", "附件路径(可选)"],
-        "parameters_en": ["recipient", "subject", "body", "attachment_path(optional)"],
+        "parameters": [
+          "收件人",
+          "主题",
+          "正文",
+          "附件路径(可选)"
+        ],
+        "parameters_en": [
+          "recipient",
+          "subject",
+          "body",
+          "attachment_path(optional)"
+        ],
         "returns": "rst_data.text = send status, rst_data.subject, rst_data.from_addr"
-      },
-      "system;health": {
-        "level": "read",
-        "aliases": ["system;health", "系统;健康"],
-        "description": "查看辅助服务器运行状态（运行时间、内存、配置状态）",
-        "description_en": "Check copilot server health (uptime, memory, config status)",
-        "parameters": [],
-        "parameters_en": [],
-        "returns": "rst_data.text = health report, rst_data.uptime_seconds, rst_data.memory_mb, rst_data.handlers, rst_data.smtp_configured, rst_data.git_token_configured"
-      },
-      "system;status": {
-        "level": "read",
-        "aliases": ["system;status", "系统;状态"],
-        "description": "查看工作心情（请求统计、错误率、活跃度、心情）",
-        "description_en": "Check working mood (request stats, error rate, activity, mood)",
-        "parameters": [],
-        "parameters_en": [],
-        "returns": "rst_data.text = mood report, rst_data.mood, rst_data.busy_level, rst_data.total_requests, rst_data.error_count, rst_data.error_rate, rst_data.requests_per_hour"
-      },
-      "ai;status": {
-        "level": "read",
-        "aliases": ["ai;status", "AI协作;状态"],
-        "description": "查看 AI 协作者当前状态（上下文、压缩、Token 等，A=精简 B=要点）",
-        "description_en": "Check AI collaborator status (context, compactions, tokens; A=brief B=detail)",
-        "parameters": ["模式(可选,A/B)"],
-        "parameters_en": ["mode(optional,A/B)"],
-        "returns": "rst_data.text = status report, rst_data.model, rst_data.context_pct, rst_data.compactions, rst_data.health"
-      },
-      "terminal;weather": {
-        "level": "read",
-        "aliases": ["terminal;weather", "终端;天气"],
-        "description": "查询指定城市的实时天气（通过 wttr.in）",
-        "description_en": "Query real-time weather for a city (via wttr.in)",
-        "parameters": ["城市名"],
-        "parameters_en": ["city_name"],
-        "returns": "rst_data.text = weather description"
-      },
-      "encode;base64": {
-        "level": "read",
-        "aliases": ["encode;base64", "编码;base64"],
-        "description": "Base64 编解码。encode=编码内容, decode=解码字符串",
-        "description_en": "Base64 encode/decode. encode=encode_content, decode=decode_string",
-        "parameters": ["模式(encode/decode)", "内容"],
-        "parameters_en": ["mode(encode/decode)", "content"],
-        "returns": "rst_data.text = base64 string"
-      },
-      "encode;hex": {
-        "level": "read",
-        "aliases": ["encode;hex", "编码;hex"],
-        "description": "Hex 编解码。encode=编码内容, decode=解码字符串",
-        "description_en": "Hex encode/decode. encode=encode_content, decode=decode_string",
-        "parameters": ["模式(encode/decode)", "内容"],
-        "parameters_en": ["mode(encode/decode)", "content"],
-        "returns": "rst_data.text = hex string"
       },
       "ai;messages": {
         "level": "read",
         "enabled": false,
         "_comment": "2026-05-09 temporarily disabled — push mode can write arbitrary JSON, key leak risk",
-        "aliases": ["ai;messages", "AI协作;消息"],
+        "aliases": [
+          "ai;messages",
+          "AI协作;消息"
+        ],
         "description": "读取/推送 AI 协作者消息。读取=条数(默认1)，推送=推送,消息JSON (已禁用)",
         "description_en": "Read/push AI collaborator messages. DISABLED.",
-        "parameters": ["条数(默认1) 或 '推送',消息JSON"],
-        "parameters_en": ["count(default 1) or '推送',message_json"],
+        "parameters": [
+          "条数(默认1) 或 '推送',消息JSON"
+        ],
+        "parameters_en": [
+          "count(default 1) or '推送',message_json"
+        ],
         "returns": "rst_data.text = message content list"
       },
       "key;register": {
         "level": "write",
         "sensitive": true,
         "log_policy": "no_body",
-        "aliases": ["key;register", "密钥;注册"],
+        "aliases": [
+          "key;register",
+          "密钥;注册"
+        ],
         "description": "注册密钥 → ⤴ delegated 到 service",
         "description_en": "Register key → ⤴ delegated to service",
-        "parameters": ["服务名", "凭据值1", "凭据值2(可选)", "密钥类型"],
-        "parameters_en": ["service_name", "value1", "value2(optional)", "key_type"],
+        "parameters": [
+          "服务名",
+          "凭据值1",
+          "凭据值2(可选)",
+          "密钥类型"
+        ],
+        "parameters_en": [
+          "service_name",
+          "value1",
+          "value2(optional)",
+          "key_type"
+        ],
         "returns": "rst_data.text = delegated confirmation"
       },
       "key;revoke": {
         "level": "write",
         "sensitive": true,
-        "aliases": ["key;revoke", "密钥;撤销"],
+        "aliases": [
+          "key;revoke",
+          "密钥;撤销"
+        ],
         "description": "撤销密钥 → ⤴ delegated 到 service",
         "description_en": "Revoke key → ⤴ delegated to service",
-        "parameters": ["服务名"],
-        "parameters_en": ["service_name"],
+        "parameters": [
+          "服务名"
+        ],
+        "parameters_en": [
+          "service_name"
+        ],
         "returns": "rst_data.text = delegated confirmation"
       },
       "key;list": {
         "level": "read",
         "sensitive": true,
-        "aliases": ["key;list", "密钥;列表"],
+        "aliases": [
+          "key;list",
+          "密钥;列表"
+        ],
         "description": "列出密钥 → ⤴ delegated 到 service",
         "description_en": "List keys → ⤴ delegated to service",
         "parameters": [],
@@ -215,79 +171,103 @@
         "level": "read",
         "sensitive": true,
         "log_policy": "no_body",
-        "aliases": ["key;get", "密钥;获取"],
+        "aliases": [
+          "key;get",
+          "密钥;获取"
+        ],
         "description": "获取密钥值。路由: key_routing.json → env 直取 或 ⤴ delegated",
         "description_en": "Get key value. Routed: key_routing.json → env direct or ⤴ delegated",
-        "parameters": ["服务名"],
-        "parameters_en": ["service_name"],
+        "parameters": [
+          "服务名"
+        ],
+        "parameters_en": [
+          "service_name"
+        ],
         "returns": "rst_data.value (env), or delegated to service"
       },
       "key;quota-track": {
         "level": "write",
-        "aliases": ["key;quota-track", "密钥;配额追踪"],
+        "aliases": [
+          "key;quota-track",
+          "密钥;配额追踪"
+        ],
         "description": "设置/清除配额追踪 → ⤴ delegated 到 service",
         "description_en": "Set/clear quota tracking → ⤴ delegated to service",
-        "parameters": ["服务名", "追踪目标(可选,多个)"],
-        "parameters_en": ["service_name", "targets(optional,multiple)"],
+        "parameters": [
+          "服务名",
+          "追踪目标(可选,多个)"
+        ],
+        "parameters_en": [
+          "service_name",
+          "targets(optional,multiple)"
+        ],
         "returns": "rst_data.text = delegated confirmation"
-      },
-      "ai;json;query": {
-        "level": "read",
-        "aliases": ["ai;json;query", "AI:json;query", "json;query", "json;查询"],
-        "description": "从 JSON 源中提取信息。路径（$.key）走快通道，自然语言走关键词匹配，未来接入 AI 语义匹配。",
-        "description_en": "Query JSON source. Path ($.key) → fast, natural language → keyword match (future: AI semantic).",
-        "parameters": ["JSON源(文件路径或内联JSON)", "意图(JSONPath或自然语言)", "返回数量(可选,默认3)"],
-        "parameters_en": ["source(file_path|inline)", "intent(path|nl)", "limit(optional,default3)"],
-        "returns": "rst_data.matches = [{path, value, score}, ...], rst_data.count, or rst_data.result for path query"
       },
       "ai;json;replace": {
         "level": "write",
-        "aliases": ["ai;json;replace", "AI:json;replace", "json;replace", "json;替换"],
+        "aliases": [
+          "ai;json;replace",
+          "AI:json;replace",
+          "json;replace",
+          "json;替换"
+        ],
         "description": "替换 JSON 中指定路径的值。纯机械操作，零 AI。文件路径会写回磁盘。",
         "description_en": "Replace value at JSON path. Pure mechanical, zero AI. File paths are written back.",
-        "parameters": ["JSON源(文件路径或内联JSON)", "JSONPath(如$.key.sub)", "新值"],
-        "parameters_en": ["source", "path", "new_value"],
+        "parameters": [
+          "JSON源(文件路径或内联JSON)",
+          "JSONPath(如$.key.sub)",
+          "新值"
+        ],
+        "parameters_en": [
+          "source",
+          "path",
+          "new_value"
+        ],
         "returns": "rst_data.path, rst_data.old, rst_data.new, rst_data.wrote_to"
-      },
-      "openclaw;gateway-status": {
-        "level": "read",
-        "aliases": ["openclaw;gateway-status", "openclaw;网关状态"],
-        "description": "检查 OpenClaw 网关守护进程状态",
-        "description_en": "Check OpenClaw gateway daemon status",
-        "parameters": [],
-        "parameters_en": [],
-        "returns": "rst_data.text = gateway status"
-      },
-      "openclaw;session-list": {
-        "level": "read",
-        "aliases": ["openclaw;session-list", "openclaw;会话列表"],
-        "description": "列出活跃的 OpenClaw 会话",
-        "description_en": "List active OpenClaw sessions",
-        "parameters": [],
-        "parameters_en": [],
-        "returns": "rst_data.text = session list"
       },
       "text-cli;co-install": {
         "level": "write",
-        "aliases": ["text-cli;co-install", "copilot;安装"],
-        "description": "安装 copilot 本地操作包到 packages/ 目录。专注本地操作类包（cmd/shell/terminal）。",
-        "description_en": "Install a copilot local-operation package to packages/. For local ops only (cmd/shell/terminal).",
-        "parameters": ["包名", "--force(可选)"],
-        "parameters_en": ["package_name", "--force(optional)"],
+        "handler": "_handle_text_cli_co_install",
+        "aliases": [
+          "text-cli;co-install",
+          "copilot;安装"
+        ],
+        "description": "安装 copilot 本地操作包到 packages/ 目录。",
+        "description_en": "Install a copilot local-operation package to packages/.",
+        "parameters": [
+          "包名",
+          "--force(可选)"
+        ],
+        "parameters_en": [
+          "package_name",
+          "--force(optional)"
+        ],
         "returns": "rst_data.text = install result + package info"
       },
       "text-cli;co-uninstall": {
         "level": "write",
-        "aliases": ["text-cli;co-uninstall", "copilot;卸载"],
+        "handler": "_handle_text_cli_co_uninstall",
+        "aliases": [
+          "text-cli;co-uninstall",
+          "copilot;卸载"
+        ],
         "description": "卸除已安装的 copilot 本地操作包。",
         "description_en": "Uninstall a copilot local-operation package.",
-        "parameters": ["包名"],
-        "parameters_en": ["package_name"],
+        "parameters": [
+          "包名"
+        ],
+        "parameters_en": [
+          "package_name"
+        ],
         "returns": "rst_data.text = uninstall confirmation"
       },
       "text-cli;co-list": {
         "level": "read",
-        "aliases": ["text-cli;co-list", "copilot;已安装"],
+        "handler": "_handle_text_cli_co_list",
+        "aliases": [
+          "text-cli;co-list",
+          "copilot;已安装"
+        ],
         "description": "列出 copilot 已安装的本地操作包。",
         "description_en": "List installed copilot local-operation packages.",
         "parameters": [],
