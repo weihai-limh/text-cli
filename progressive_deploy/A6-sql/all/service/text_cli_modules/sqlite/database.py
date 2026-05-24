@@ -96,5 +96,27 @@ def init_db(db_path: str) -> None:
         )
     """)
     _migrate_key_registry(cursor)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS token_registry (
+            token TEXT PRIMARY KEY,
+            enabled INTEGER DEFAULT 1,
+            quota_limit INTEGER,
+            used_count INTEGER DEFAULT 0,
+            expires_at TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS token_call_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            token TEXT,
+            domain TEXT,
+            action TEXT,
+            status TEXT,
+            error_msg TEXT,
+            duration_ms INTEGER,
+            created_at TEXT DEFAULT (datetime('now'))
+        )
+    """)
     conn.commit()
     conn.close()

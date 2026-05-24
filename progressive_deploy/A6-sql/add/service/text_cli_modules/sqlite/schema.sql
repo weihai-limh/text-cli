@@ -17,3 +17,25 @@ CREATE TABLE IF NOT EXISTS call_log (
     service TEXT,
     detail TEXT
 );
+
+-- token_registry: Service Token 准入控制
+CREATE TABLE IF NOT EXISTS token_registry (
+    token TEXT PRIMARY KEY,
+    enabled INTEGER DEFAULT 1,
+    quota_limit INTEGER,
+    used_count INTEGER DEFAULT 0,
+    expires_at TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
+-- token_call_logs: Token 调用审计
+CREATE TABLE IF NOT EXISTS token_call_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    token TEXT,
+    domain TEXT,
+    action TEXT,
+    status TEXT,
+    error_msg TEXT,
+    duration_ms INTEGER,
+    created_at TEXT DEFAULT (datetime('now'))
+);
