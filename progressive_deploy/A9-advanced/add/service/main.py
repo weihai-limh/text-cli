@@ -617,11 +617,6 @@ except ImportError:
     logger.info("webhook module not installed, /webhook endpoint disabled")
 
 
-if __name__ == "__main__":
-    import uvicorn
-    port = int(os.getenv("PORT", "28050"))
-    uvicorn.run(app, host="0.0.0.0", port=port)
-
 # ── 调用审计辅助函数 ──────────────────────
 
 def _write_call_log(request: Request, auth, parsed, req_start: float,
@@ -639,3 +634,9 @@ def _write_call_log(request: Request, auth, parsed, req_start: float,
         write_call_log(auth.identity_code, domain, action, status, duration_ms=duration_ms)
     except Exception:
         pass  # 日志写入失败不阻断业务
+
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", "28050"))
+    uvicorn.run(app, host="0.0.0.0", port=port)
