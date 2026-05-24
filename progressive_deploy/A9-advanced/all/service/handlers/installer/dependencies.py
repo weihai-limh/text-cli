@@ -54,7 +54,7 @@ def install_deps(req_path: str | None, name: str, requires: dict = None) -> tupl
         try:
             result = subprocess.run(
                 [sys.executable, "-m", "pip", "install", pkg,
-                 "--break-system-packages", "-q"],
+                 "-q"],
                 capture_output=True, text=True, timeout=60,
             )
             if result.returncode != 0:
