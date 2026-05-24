@@ -20,6 +20,39 @@ from core import ok, error
 logger = logging.getLogger("copilot.package_manager")
 
 
+# ── Skill bridge routes management ──
+
+ROUTES_PATH = pathlib.Path(__file__).resolve().parent.parent / "config" / "skill_bridge_routes.json"
+
+# Known package → skill directory name mappings
+SKILL_DIR_MAP = {
+    "skill-websearch": "tavily-search",
+    "skill-csv2json": "csv2json",
+    "skill-bdmap": "baidu-ai-map",
+}
+
+
+def _load_skill_routes_file() -> dict:
+    """Load current skill_bridge_routes.json, return {routes} dict."""
+    try:
+        with open(ROUTES_PATH) as f:
+            return json.load(f).get("routes", {})
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+def _save_skill_routes_file(routes: dict) -> bool:
+    """Save routes dict to skill_bridge_routes.json, return True on success."""
+    try:
+        ROUTES_PATH.write_text(
+            json.dumps({"routes": routes}, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8")
+        return True
+    except OSError as e:
+        logger.warning("Failed to write skill_bridge_routes.json: %s", e)
+        return False
+
+
 def _get_source_dirs() -> list[pathlib.Path]:
     raw = os.environ.get("TEXT_CLI_PACKAGE_SOURCE_DIRS", "")
     if raw:
@@ -200,6 +233,184 @@ class PackageManagerHandlers:
                     pass
         return None
 
+    # ── Skill bridge route inferral ──
+
+    @staticmethod
+    def _infer_skill_script(skill_name: str) -> tuple:
+        """Infer script path and runtime from skill name.
+
+        Returns (script_path, runtime_command).
+        """
+        KNOWN = {
+            "tavily-search": ("scripts/search.mjs", "node"),
+            "csv2json": ("scripts/convert.py", "python3"),
+            "baidu-ai-map": ("scripts/baidumap.py", "python3"),
+        }
+        if skill_name in KNOWN:
+            return KNOWN[skill_name]
+        return ("scripts/main.py", "python3")
+
+    def _read_skill_routes(self, schema: dict) -> dict:
+        """Build skill bridge route entries from package schema + handler.
+
+        Scans handler.py for a *Handlers.skill_routes class attribute
+        and returns fully-formed route entries for skill_bridge_routes.json.
+        Returns empty dict if package is not a skill bridge package.
+        """
+        requires = schema.get("requires", {})
+        modules = requires.get("modules", [])
+        if "handlers/skill_bridge" not in modules:
+            return {}
+
+        pkg_id = schema.get("id", "")
+        if not pkg_id:
+            return {}
+
+        # Locate handler.py in source dirs
+        src_dir = None
+        for sdir in _get_source_dirs():
+            candidate = sdir / pkg_id
+            if candidate.is_dir():
+                src_dir = candidate
+                break
+        if src_dir is None:
+            return {}
+
+        handler_py = src_dir / "handler.py"
+        if not handler_py.is_file():
+            return {}
+
+        # Extract skill_routes class attribute
+        skill_route_defs = {}
+        try:
+            import importlib.util
+            spec = importlib.util.spec_from_file_location(
+                f"_pkg_scan_{pkg_id.replace('-', '_')}",
+                str(handler_py),
+            )
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            for attr in dir(mod):
+                if attr.endswith("Handlers") and not attr.startswith("_"):
+                    cls = getattr(mod, attr)
+                    routes = getattr(cls, "skill_routes", None)
+                    if routes is not None:
+                        skill_route_defs = routes
+                        break
+        except Exception as e:
+            logger.debug("Failed to extract skill_routes from %s: %s", handler_py, e)
+            return {}
+
+        if not skill_route_defs:
+            return {}
+
+        # Build full route entries
+        skill_name = SKILL_DIR_MAP.get(pkg_id,
+                                        pkg_id[6:] if pkg_id.startswith("skill-") else pkg_id)
+        directives = {f"{d.get('domain', '')};{d.get('action', '')}": d
+                      for d in schema.get("directives", [])}
+
+        result = {}
+        for op_id, route_def in skill_route_defs.items():
+            directive = directives.get(op_id, {})
+            params = []
+            for i, pn in enumerate(directive.get("params", [])):
+                if pn:
+                    params.append({"name": pn, "position": i})
+
+            script, runtime = self._infer_skill_script(skill_name)
+            param_part = " ".join(f"'{{{p['name']}}}'" for p in params)
+
+            entry = {
+                "skill": skill_name,
+                "command": f"{runtime} {{skill_dir}}/{script} {param_part}".strip(),
+                "params": params,
+                "adapter": route_def.get("adapter", "passthrough"),
+                "timeout_ms": route_def.get("timeout_ms", 30000),
+                "description": directive.get("description", ""),
+                "description_cn": directive.get("description_cn", ""),
+            }
+            if route_def.get("adapter_config"):
+                entry["adapter_config"] = route_def["adapter_config"]
+            if route_def.get("output_adapter"):
+                entry["output_adapter"] = route_def["output_adapter"]
+
+            result[op_id] = entry
+
+        return result
+
+    def _write_skill_routes(self, pkg_id: str, src_dir: pathlib.Path) -> int:
+        """Read skill_routes from handler.py and write to skill_bridge_routes.json.
+
+        Returns number of route entries written, or 0 if not applicable.
+        """
+        schema_path = src_dir / "schema.json"
+        if not schema_path.is_file():
+            return 0
+        try:
+            schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        except Exception:
+            return 0
+
+        route_entries = self._read_skill_routes(schema)
+        if not route_entries:
+            return 0
+
+        routes = _load_skill_routes_file()
+        written = 0
+        for op_id, entry in route_entries.items():
+            if op_id not in routes:
+                routes[op_id] = entry
+                written += 1
+
+        if written:
+            if _save_skill_routes_file(routes):
+                logger.info("Wrote %d skill route(s) to skill_bridge_routes.json for '%s'",
+                            written, pkg_id)
+            else:
+                return 0
+
+        # Reload handlers so dispatch picks up new skill routes
+        try:
+            self._register_handlers()
+        except Exception:
+            pass
+
+        return written
+
+    def _remove_skill_routes(self, pkg_id: str) -> int:
+        """Remove routes belonging to a package from skill_bridge_routes.json.
+
+        Returns number of route entries removed.
+        """
+        handler_py = pathlib.Path(__file__).resolve().parent.parent / "packages" / pkg_id / "handler.py"
+        schema_path = pathlib.Path(__file__).resolve().parent.parent / "packages" / pkg_id / "schema.json"
+        if not handler_py.is_file() or not schema_path.is_file():
+            return 0
+
+        try:
+            schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        except Exception:
+            return 0
+
+        route_entries = self._read_skill_routes(schema)
+        if not route_entries:
+            return 0
+
+        routes = _load_skill_routes_file()
+        removed = 0
+        for op_id in route_entries:
+            if op_id in routes:
+                del routes[op_id]
+                removed += 1
+
+        if removed:
+            if _save_skill_routes_file(routes):
+                logger.info("Removed %d skill route(s) from skill_bridge_routes.json for '%s'",
+                            removed, pkg_id)
+
+        return removed
+
     def _handle_text_cli_co_install(self, params: list) -> dict:
         """text-cli;co-install,<package_name>
 
@@ -208,6 +419,7 @@ class PackageManagerHandlers:
         (whitelists/, config/, data/, adapters/, README.md, etc.).
         Reloads handlers so @directive-registered instructions are
         available immediately without a restart.
+        Auto-writes skill_bridge_routes.json for skill bridge packages.
         """
         if not params or not params[0]:
             return error("missing_param",
@@ -308,9 +520,13 @@ class PackageManagerHandlers:
         except Exception as e:
             logger.warning("co-install %s: reload failed, will need restart: %s", pkg_id, e)
 
+        # ── Write skill_bridge_routes.json ──
+        routes_written = self._write_skill_routes(pkg_id, src_dir)
+
         restart_hint = "" if ops_written else " Restart copilot to load."
+        route_msg = f", {routes_written} skill route(s)" if routes_written else ""
         return ok(
-            f"Package '{pkg_id}' installed ({len(copied)} files, {ops_written} ops). "
+            f"Package '{pkg_id}' installed ({len(copied)} files, {ops_written} ops{route_msg}). "
             f"Instructions available immediately.{restart_hint}")
 
     def _handle_text_cli_co_uninstall(self, params: list) -> dict:
@@ -330,6 +546,9 @@ class PackageManagerHandlers:
         # ── Remove operations from auxiliary_config.json FIRST ──
         # (must happen before rmtree since _remove_package_ops reads schema.json)
         self._remove_package_ops(name)
+
+        # ── Remove skill bridge routes ──
+        self._remove_skill_routes(name)
 
         try:
             # Remove package adapters (look up from source for file list)
