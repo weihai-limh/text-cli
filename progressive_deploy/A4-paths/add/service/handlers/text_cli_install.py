@@ -172,7 +172,7 @@ def _append_handler_init(mod_path: str, fn_name: str, arg_key: str = None):
     if entry_pattern in content:
         return
 
-    arg_key_str = '"' + (arg_key or "None") + '"'
+    arg_key_str = repr(arg_key) if arg_key else 'None'
     new_entry = f'    ("{mod_path}", "{fn_name}", {arg_key_str}, None),\n'
 
     handler_start = content.find("HANDLER_INITS = [")
