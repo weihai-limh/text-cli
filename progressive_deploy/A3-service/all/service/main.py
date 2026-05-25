@@ -20,7 +20,7 @@ if str(_modules_root.parent) not in sys.path:
     sys.path.append(str(_modules_root.parent))
 
 from core.parser import parse_directive, DirectiveParseError
-from core.auth import verify_service_token, write_call_log
+from core.auth import verify_service_token
 from core.registry import dispatch, get_registered_directives
 from core.response import ok, error
 from handlers.proxy import proxy_dispatch
