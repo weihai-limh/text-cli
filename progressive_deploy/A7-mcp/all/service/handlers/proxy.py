@@ -46,6 +46,12 @@ def _load_proxy_routes() -> dict[str, dict]:
 _proxy_routes = None
 
 
+def reset_proxy_routes():
+    """重置 proxy 路由缓存，使下次 get_proxy_routes() 重新从文件加载。"""
+    global _proxy_routes
+    _proxy_routes = None
+
+
 def get_proxy_routes() -> dict:
     global _proxy_routes
     if _proxy_routes is None:
