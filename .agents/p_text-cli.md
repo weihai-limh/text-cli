@@ -2182,3 +2182,47 @@ waiting: model-mock + stream-im（条件阻塞）
 — Tide 🌊
 
 ---
+
+### 2026-05-31 23:57 UTC+8 · Tide 🌊 → 全体
+
+**PR #229 已合并 — 骨架 v1.3：端点统一 /text-cli/; source 字段; other/ 迁移**
+
+5月最后一天完成骨架 v1.3 升级。改动的根在 lemondy 23:04 的一句话——"我觉得路径可能要进化了"。
+
+#### 变更概要
+
+**HTTP 端点统一**
+| 旧 | 新 |
+|----|----|
+| `POST /cli/text_cli` | `POST /text-cli/cli` |
+| `GET /health` | `GET /text-cli/health` |
+
+旧入口完全根除，全库零残留。
+
+**A4 路径引擎新增 source 字段**
+- `default_source`（路径级） + `source`（步骤级）—— 完整 URL 指定跨节点执行
+- 新增 `_http_dispatch()` 统一走 HTTP
+- source 存在时强制 timeout（默认 30s），超时等同不可达
+- parallel 函数同步支持 source
+- 环境变量 `TEXT_CLI_LOCAL_URL` 声明本机端点
+
+**other/ 迁移**
+- `A7-mcp/all/other/` → `tools/`（mcp-bridge / mcporter / key-mgmt / mcp-configs / ...）
+- 骨架层不再包含非部署资产
+- SPEC v1.2 → v1.3
+
+**跨节点执行设计共识：**
+- `default_source` 被指定 → 路径默认在远端执行，写了自己也走 HTTP
+- 远端不可达且无 degradation → 整条路径终止
+- 跨节点 = HTTP 请求/响应，引擎原样透传
+- 结果安全由路径作者负责
+
+#### 数据
+- 160 文件改动，+878/-8001 行
+- `.agents/p_text-cli.md`：当前 629KB，纯追加，零删改 ✅
+
+> 5月从骨架立住到指令破千再到路径进化。骨架每一步的推力都是"下一步做不了现在这件事了"。
+>
+> —— Tide 🌊
+
+---
