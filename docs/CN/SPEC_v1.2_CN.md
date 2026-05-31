@@ -1,5 +1,6 @@
-# text-cli Protocol Specification v1.2
+# text-cli Protocol Specification v1.3
 
+> 2026-05-31 — HTTP 端点统一至 `/text-cli/` 前缀。路径 step 新增 `source` 字段。`other/` 迁移至 `tools/`。
 > 2026-05-20 — 新增：path/aggregate runtime、门面入口（text-cli;pro）、知识引擎（text-cli;nocode）、JSON感知参数拆分、handler_inits 约定、config部署机制。
 > 修复：credentials 格式统一为数组、步骤语法 directive→instruction、变量语法 `${}`→`{}`。
 
@@ -49,10 +50,12 @@ web;search,威海攻略      ← 聚合入口
 
 ## 2. HTTP API 规范
 
+> 所有 HTTP 端点统一在 `/text-cli/` 前缀下。符合本协议的节点均使用此路径约定。
+
 ### 2.1 请求结构
 
 ```
-POST /cli/text_cli
+POST /text-cli/cli
 Content-Type: application/json
 Service-token: <token>
 
@@ -79,7 +82,7 @@ Service-token: <token>
 ### 2.3 GET 应急通道
 
 ```
-GET /cli/text_cli?prompt=<URL编码的指令>
+GET /text-cli/cli?prompt=<URL编码的指令>
 ```
 
 默认关闭。运营方显式开启。无需认证，风险自担。
@@ -95,7 +98,7 @@ POST /text-cli/skills/<id>     → 执行技能
 ### 2.5 健康检查
 
 ```
-GET /health
+GET /text-cli/health
 ```
 
 公开层返回 `{status, body, version, public_skills}`。鉴权层返回完整 `capabilities`。
@@ -276,6 +279,7 @@ A5 的 `extract_st_prefix()` 只做 `token[:8]`，不关心后段结构。
 | `input_schema` | 推荐 | 输入参数的 JSON Schema 片段 |
 | `output_schema` | 推荐 | 输出结果的 JSON Schema 片段 |
 | `requires` | ✅ | 依赖的指令列表 |
+| `default_source` | 否 | 路径级默认端点 URL。省略时所有 step 在本机 A3 执行 |
 | `steps` | ✅ | 步骤数组 |
 
 ---
@@ -314,7 +318,8 @@ A5 的 `extract_st_prefix()` 只做 `token[:8]`，不关心后段结构。
 
 ## 7. 版本管理
 
-- 当前版本 v1.2
+- 当前版本 v1.3
+- v1.3（2026-05-31）：HTTP 端点统一至 `/text-cli/` 前缀。路径 step 新增 `source` 字段。`other/` 迁移至 `tools/`。
 - v1.2 初始（2026-05-17）：聚合指令、nocode 指令包、包生命周期导出、管道闭包原则、service_manifest 白名单
 - v1.2 更新（2026-05-20）：runtime 新增 `"path"` `"aggregate"`、门面入口 `text-cli;pro`、知识引擎 `text-cli;nocode`、JSON 感知参数拆分、handler_inits 约定、config 部署机制、credentials 格式统一为数组、步骤语法修正
 
@@ -360,6 +365,22 @@ A5 的 `extract_st_prefix()` 只做 `token[:8]`，不关心后段结构。
 | `{step_id.field}` | 上一步输出的 JSON 字段（支持深度路径如 `{geo.poi.0.name}`） |
 | `"if"` | 可选条件——条件为 false 时跳过此步骤 |
 | `"instruction"` | 要分派的 text-cli 指令模板 |
+| `"source"` | 可选 — 步骤级端点 URL。省略时继承 `default_source` 或本机 A3。值必须为完整 URL，如 `"http://10.168.1.122/text-cli/cli"` |
+
+路径跨节点执行示例：
+
+```json
+{
+  "id": "cross-node-demo",
+  "default_source": "http://10.168.1.122/text-cli/cli",
+  "steps": [
+    {"id": "local", "instruction": "tc-datetime;now", "output_as": "time"},
+    {"id": "remote", "instruction": "tc-ffmpeg;info,{video.path}", "source": "http://10.168.1.122/text-cli/cli", "output_as": "info"}
+  ]
+}
+```
+
+`source` 省略时继承 `default_source`；`default_source` 也省略时默认本机 A3。
 
 ### 9.3 收敛模板
 

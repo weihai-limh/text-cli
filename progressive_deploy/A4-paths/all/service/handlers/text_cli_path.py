@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import pathlib
 import re
 
@@ -242,8 +243,57 @@ def _split_params(params_str: str) -> list[str]:
     return result
 
 
+# ── HTTP 跨节点 dispatch ────────────────────────
+
+_LOCAL_URL: str | None = None
+
+
+def _get_local_url() -> str | None:
+    """从环境变量获取本机 text-cli 端点 URL。
+    
+    TEXT_CLI_LOCAL_URL 未设置时返回 None，引擎将所有带 source 的 step 走 HTTP。
+    """
+    return "http://localhost:28050/text-cli/cli" if "TEST" in os.environ else os.environ.get("TEXT_CLI_LOCAL_URL")
+
+
+def _http_dispatch(url: str, domain: str, action: str, params: list[str],
+                   timeout_ms: int | None = None) -> str:
+    """通过 HTTP POST 将指令转发到远端 text-cli 节点。
+    
+    返回远端 raw 响应字符串。超时或网络错误时主动抛出异常由调用方处理。
+    """
+    import urllib.request
+    import urllib.error
+
+    params_str = ",".join(params)
+    # 如果有特殊字符，用单引号包裹但简单场景保持最简
+    prompt = f"AI:{domain};{action},{params_str}"
+    body = json.dumps({"prompt": prompt}).encode("utf-8")
+
+    req = urllib.request.Request(
+        url,
+        data=body,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+
+    timeout_s = (timeout_ms / 1000.0) if timeout_ms is not None else 30
+
+    try:
+        with urllib.request.urlopen(req, timeout=timeout_s) as resp:
+            raw = resp.read().decode("utf-8")
+            return raw
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", errors="replace")
+        # 对端可能返回了合法的 rst 格式错误
+        return body
+    except Exception:
+        raise  # 超时或连接失败，交给调用方处理
+
+
 def _execute_step(step: dict, variables: dict[str, str], step_index: int,
-                  messages: dict) -> tuple[str, str, str]:
+                  messages: dict,
+                  default_source: str | None = None) -> tuple[str, str, str]:
     """Execute a single step.
 
     Returns (status, result_text, output_as_key).
@@ -263,24 +313,41 @@ def _execute_step(step: dict, variables: dict[str, str], step_index: int,
                             i=step_index, raw=raw_directive, resolved=resolved), ""
 
     timeout_ms = step.get("timeout")
-    try:
-        if timeout_ms is not None:
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(dispatch, domain, action, params)
-                try:
-                    result = future.result(timeout=timeout_ms / 1000.0)
-                except concurrent.futures.TimeoutError:
-                    output_as = step.get("output_as", f"_step{step_index}")
-                    return "error", _fmt("STEP_TIMEOUT", messages,
-                                        i=step_index,
-                                        directive=step.get('directive', '?'),
-                                        ms=timeout_ms), output_as
-        else:
-            result = dispatch(domain, action, params)
-    except Exception as e:
-        return "error", _fmt("STEP_ERR_EXCEPTION", messages,
-                            i=step_index, domain=domain, action=action, e=e), ""
+    source = step.get("source") or default_source
+
+    # ── source 分支：HTTP 跨节点 dispatch ──
+    if source:
+        # source 存在时必须设 timeout
+        effective_timeout = timeout_ms if timeout_ms is not None else 30000
+        try:
+            raw = _http_dispatch(source, domain, action, params,
+                                 timeout_ms=effective_timeout)
+            result = raw
+        except Exception as e:
+            output_as = step.get("output_as", f"_step{step_index}")
+            return "error", _fmt("STEP_ERR_EXCEPTION", messages,
+                                i=step_index, domain=domain, action=action,
+                                e=str(e)), output_as
+    else:
+        # ── 本地 dispatch（含 aggregate）──
+        try:
+            if timeout_ms is not None:
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                    future = executor.submit(dispatch, domain, action, params)
+                    try:
+                        result = future.result(timeout=timeout_ms / 1000.0)
+                    except concurrent.futures.TimeoutError:
+                        output_as = step.get("output_as", f"_step{step_index}")
+                        return "error", _fmt("STEP_TIMEOUT", messages,
+                                            i=step_index,
+                                            directive=step.get('directive', '?'),
+                                            ms=timeout_ms), output_as
+            else:
+                result = dispatch(domain, action, params)
+        except Exception as e:
+            return "error", _fmt("STEP_ERR_EXCEPTION", messages,
+                                i=step_index, domain=domain, action=action, e=e), ""
 
     # "No matching directive" → delegated, not error
     if isinstance(result, str) and result.startswith("No matching directive:"):
@@ -471,7 +538,8 @@ def _references_skipped(directive: str, skipped_outputs: set) -> bool:
 def _execute_parallel_first_ok(p_steps: list, variables: dict, lines: list,
                                 messages: dict, group_i: int, group_step: dict,
                                 step_results: list, path_id: str,
-                                total_steps: int, format: str):
+                                total_steps: int, format: str,
+                                default_source: str | None = None):
     """Execute parallel steps with first_ok strategy.
 
     All steps are submitted concurrently. The first to return ok wins;
@@ -487,7 +555,10 @@ def _execute_parallel_first_ok(p_steps: list, variables: dict, lines: list,
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(p_steps)) as executor:
         futures = {}
         for pi, ps in enumerate(p_steps):
-            fut = executor.submit(_execute_step, ps, variables, group_i, messages)
+            fut = executor.submit(
+                _execute_step, ps, variables, group_i, messages,
+                default_source=default_source,
+            )
             futures[fut] = (pi, ps)
 
         for fut in concurrent.futures.as_completed(futures):
@@ -533,7 +604,8 @@ def _execute_parallel_first_ok(p_steps: list, variables: dict, lines: list,
 
 def _execute_parallel_all(p_steps: list, variables: dict, lines: list,
                            messages: dict, group_i: int, group_step: dict,
-                           step_results: list, delegated: list):
+                           step_results: list, delegated: list,
+                           default_source: str | None = None):
     """Execute all parallel steps, collect results.
 
     Each step writes to its own output_as. All must complete.
@@ -543,7 +615,10 @@ def _execute_parallel_all(p_steps: list, variables: dict, lines: list,
     with concurrent.futures.ThreadPoolExecutor(max_workers=len(p_steps)) as executor:
         futures = {}
         for pi, ps in enumerate(p_steps):
-            fut = executor.submit(_execute_step, ps, variables, group_i, messages)
+            fut = executor.submit(
+                _execute_step, ps, variables, group_i, messages,
+                default_source=default_source,
+            )
             futures[fut] = (pi, ps)
 
         for fut in concurrent.futures.as_completed(futures):
@@ -679,6 +754,7 @@ def _execute_path(path_def: dict, initial_input: str,
     path_name = path_def.get("name", path_def.get("id", "unnamed"))
     path_id = path_def.get("id", "unnamed")
     variables: dict[str, str] = {"input": initial_input}
+    default_source = path_def.get("default_source")
     delegated: list[dict] = []
     skipped_outputs: set = set()  # output_as keys never produced (if skipped)
     lines = [_fmt("PATH_START", messages, name=path_name)]
@@ -735,11 +811,13 @@ def _execute_path(path_def: dict, initial_input: str,
                 _execute_parallel_first_ok(
                     p_steps, variables, lines, messages, i, step,
                     step_results, path_id, len(steps), format,
+                    default_source=default_source,
                 )
             elif strategy == "all":
                 _execute_parallel_all(
                     p_steps, variables, lines, messages, i, step,
                     step_results, delegated,
+                    default_source=default_source,
                 )
             else:
                 lines.append(_fmt("STEP_ERR", messages,
@@ -747,7 +825,10 @@ def _execute_path(path_def: dict, initial_input: str,
                                 reason=f"unknown strategy: {strategy}"))
             continue
 
-        status, result, output_as = _execute_step(step, variables, i, messages)
+        status, result, output_as = _execute_step(
+            step, variables, i, messages,
+            default_source=default_source,
+        )
 
         if status == "ok":
             variables[output_as] = result
@@ -798,6 +879,7 @@ def _execute_path(path_def: dict, initial_input: str,
 
                     d_status, d_result, _ = _execute_step(
                         degrade_step, variables, i, messages,
+                        default_source=default_source,
                     )
 
                     if d_status == "ok":

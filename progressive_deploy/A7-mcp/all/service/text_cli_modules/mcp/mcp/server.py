@@ -11,7 +11,7 @@ text-cli MCP Server — 配置驱动的 text-cli → MCP 协议桥
   MCP 客户端 ←→ FastMCP (port 9020) ←→ text-cli-service (port 28050)
 
 环境变量：
-  TEXTCLI_SERVICE_URL  — text-cli-service 地址 (默认 http://localhost:28050/cli/text_cli)
+  TEXTCLI_SERVICE_URL  — text-cli-service 地址 (默认 http://localhost:28050/text-cli/cli)
   TEXTCLI_SERVICE_TOKEN — 认证 token (默认 test-token)
   MCP_PORT             — 监听端口 (默认 9020)
 
@@ -35,7 +35,7 @@ from fastmcp import FastMCP
 
 SERVICE_URL = os.environ.get(
     "TEXTCLI_SERVICE_URL",
-    "http://localhost:28050/cli/text_cli",
+    "http://localhost:28050/text-cli/cli",
 )
 SERVICE_TOKEN = os.environ.get("TEXTCLI_SERVICE_TOKEN", "test-token")
 MCP_PORT = int(os.environ.get("MCP_PORT", "9020"))

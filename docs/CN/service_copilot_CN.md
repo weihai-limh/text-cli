@@ -34,7 +34,7 @@ service 是 text-cli 的核心运行时。它持有指令包、执行调度、�
 
 - `/health` — 健康检查 + 已注册指令
 - `/skills` — 白名单过滤的技能列表（只暴露 service_manifest.json 中的条目）
-- `/cli/text_cli` — 指令执行端点
+- `/text-cli/cli` — 指令执行端点
 
 ---
 

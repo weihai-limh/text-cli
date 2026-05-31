@@ -49,7 +49,7 @@ def _get_config(key: str, env_name: str, default: str = "") -> str:
     return conf.get(key, default)
 
 
-DEFAULT_ENDPOINT = "https://test.text-cli.com/cli/text_cli"
+DEFAULT_ENDPOINT = "https://test.text-cli.com/text-cli/cli"
 TIMEOUT = 10
 
 

@@ -69,7 +69,7 @@ async def security_middleware(request: Request, call_next):
             content={"rst_types": "text", "rst_data": {"text": "IP_BLOCKED"}},
         )
 
-    if request.url.path == "/cli/text_cli" and request.method == "POST":
+    if request.url.path == "/text-cli/cli" and request.method == "POST":
         service_token = request.headers.get("Service-token", "")
         if service_token:
             prefix = extract_service_token_prefix(service_token)
@@ -86,7 +86,7 @@ async def security_middleware(request: Request, call_next):
 
     path = request.url.path
     method = request.method
-    if path == "/cli/text_cli" or (path == "/text-cli/cli" and method == "GET"):
+    if path == "/text-cli/cli":
         if not check_rate_limit(is_get=(method == "GET")):
             return JSONResponse(
                 status_code=429,
@@ -102,7 +102,7 @@ async def get_schema():
     return JSONResponse(content=get_external_schema())
 
 
-@app.post("/cli/text_cli")
+@app.post("/text-cli/cli")
 async def handle_text_cli(request: Request):
     auth_header = request.headers.get("Authorization", "")
     service_token = request.headers.get("Service-token", "")

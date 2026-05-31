@@ -26,7 +26,7 @@ _PROJECT = Path(os.environ.get("TEXT_CLI_HOME", str(Path.home() / "text-cli")))
 PROXY_CONFIG_PATH = str(_PROJECT / "service" / "config" / "proxy_routes.json")
 
 # A2 proxy 目标（固定，copilot 仅本机可达）
-A2_PROXY_URL = "http://localhost:20260/cli/text_cli"
+A2_PROXY_URL = "http://localhost:20260/text-cli/cli"
 
 # 抽检条目数
 SPOT_CHECK_COUNT = 3

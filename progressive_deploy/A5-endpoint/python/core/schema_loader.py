@@ -33,7 +33,7 @@ async def load_schema(endpoint_base_url: str | None = None):
         _external_schema = copy.deepcopy(static)
         if endpoint_base_url:
             base = endpoint_base_url.rstrip("/")
-            target_url = f"{base}/cli/text_cli"
+            target_url = f"{base}/text-cli/cli"
             for key in _external_schema:
                 _external_schema[key]["url"] = target_url
         logger.info("Loaded %d directives from static fallback %s", len(_external_schema), SCHEMA_PATH)

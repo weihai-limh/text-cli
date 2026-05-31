@@ -60,7 +60,7 @@ copilot 是 lemondy 统一架构中四个可插拔组件之一——它在请求
 │                                                  │
 │  推理 → 发送 text-cli 指令 → 解析响应             │
 └──────────────┬──────────────────────────────────┘
-               │ POST /cli/text_cli
+               │ POST /text-cli/cli
                │ {"prompt": "AI:file;read,/path"}
                │ Authorization: Bearer <token>
                ▼
@@ -105,7 +105,7 @@ copilot 是 lemondy 统一架构中四个可插拔组件之一——它在请求
 
 ### 3.1 指令入口
 
-**端点**：`POST /cli/text_cli`
+**端点**：`POST /text-cli/cli`
 
 **请求格式**（与 text-cli 公共端点完全一致）：
 
@@ -528,7 +528,7 @@ class Copilot:
 
 - [x] `text-cli-copilot.py`（stdlib only，`http.server`）
 - [x] `auxiliary_config.json` + `_resolve_env()` 启动时解析
-- [x] `POST /cli/text_cli` + Token 校验
+- [x] `POST /text-cli/cli` + Token 校验
 - [x] 指令解析器（双前缀 + 贪婪参数）
 - [x] Dispatch 骨架（alias_map + handler 命名约定自动注册）
 
@@ -593,11 +593,11 @@ Agent 看到的效果：
 ```json
 {
   "file;read": [
-    {"endpoint": "http://localhost:20260/cli/text_cli", "rank": 1}
+    {"endpoint": "http://localhost:20260/text-cli/cli", "rank": 1}
   ],
   "weather;query": [
-    {"endpoint": "https://test.text-cli.com/cli/text_cli", "rank": 2},
-    {"endpoint": "https://cliweather.instantiated.space/cli/text_cli", "rank": 3}
+    {"endpoint": "https://test.text-cli.com/text-cli/cli", "rank": 2},
+    {"endpoint": "https://cliweather.instantiated.space/text-cli/cli", "rank": 3}
   ]
 }
 ```

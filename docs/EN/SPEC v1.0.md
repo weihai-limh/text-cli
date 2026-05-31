@@ -55,10 +55,12 @@ The `text-cli` integration endpoint is an external-facing HTTP service responsib
 #### 2.1.1 Endpoint URL
 
 ```
-POST https://<endpoint>/cli/text_cli
+POST https://<endpoint>/text-cli/cli
 ```
 
 The public experience endpoint is `test.text-cli.com`. Self-hosted endpoints MUST keep this path consistent.
+
+> 注意：v1.2 及之前使用 `/cli/text_cli`，v1.3 起统一为 `/text-cli/cli`。
 
 #### 2.1.2 Request Structure
 

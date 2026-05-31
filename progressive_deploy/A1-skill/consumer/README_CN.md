@@ -28,7 +28,7 @@ AI:领域;动作,参数1,参数2,...
 
 ```json
 {
-  "endpoint": "http://127.0.0.1/cli/text_cli",
+  "endpoint": "http://127.0.0.1/text-cli/cli",
   "service_token": "",
   "access_token": ""
 }
@@ -70,8 +70,8 @@ console.log(result);
 
 | 端点 | 地址 |
 |------|------|
-| 公共测试端点 | `https://test.text-cli.com/cli/text_cli` |
-| 自建端点 | `<自建地址>/cli/text_cli` |
+| 公共测试端点 | `https://test.text-cli.com/text-cli/cli` |
+| 自建端点 | `<自建地址>/text-cli/cli` |
 
 ## 安全
 
