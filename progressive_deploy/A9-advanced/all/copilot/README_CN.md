@@ -72,10 +72,10 @@ python3 text-cli-copilot.py
 ### 验证
 
 ```bash
-curl http://localhost:20260/health
+curl http://localhost:20260/text-cli/health
 # {"status": "ok"}
 
-curl -X POST http://localhost:20260/cli/text_cli \
+curl -X POST http://localhost:20260/text-cli/cli \
   -H 'Authorization: Bearer <token>' \
   -d '{"prompt":"AI:encode;base64,hello"}'
 ```
@@ -99,7 +99,7 @@ Git Token 和 SMTP 密码通过**环境变量注入**，不写入配置文件：
 
 ### 鉴权
 
-所有 `/cli/text_cli` POST 请求需 `Bearer Token`。
+所有 `/text-cli/cli` POST 请求需 `Bearer Token`。
 
 ---
 

@@ -84,7 +84,7 @@ export function buildExternalSchema(endpointBaseUrl) {
   if (!endpointBaseUrl) return {};
 
   const base = endpointBaseUrl.replace(/\/+$/, '');
-  const targetUrl = `${base}/cli/text_cli`;
+  const targetUrl = `${base}/text-cli/cli`;
 
   for (const [key, entry] of Object.entries(_aggregateTable)) {
     _externalSchema[key] = {

@@ -45,7 +45,7 @@ Endpoint 是 text-cli 生态的公网入口（A5 层）。v4.0 起升级为 **1+
      │     (GET /text-cli/skills)  └──────────┘
      │
      ├──→ 路由转发到对应 A3
-     │     (POST /cli/text_cli + Service Token 透传)
+     │     (POST /text-cli/cli + Service Token 透传)
      │
      ▼
   调用方只看一个入口，不感知背后 N 个 A3
@@ -204,7 +204,7 @@ A5 不签发、不改写、不验证 Service Token 的完整性——只做前�
 
 ### 2.5 Schema 对外暴露
 
-Endpoint 对外暴露的 Schema 通过 `GET /text_cli_schema.json` 提供，所有 `url` 字段统一指向 Endpoint 自身地址（`https://端点域名/cli/text_cli`）。调用方只需知道一条指令的 domain;action，无需感知背后是哪个 A3 在提供服务。
+Endpoint 对外暴露的 Schema 通过 `GET /text_cli_schema.json` 提供，所有 `url` 字段统一指向 Endpoint 自身地址（`https://端点域名/text-cli/cli`）。调用方只需知道一条指令的 domain;action，无需感知背后是哪个 A3 在提供服务。
 
 ---
 
@@ -213,7 +213,7 @@ Endpoint 对外暴露的 Schema 通过 `GET /text_cli_schema.json` 提供，所�
 ### 3.1 完整流程（v4.0 含三道防线）
 
 ```
-POST /cli/text_cli
+POST /text-cli/cli
 请求体: {"prompt": "AI:基础应用;天气查询,明天,威海"}
 请求头: Authorization: Bearer <Access Token>
         Service-token: <Service Token>
@@ -223,7 +223,7 @@ POST /cli/text_cli
     ├── 命中黑名单 → 403 IP_BLOCKED
     │
     ▼
-② ST 前缀注册校验（仅 POST /cli/text_cli）
+② ST 前缀注册校验（仅 POST /text-cli/cli）
     ├── 提取 Service Token 前 8 位
     ├── 命中黑名单 → 403 TOKEN_PREFIX_BLOCKED（覆写注册）
     ├── 不在注册表 → 403 TOKEN_PREFIX_UNKNOWN
@@ -257,7 +257,7 @@ POST /cli/text_cli
     ├── 未找到 → 400 DIRECTIVE_NOT_FOUND
     │
     ▼
-   目标 url = "http://a3-1:28050/cli/text_cli"
+   目标 url = "http://a3-1:28050/text-cli/cli"
     │
     ▼
 ⑦ 转发请求到 A3 后端（含自动重试）
@@ -307,7 +307,7 @@ AI:<领域>;<动作>,<参数1>,<参数2>,...
 1. 解析 `ParsedDirective.directive_key`（如 `AI:基础应用;天气查询`）
 2. 在聚合表中查找匹配条目
 3. 返回 `source` 字段（A3 的 base URL）
-4. 转发时将 A3 base URL 拼上 `/cli/text_cli` 构成完整转发地址
+4. 转发时将 A3 base URL 拼上 `/text-cli/cli` 构成完整转发地址
 
 **v4.0 变更**：匹配源从静态 JSON 文件改为内存聚合表（`backend_registry`）。JS 端首次请求时通过 `ensureSkillsLoaded()` 按需拉取。
 
@@ -453,7 +453,7 @@ POST /api/report_stats    (端点 → 生态中心，可选，默认关闭)
 
 | 方法 | 路径 | 说明 |
 |:---|:---|:---|
-| POST | `/cli/text_cli` | 指令执行入口，鉴权后转发到 A3 后端 |
+| POST | `/text-cli/cli` | 指令执行入口，鉴权后转发到 A3 后端 |
 | GET | `/text_cli_schema.json` | 对外聚合 Schema，所有 url 指向 Endpoint 自身 |
 | GET | `/health` | 公开健康检查 |
 | GET | `/text-cli/cli?skill_id=<id>&<params>` | 人道主义通道（v4.0 新增，无 Token，默认关闭） |
@@ -729,9 +729,9 @@ wrangler deploy    # 部署到 Cloudflare
 
 **IP 检查时机**：中间件/`fetch` handler 入口处，所有请求必经。
 
-**ST 前缀检查时机**：仅对 `POST /cli/text_cli` 生效——提取 `Service-token` 头前 8 位，查注册表 + 黑名单。GET 人道主义通道无 Token，自然跳过。
+**ST 前缀检查时机**：仅对 `POST /text-cli/cli` 生效——提取 `Service-token` 头前 8 位，查注册表 + 黑名单。GET 人道主义通道无 Token，自然跳过。
 
-**限流检查时机**：对 `POST /cli/text_cli` 和 `GET /text-cli/cli` 生效——两条通道独立计数。
+**限流检查时机**：对 `POST /text-cli/cli` 和 `GET /text-cli/cli` 生效——两条通道独立计数。
 
 ### 10.2 Token 安全
 
@@ -767,7 +767,7 @@ wrangler deploy    # 部署到 Cloudflare
 | SPEC 条款 | 本方案实现 |
 |:---|:---|
 | §1.1 指令格式 + JSON 感知拆分 | parser.py / parser.js |
-| §2.1/2.2 HTTP API | `POST /cli/text_cli` + `rst_types`/`rst_data` 透传 |
+| §2.1/2.2 HTTP API | `POST /text-cli/cli` + `rst_types`/`rst_data` 透传 |
 | §3 双层令牌 | Access Token 鉴权 + Service Token 透传（v4.0 + ST 前缀校验） |
 | §5 错误码 | 7 种标准错误码 + 5 种新增（v4.0：IP_BLOCKED / TOKEN_PREFIX_UNKNOWN 等） |
 | §8 多语言 | 全角/半角双解析 |

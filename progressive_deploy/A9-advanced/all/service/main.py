@@ -269,7 +269,7 @@ async def image_cache_retrieve(key: str):
     return Response(content=data, media_type="text/plain; charset=utf-8")
 
 
-@app.get("/health")
+@app.get("/text-cli/health")
 async def health(request: Request):
     directives = get_registered_directives()
 
@@ -331,7 +331,7 @@ async def stct():
     return Response(content=text, media_type="text/plain; charset=utf-8")
 
 
-@app.post("/cli/text_cli")
+@app.post("/text-cli/cli")
 async def handle_directive(request: Request):
     service_token = request.headers.get("Service-token")
     identity_header = request.headers.get("X-Text-CLI-Identity")

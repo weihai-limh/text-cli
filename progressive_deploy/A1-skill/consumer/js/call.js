@@ -23,7 +23,7 @@ const path = require('path');
 const fs = require('fs');
 
 const CONF_PATH = path.resolve(__dirname, 'conf.json');
-const DEFAULT_ENDPOINT = 'https://test.text-cli.com/cli/text_cli';
+const DEFAULT_ENDPOINT = 'https://test.text-cli.com/text-cli/cli';
 const DEFAULT_TIMEOUT = 10000;
 
 /**

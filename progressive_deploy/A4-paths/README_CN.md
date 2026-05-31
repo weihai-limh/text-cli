@@ -119,7 +119,7 @@ AI:text-cli;path,examples/paths/geo_panoramic_query.json,威海
 
 ## 依赖
 
-- A3：服务端点（`/cli/text_cli` 入口）
+- A3：服务端点（`/text-cli/cli` 入口）
 - A3 累积：copilot 本地代理 + service 平台核心
 
 ---

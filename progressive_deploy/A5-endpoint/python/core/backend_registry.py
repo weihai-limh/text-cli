@@ -81,7 +81,7 @@ def build_external_schema(endpoint_base_url: str | None = None):
         return {}
 
     base = endpoint_base_url.rstrip("/")
-    target_url = f"{base}/cli/text_cli"
+    target_url = f"{base}/text-cli/cli"
 
     for key, entry in _aggregate_table.items():
         _external_schema[key] = {
