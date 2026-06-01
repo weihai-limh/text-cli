@@ -41,7 +41,6 @@ if SQLITE_ENABLED:
     from core.registry import directive
 
     @directive("key", "register", domain_alias="密钥", action_aliases={"register": "注册"})
-    @directive("key", "register", domain_alias="密钥", action_aliases={"register": "注册"})
         if len(params) < 2:
             return 'Missing params: key;register,<service>,<value1>[,<value2>],<key_type>'
 
@@ -59,8 +58,6 @@ if SQLITE_ENABLED:
         return f'Registration failed: {r.get("detail", r.get("error", "?"))}'
 
     @directive("key", "revoke", domain_alias="密钥", action_aliases={"revoke": "撤销"})
-    @directive("key", "revoke", domain_alias="密钥", action_aliases={"revoke": "撤销"})
-    @directive("key", "revoke", domain_alias="密钥", action_aliases={"revoke": "撤销"})
             return 'Missing params: key;revoke,<service>'
         r = _rev(DB_PATH, params[0])
         if r.get('ok'):
@@ -69,8 +66,6 @@ if SQLITE_ENABLED:
 
     @directive("key", "list", domain_alias="密钥", action_aliases={"list": "列表"})
     def key_list(params: list[str]) -> str:
-    @directive("key", "list", domain_alias="密钥", action_aliases={"list": "列表"})
-    @directive("key", "list", domain_alias="密钥", action_aliases={"list": "列表"})
             return 'Registered keys: (empty)'
         lines = [f'Registered keys: {len(keys)}']
         for k in keys:
@@ -86,8 +81,6 @@ if SQLITE_ENABLED:
     @directive("key", "quota-track", domain_alias="密钥", action_aliases={"quota-track": "配额追踪"})
     def key_quota_track(params: list[str]) -> str:
         if not params:
-    @directive("key", "quota-track", domain_alias="密钥", action_aliases={"quota-track": "配额追踪"})
-    @directive("key", "quota-track", domain_alias="密钥", action_aliases={"quota-track": "配额追踪"})
         service = params[0]
         targets = params[1:] if len(params) > 1 else None
 
@@ -102,8 +95,6 @@ if SQLITE_ENABLED:
     def key_export_xor(params: list[str]) -> str:
         if not params:
             return 'Missing params: key;export-xor,<service>'
-    @directive("key", "export-xor", domain_alias="密钥", action_aliases={"export-xor": "导出加密"})
-    @directive("key", "export-xor", domain_alias="密钥", action_aliases={"export-xor": "导出加密"})
 
         raw = _get_raw(DB_PATH, service)
         if not raw:

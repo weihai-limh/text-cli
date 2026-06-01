@@ -27,7 +27,6 @@ from pathlib import Path
 _INITS_PATH = Path(__file__).resolve().parent.parent / "config" / "handler_inits.py"
 
 @directive("text-cli", "uninstall", domain_alias="文本指令", action_aliases={"uninstall": "卸载"})
-@directive("text-cli", "uninstall", domain_alias="文本指令", action_aliases={"uninstall": "卸载"})
 def text_cli_uninstall(params: list[str]) -> str:
     """Uninstall an instruction package by name."""
     if not params:
