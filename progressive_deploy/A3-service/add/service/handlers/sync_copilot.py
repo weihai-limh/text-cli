@@ -84,7 +84,7 @@ def _spot_check(routes: dict[str, dict]) -> list[str]:
 
 
 @directive("text-cli", "sync-copilot", domain_alias="文本指令", action_aliases={"sync-copilot": "同步副驾"})
-@directive("text-cli", "sync-copilot", domain_alias="文本指令", action_aliases={"sync-copilot": "同步副驾"})
+def sync_copilot(params: list[str]) -> str:
     """
     发现 A2 copilot 指令并自动生成 A3 proxy 路由。
 
