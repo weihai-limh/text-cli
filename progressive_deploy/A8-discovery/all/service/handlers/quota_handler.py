@@ -184,8 +184,7 @@ def _next_reset(cycle_type: str, today: str) -> str:
 
 # ── Directives ──────────────────────────────────
 
-@directive("quota", "check")
-@directive("配额", "检查")
+@directive("quota", "check", domain_alias="配额", action_aliases={"check": "检查"})
 def quota_check(params: list[str]) -> str:
     """Atomic check + consume quota units. quota;check,<target>[,<amount>]"""
     if not params:
@@ -198,8 +197,7 @@ def quota_check(params: list[str]) -> str:
     return json.dumps(result, ensure_ascii=False)
 
 
-@directive("quota", "register")
-@directive("配额", "注册")
+@directive("quota", "register", domain_alias="配额", action_aliases={"register": "注册"})
 def quota_register(params: list[str]) -> str:
     """Register a new quota rule."""
     if len(params) < 3:
@@ -253,8 +251,7 @@ def quota_register(params: list[str]) -> str:
         conn.close()
 
 
-@directive("quota", "list")
-@directive("配额", "列表")
+@directive("quota", "list", domain_alias="配额", action_aliases={"list": "列表"})
 def quota_list(params: list[str]) -> str:
     """List all quota rules with current usage."""
     if not DB_FILE:
@@ -299,8 +296,7 @@ def quota_list(params: list[str]) -> str:
         conn.close()
 
 
-@directive("quota", "reset")
-@directive("配额", "重置")
+@directive("quota", "reset", domain_alias="配额", action_aliases={"reset": "重置"})
 def quota_reset(params: list[str]) -> str:
     """Manually reset a quota counter."""
     if not params:
@@ -323,8 +319,7 @@ def quota_reset(params: list[str]) -> str:
         conn.close()
 
 
-@directive("quota", "unregister")
-@directive("配额", "注销")
+@directive("quota", "unregister", domain_alias="配额", action_aliases={"unregister": "注销"})
 def quota_unregister(params: list[str]) -> str:
     """Remove a quota rule."""
     if not params:

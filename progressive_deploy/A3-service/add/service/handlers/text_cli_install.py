@@ -59,8 +59,7 @@ def _find_init_fn(handler_path: str) -> tuple[str | None, str | None]:
     return None, None
 
 
-@directive("text-cli", "install")
-@directive("文本指令", "安装")
+@directive("text-cli", "install", domain_alias="文本指令", action_aliases={"install": "安装"})
 def text_cli_install(params: list[str]) -> str:
     """Install an instruction package by name."""
     if not params:

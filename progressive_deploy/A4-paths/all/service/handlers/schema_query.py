@@ -325,8 +325,7 @@ def _render_delta(directives: list[dict]) -> str:
 
 # ── handler ──
 
-@directive("text-cli", "query")
-@directive("文本指令", "查询")
+@directive("text-cli", "query", domain_alias="文本指令", action_aliases={"query": "查询"})
 def schema_query(params: list[str]) -> str:
     """
     元指令：动态发现运行时全部Available directives。

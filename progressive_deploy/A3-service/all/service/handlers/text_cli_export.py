@@ -26,8 +26,7 @@ HANDLERS_DIR = Path(__file__).resolve().parent
 SERVICE_ROOT = HANDLERS_DIR.parent
 
 
-@directive("text-cli", "export")
-@directive("文本指令", "导出")
+@directive("text-cli", "export", domain_alias="文本指令", action_aliases={"export": "导出"})
 def text_cli_export(params: list[str]) -> str:
     """Export a package to text-cli-package/<id>/"""
     if not params:
@@ -156,8 +155,7 @@ def text_cli_export(params: list[str]) -> str:
         return json.dumps({"status": "error", "reason": str(e)})
 
 
-@directive("text-cli", "export-all")
-@directive("文本指令", "全部导出")
+@directive("text-cli", "export-all", domain_alias="文本指令", action_aliases={"export-all": "全部导出"})
 def text_cli_export_all(params: list[str]) -> str:
     """Export all installed packages."""
     pkgs = list_all()
@@ -179,8 +177,7 @@ def text_cli_export_all(params: list[str]) -> str:
     }, ensure_ascii=False)
 
 
-@directive("text-cli", "packages")
-@directive("文本指令", "已安装包")
+@directive("text-cli", "packages", domain_alias="文本指令", action_aliases={"packages": "已安装包"})
 def text_cli_packages(params: list[str]) -> str:
     """List installed packages from manifest."""
     pkgs = list_all()
@@ -240,8 +237,7 @@ def _verify_export(dest: Path, pkg_id: str, pkg_type: str, pkg: dict) -> dict:
 
 # ── Repair manifest ────────────────────────────
 
-@directive("text-cli", "repair-manifest")
-@directive("文本指令", "修复清单")
+@directive("text-cli", "repair-manifest", domain_alias="文本指令", action_aliases={"repair-manifest": "修复清单"})
 def text_cli_repair_manifest(params: list[str]) -> str:
     """Scan handlers/schema/ and fill missing files.schema in installed packages."""
     packages = _load_manifest_raw()
