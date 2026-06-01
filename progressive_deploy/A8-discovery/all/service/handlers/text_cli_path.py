@@ -1019,7 +1019,6 @@ def _get_final_output(variables: dict[str, str], steps: list[dict]) -> str:
 
 
 @directive("text-cli", "path", domain_alias="文本指令", action_aliases={"path": "路径"})
-@directive("text-cli", "path", domain_alias="文本指令", action_aliases={"path": "路径"})
     """Execute or register a path definition file.
 
     Modes:

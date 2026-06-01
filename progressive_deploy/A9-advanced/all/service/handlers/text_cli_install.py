@@ -60,7 +60,6 @@ def _find_init_fn(handler_path: str) -> tuple[str | None, str | None]:
 
 
 @directive("text-cli", "install", domain_alias="文本指令", action_aliases={"install": "安装"})
-@directive("text-cli", "install", domain_alias="文本指令", action_aliases={"install": "安装"})
     """Install an instruction package by name."""
     if not params:
         return "用法: AI:text-cli;install,<包名>\n\n" \

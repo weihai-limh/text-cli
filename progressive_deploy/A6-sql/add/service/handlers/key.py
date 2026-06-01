@@ -44,7 +44,6 @@ if SQLITE_ENABLED:
     from core.registry import directive
 
     @directive("key", "register", domain_alias="密钥", action_aliases={"register": "注册"})
-    @directive("key", "register", domain_alias="密钥", action_aliases={"register": "注册"})
         """
         key;register,<service>,<value1>[,<value2>],<key_type>
 
@@ -68,8 +67,6 @@ if SQLITE_ENABLED:
         return f'Registration failed: {r.get("detail", r.get("error", "?"))}'
 
     @directive("key", "revoke", domain_alias="密钥", action_aliases={"revoke": "撤销"})
-    @directive("key", "revoke", domain_alias="密钥", action_aliases={"revoke": "撤销"})
-    @directive("key", "revoke", domain_alias="密钥", action_aliases={"revoke": "撤销"})
             return 'Missing params: key;revoke,<service>'
         r = _rev(DB_PATH, params[0])
         if r.get('ok'):
@@ -78,8 +75,6 @@ if SQLITE_ENABLED:
 
     @directive("key", "list", domain_alias="密钥", action_aliases={"list": "列表"})
     def key_list(params: list[str]) -> str:
-    @directive("key", "list", domain_alias="密钥", action_aliases={"list": "列表"})
-    @directive("key", "list", domain_alias="密钥", action_aliases={"list": "列表"})
             return 'Registered keys: (empty)'
         lines = [f'Registered keys: {len(keys)}']
         for k in keys:
@@ -95,8 +90,6 @@ if SQLITE_ENABLED:
     @directive("key", "quota-track", domain_alias="密钥", action_aliases={"quota-track": "配额追踪"})
     def key_quota_track(params: list[str]) -> str:
         """
-    @directive("key", "quota-track", domain_alias="密钥", action_aliases={"quota-track": "配额追踪"})
-    @directive("key", "quota-track", domain_alias="密钥", action_aliases={"quota-track": "配额追踪"})
         设置: key;quota-track,zhipu,AI:inference,AI:vision
         清除: key;quota-track,zhipu
         """
