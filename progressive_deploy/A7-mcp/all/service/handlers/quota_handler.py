@@ -185,7 +185,7 @@ def _next_reset(cycle_type: str, today: str) -> str:
 # ── Directives ──────────────────────────────────
 
 @directive("quota", "check", domain_alias="配额", action_aliases={"check": "检查"})
-def quota_check(params: list[str]) -> str:
+@directive("quota", "check", domain_alias="配额", action_aliases={"check": "检查"})
     """Atomic check + consume quota units. quota;check,<target>[,<amount>]"""
     if not params:
         return json.dumps({"status": "error", "reason": "Missing target"})
@@ -198,8 +198,8 @@ def quota_check(params: list[str]) -> str:
 
 
 @directive("quota", "register", domain_alias="配额", action_aliases={"register": "注册"})
-def quota_register(params: list[str]) -> str:
-    """Register a new quota rule."""
+@directive("quota", "register", domain_alias="配额", action_aliases={"register": "注册"})
+@directive("quota", "register", domain_alias="配额", action_aliases={"register": "注册"})
     if len(params) < 3:
         return json.dumps({
             "status": "error",
@@ -253,8 +253,8 @@ def quota_register(params: list[str]) -> str:
 
 @directive("quota", "list", domain_alias="配额", action_aliases={"list": "列表"})
 def quota_list(params: list[str]) -> str:
-    """List all quota rules with current usage."""
-    if not DB_FILE:
+@directive("quota", "list", domain_alias="配额", action_aliases={"list": "列表"})
+@directive("quota", "list", domain_alias="配额", action_aliases={"list": "列表"})
         return json.dumps({"status": "error", "reason": "quota-manage not initialised"})
 
     conn = _get_conn()
@@ -299,8 +299,8 @@ def quota_list(params: list[str]) -> str:
 @directive("quota", "reset", domain_alias="配额", action_aliases={"reset": "重置"})
 def quota_reset(params: list[str]) -> str:
     """Manually reset a quota counter."""
-    if not params:
-        return json.dumps({"status": "error", "reason": "Missing target"})
+@directive("quota", "reset", domain_alias="配额", action_aliases={"reset": "重置"})
+@directive("quota", "reset", domain_alias="配额", action_aliases={"reset": "重置"})
     if not DB_FILE:
         return json.dumps({"status": "error", "reason": "quota-manage not initialised"})
 
@@ -323,8 +323,8 @@ def quota_reset(params: list[str]) -> str:
 def quota_unregister(params: list[str]) -> str:
     """Remove a quota rule."""
     if not params:
-        return json.dumps({"status": "error", "reason": "Missing target"})
-    if not DB_FILE:
+@directive("quota", "unregister", domain_alias="配额", action_aliases={"unregister": "注销"})
+@directive("quota", "unregister", domain_alias="配额", action_aliases={"unregister": "注销"})
         return json.dumps({"status": "error", "reason": "quota-manage not initialised"})
 
     target = params[0]
