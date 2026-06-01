@@ -27,7 +27,7 @@ SERVICE_ROOT = HANDLERS_DIR.parent
 
 
 @directive("text-cli", "export", domain_alias="文本指令", action_aliases={"export": "导出"})
-@directive("text-cli", "export", domain_alias="文本指令", action_aliases={"export": "导出"})
+def text_cli_export(params: list[str]) -> str:
     """Export a package to text-cli-package/<id>/"""
     if not params:
         return json.dumps({
@@ -156,8 +156,8 @@ SERVICE_ROOT = HANDLERS_DIR.parent
 
 
 @directive("text-cli", "export-all", domain_alias="文本指令", action_aliases={"export-all": "全部导出"})
-@directive("text-cli", "export-all", domain_alias="文本指令", action_aliases={"export-all": "全部导出"})
-@directive("text-cli", "export-all", domain_alias="文本指令", action_aliases={"export-all": "全部导出"})
+def text_cli_export_all(params: list[str]) -> str:
+    """Export all installed packages."""
     pkgs = list_all()
     if not pkgs:
         return json.dumps({"status": "ok", "exported": 0, "message": "No packages in manifest"})
@@ -179,8 +179,8 @@ SERVICE_ROOT = HANDLERS_DIR.parent
 
 @directive("text-cli", "packages", domain_alias="文本指令", action_aliases={"packages": "已安装包"})
 def text_cli_packages(params: list[str]) -> str:
-@directive("text-cli", "packages", domain_alias="文本指令", action_aliases={"packages": "已安装包"})
-@directive("text-cli", "packages", domain_alias="文本指令", action_aliases={"packages": "已安装包"})
+    """List installed packages from manifest."""
+    pkgs = list_all()
     if not pkgs:
         return "未安装任何指令包（manifest 为空）。"
 
@@ -240,8 +240,8 @@ def _verify_export(dest: Path, pkg_id: str, pkg_type: str, pkg: dict) -> dict:
 @directive("text-cli", "repair-manifest", domain_alias="文本指令", action_aliases={"repair-manifest": "修复清单"})
 def text_cli_repair_manifest(params: list[str]) -> str:
     """Scan handlers/schema/ and fill missing files.schema in installed packages."""
-@directive("text-cli", "repair-manifest", domain_alias="文本指令", action_aliases={"repair-manifest": "修复清单"})
-@directive("text-cli", "repair-manifest", domain_alias="文本指令", action_aliases={"repair-manifest": "修复清单"})
+    packages = _load_manifest_raw()
+    schema_dir = HANDLERS_DIR / "schema"
 
     if not schema_dir.is_dir():
         return json.dumps({"status": "error", "reason": "schema dir not found"})
