@@ -6,7 +6,13 @@ import os
 import pathlib
 import shutil
 
-_PROJECT = pathlib.Path(os.environ.get("TEXT_CLI_HOME", str(pathlib.Path.home() / "text-cli")))
+
+def _resolve_project_root() -> pathlib.Path:
+    """Resolve project root from TEXT_CLI_HOME at call time."""
+    return pathlib.Path(os.environ.get("TEXT_CLI_HOME", str(pathlib.Path.home() / "text-cli")))
+
+
+_PROJECT = _resolve_project_root()
 HANDLERS_DIR = _PROJECT / "service" / "handlers"
 SCHEMA_DIR = HANDLERS_DIR / "schema"
 COPILOT_WHITELIST_DIR = _PROJECT / "copilot" / "whitelists"
@@ -290,15 +296,25 @@ def _check_binary(pkg_dir: pathlib.Path, meta: dict) -> tuple[bool, str]:
 
 
 def remove_files(name: str) -> tuple[bool, str]:
-    """Remove handler.py and schema.json for a package.
+    """Remove handler files and packages directory for a package.
+
+    Cleans up packages/<name>/ (current install target) and
+    legacy handlers/<safe>.py (old install target).
+    Uses runtime-resolved project root to support test environments.
 
     Returns (ok, message).
     """
     safe = _safe_name(name)
-    handler_path = HANDLERS_DIR / f"{safe}.py"
-    schema_path = SCHEMA_DIR / f"{safe}_schema.json"
+    project = _resolve_project_root()
+    pkg_dir = project / "service" / "packages" / name
+    handler_path = project / "service" / "handlers" / f"{safe}.py"
+    schema_path = project / "service" / "handlers" / "schema" / f"{safe}_schema.json"
 
     removed = []
+
+    if pkg_dir.exists():
+        shutil.rmtree(pkg_dir)
+        removed.append(f"packages/{name}/")
 
     if handler_path.exists():
         handler_path.unlink()
