@@ -182,7 +182,8 @@ A5 的 `extract_st_prefix()` 只做 `token[:8]`，不关心后段结构。
       "params_desc": {
         "text": "Text to translate",
         "target": "Target language ISO code (default: en)"
-      }
+      },
+      "outputs": ["text"]
     }
   ]
 }
@@ -224,6 +225,7 @@ A5 的 `extract_st_prefix()` 只做 `token[:8]`，不关心后段结构。
 | `params` | 否 | 参数名列表 |
 | `params_desc` | 否 | 参数说明对象 |
 | `mcp_tool` | 否 | 原始 MCP tool 名 |
+| `outputs` | 否 | 指令返回的 status 级字段名列表。路径引擎用于 `{step.field}` 引用校验；图引擎用于自动建立 `:OUTPUTS` 关系 |
 
 ### 4.4 聚合指令 Schema
 
@@ -367,6 +369,9 @@ A5 的 `extract_st_prefix()` 只做 `token[:8]`，不关心后段结构。
 | `"instruction"` | 要分派的 text-cli 指令模板 |
 | `"source"` | 可选 — 步骤级端点 URL。省略时继承 `default_source` 或本机 A3。值必须为完整 URL，如 `"http://10.168.1.122/text-cli/cli"` |
 
+> `{step_id.field}` 引用的字段应在目标指令的 schema.json `outputs` 声明范围内。路径引擎可据此做字段引用校验。
+> 详见 §4.3 `outputs` 字段说明。
+
 路径跨节点执行示例：
 
 ```json
@@ -434,6 +439,8 @@ text-cli;install,<包名>
 ```
 
 安装流程：验证 schema.json → 安装依赖 → 复制 handler → 写入 handler_inits → 写入 manifest。重启后自动加载。
+
+若 `directives[].outputs` 存在，安装器校验其值必须为字符串数组。错误的 `outputs` 声明不影响指令执行，仅影响路径引用和图建边。
 
 `runtime` 字段决定安装器行为：
 
