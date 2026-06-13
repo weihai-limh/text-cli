@@ -143,43 +143,4 @@ def get_skill_detail(skill_id: str) -> dict | None:
     }
 
 
-def execute_skill(skill_id: str, body: dict) -> dict:
-    """Execute a path skill by dispatching through text-cli path engine.
 
-    Called via POST /text-cli/skills/{id}.
-
-    Args:
-        skill_id: The published skill id (matches path_<id>.json).
-        body: Request body from A5, expected to contain input data.
-
-    Returns:
-        dict with status and result.
-    """
-    # 1. Check exposure
-    exposure = _load_exposure()
-    entry = exposure.get(skill_id)
-    if not isinstance(entry, dict):
-        return {"status": "error", "error": "not_found",
-                "message": f"技能 '{skill_id}' 不存在"}
-    vis = entry.get("visibility", "internal")
-    if vis == "internal":
-        return {"status": "error", "error": "skill_not_exposed",
-                "message": f"技能 '{skill_id}' 未对外暴露"}
-
-    # 2. Find the path schema
-    schemas = _load_path_schemas()
-    schema = next((s for s in schemas if s.get("id") == skill_id), None)
-    if not schema or not schema.get("source_file"):
-        return {"status": "error", "error": "not_published",
-                "message": f"技能 '{skill_id}' 的路径声明未找到或尚未发布"}
-
-    # 3. Execute via text-cli path handler
-    try:
-        from handlers.text_cli_path import _execute_path  # noqa: PLC0415
-        input_val = body.get("input", "")
-        result = _execute_path(schema, input_val, format="json")
-        return {"status": "ok", "result": result}
-    except Exception as exc:
-        logger.exception("Skill execution failed: %s", skill_id)
-        return {"status": "error", "error": "execution_failed",
-                "message": f"技能执行失败: {exc}"}

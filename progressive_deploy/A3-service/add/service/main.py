@@ -273,7 +273,7 @@ async def health(request: Request):
 
     # Check if authenticated (for extended capabilities view)
     service_token = request.headers.get("Service-token")
-    auth = verify_service_token(service_token, None)
+    auth = verify_service_token(service_token)
 
     if auth.allowed:
         # Authenticated: full capabilities snapshot
@@ -335,7 +335,7 @@ async def handle_directive(request: Request):
     identity_header = request.headers.get("X-Text-CLI-Identity")
     import time
     _req_start = time.time()
-    auth = verify_service_token(service_token, identity_header)
+    auth = verify_service_token(service_token)
     if not auth.allowed:
         return JSONResponse(
             status_code=403,
@@ -525,58 +525,12 @@ async def skills_detail(skill_id: str):
 
 @app.post("/text-cli/skills/{skill_id}")
 async def skills_execute(skill_id: str, request: Request):
-    """执行一个技能（需鉴权）"""
-    # Auth
-    auth_header = request.headers.get("Authorization", "")
-    if not auth_header.startswith("Bearer "):
-        return JSONResponse(
-            status_code=401,
-            content={"status": "error", "error": "unauthorized",
-                      "message": "需要 Bearer Token"},
-        )
-
-    # Basic token validation (same as cli endpoint)
-    access_token = auth_header[7:]
-    # For now: accept service token or the local copilot token
-    service_token = request.headers.get("Service-token")
-    auth = verify_service_token(service_token, None)
-    if not auth.allowed and access_token != "a712478cd1c64e2b9052ee2162e814b4":
-        return JSONResponse(
-            status_code=401,
-            content={"status": "error", "error": "unauthorized",
-                      "message": "Token 无效"},
-        )
-
-    # Parse body
-    try:
-        body = await request.json()
-    except Exception:
-        return JSONResponse(
-            status_code=400,
-            content={"status": "error", "error": "bad_request",
-                      "message": "请求体非有效 JSON"},
-        )
-
-    try:
-        from handlers.skill_endpoint import execute_skill
-    except ImportError:
-        return JSONResponse(
-            status_code=503,
-            content={"status": "error", "error": "unavailable",
-                      "message": "技能端点尚未就绪"},
-        )
-    result = execute_skill(skill_id, body)
-
-    if result.get("status") == "error":
-        status_code = {
-            "not_found": 404,
-            "unauthorized": 403,
-            "skill_not_exposed": 404,
-            "not_published": 400,
-        }.get(result.get("error", ""), 500)
-        return JSONResponse(status_code=status_code, content=result)
-
-    return JSONResponse(content=result)
+    """执行一个技能（尚不支持）"""
+    return JSONResponse(
+        status_code=501,
+        content={"status": "error", "error": "not_implemented",
+                  "message": "技能执行端点尚未实现"},
+    )
 
 
 @app.api_route("/text-cli-copilot/{rest:path}", methods=["GET", "POST"])
