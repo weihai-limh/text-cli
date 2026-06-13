@@ -9,6 +9,8 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response
 
 project_root = Path(__file__).parent
+# 设置 TEXT_CLI_HOME 为 project_root 的父目录（text-cli 根），
+# 确保所有文件部署和路径查找使用正确的项目根。
 if not os.environ.get("TEXT_CLI_HOME"):
     os.environ["TEXT_CLI_HOME"] = str(project_root.parent)
 if str(project_root) not in sys.path:
@@ -304,10 +306,10 @@ async def health(request: Request):
 
     # Public: minimal info
     try:
-        from packages.skill_endpoint.handler import _load_exposure
-        exposure = _load_exposure()
+        from handlers.skill_endpoint import list_skills
+        skills = list_skills()
         public_count = sum(
-            1 for v in exposure.values()
+            1 for v in skills.values()
             if isinstance(v, dict) and v.get("visibility") == "public"
         )
     except (ImportError, Exception):
@@ -495,14 +497,24 @@ async def handle_directive(request: Request):
 @app.get("/text-cli/skills")
 async def skills_list():
     """列出所有对外暴露的技能（public + restricted）"""
-    from packages.skill_endpoint.handler import list_skills
-    return JSONResponse(content=list_skills())
+    try:
+        from handlers.skill_endpoint import list_skills
+        return JSONResponse(content=list_skills())
+    except ImportError:
+        return JSONResponse(content={"skills": []})
 
 
 @app.get("/text-cli/skills/{skill_id}")
 async def skills_detail(skill_id: str):
     """获取单个技能的完整详情"""
-    from packages.skill_endpoint.handler import get_skill_detail
+    try:
+        from handlers.skill_endpoint import get_skill_detail
+    except ImportError:
+        return JSONResponse(
+            status_code=503,
+            content={"status": "error", "error": "unavailable",
+                      "message": "技能端点尚未就绪"},
+        )
     detail = get_skill_detail(skill_id)
     if detail is None:
         return JSONResponse(
@@ -515,51 +527,12 @@ async def skills_detail(skill_id: str):
 
 @app.post("/text-cli/skills/{skill_id}")
 async def skills_execute(skill_id: str, request: Request):
-    """执行一个技能（需鉴权）"""
-    # Auth
-    auth_header = request.headers.get("Authorization", "")
-    if not auth_header.startswith("Bearer "):
-        return JSONResponse(
-            status_code=401,
-            content={"status": "error", "error": "unauthorized",
-                      "message": "需要 Bearer Token"},
-        )
-
-    # Basic token validation (same as cli endpoint)
-    access_token = auth_header[7:]
-    # For now: accept service token or the local copilot token
-    service_token = request.headers.get("Service-token")
-    auth = verify_service_token(service_token, None)
-    if not auth.allowed and access_token != "a712478cd1c64e2b9052ee2162e814b4":
-        return JSONResponse(
-            status_code=401,
-            content={"status": "error", "error": "unauthorized",
-                      "message": "Token 无效"},
-        )
-
-    # Parse body
-    try:
-        body = await request.json()
-    except Exception:
-        return JSONResponse(
-            status_code=400,
-            content={"status": "error", "error": "bad_request",
-                      "message": "请求体非有效 JSON"},
-        )
-
-    from packages.skill_endpoint.handler import execute_skill
-    result = execute_skill(skill_id, body)
-
-    if result.get("status") == "error":
-        status_code = {
-            "not_found": 404,
-            "unauthorized": 403,
-            "skill_not_exposed": 404,
-            "not_published": 400,
-        }.get(result.get("error", ""), 500)
-        return JSONResponse(status_code=status_code, content=result)
-
-    return JSONResponse(content=result)
+    """执行一个技能（尚不支持）"""
+    return JSONResponse(
+        status_code=501,
+        content={"status": "error", "error": "not_implemented",
+                  "message": "技能执行端点尚未实现"},
+    )
 
 
 @app.api_route("/text-cli-copilot/{rest:path}", methods=["GET", "POST"])
