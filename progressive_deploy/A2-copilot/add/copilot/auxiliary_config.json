@@ -153,26 +153,10 @@
       }
     }
   },
-  "credentials": {
-    "git;push": {
-      "value": "${GIT_TOKEN}",
-      "remote_url": null
-    },
-    "email;send": {
-      "value": "${SMTP_PASSWORD}",
-      "smtp_host": "smtp.mxhichina.com",
-      "smtp_port": 465,
-      "smtp_user": "${SMTP_USER}",
-      "from_email": "${SMTP_FROM}"
-    }
-  },
-  "git": {
-    "workdir": "${TEXT_CLI_HOME}/workspace/",
-    "remote_name": "origin"
-  },
+  "credentials": {},
   "endpoint_info": {
-    "name": "指令辅助服务器",
-    "description": "本地文件、Git、邮件操作代理",
+    "name": "text-cli Copilot",
+    "description": "A2 本地辅助服务 — 终端操作、指令代理、包管理。所有凭据委托 A3 key_registry。",
     "version": "1.0.0"
   }
 }

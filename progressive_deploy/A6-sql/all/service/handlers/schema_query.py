@@ -7,14 +7,16 @@ text-cli;query — 元指令：动态发现当前运行时全量可调用指令�
 text-cli 是平台自管理域（system runtime），不参与包安装/卸载生命周期。
 
 Directives:
-    AI:text-cli;query                  → 全量纯文本（含 A2 proxy）
-    AI:text-cli;query,json             → JSON 格式
-    AI:text-cli;query,compact          → 极简格式
-    AI:text-cli;query,python|js|mcp    → 按 runtime 过滤
-    AI:text-cli;query,category[,<name>]→ 按分类过滤 / 列出分类
-    AI:text-cli;query,delta            → 变化报告
-    AI:text-cli;query,<keyword>        → 关键词搜索
-    AI:文本指令;查询                    → 中文别名
+    AI:text-cli;query                          → 全量纯文本（含 A2 proxy）
+    AI:text-cli;query,json                     → JSON 格式
+    AI:text-cli;query,compact                  → 极简格式
+    AI:text-cli;query,python|js|mcp            → 按 runtime 过滤
+    AI:text-cli;query,category[,<name>]        → 按分类过滤 / 列出分类
+    AI:text-cli;query,collection               → 用户自定义精选指令集
+    AI:text-cli;query,path                     → 路径声明列表（composite runtime）
+    AI:text-cli;query,delta                    → 变化报告
+    AI:text-cli;query,<keyword>                → 关键词搜索
+    AI:文本指令;查询                            → 中文别名
 
 Author: Tide 🌊
 """
@@ -52,7 +54,7 @@ def _fetch_a2_directives() -> list[dict]:
 SCHEMA_DIR = pathlib.Path(__file__).resolve().parent / "schema"
 
 RESERVED = frozenset({"all", "json", "compact", "python", "js", "mcp",
-                       "category", "delta"})
+                       "category", "delta", "collection", "path"})
 
 # ── 加载 ──
 
@@ -182,6 +184,43 @@ def _filter_category(directives: list[dict], cat: str) -> list[dict]:
 def _list_categories(directives: list[dict]) -> list[str]:
     cats = {d.get("_package", {}).get("category", "") for d in directives}
     return sorted(c for c in cats if c)
+
+
+def _filter_composite(directives: list[dict]) -> list[dict]:
+    """Filter to only composite runtime entries (path declarations)."""
+    return [d for d in directives
+            if d.get("_package", {}).get("runtime", "python") == "composite"]
+
+
+_CONFIG_DIR = pathlib.Path(__file__).resolve().parent.parent / "config"
+
+
+def _load_collection_directives() -> list[dict]:
+    """Load user-defined collection from config/collection_text_cli.json.
+
+    Returns a list of (domain, action) tuples defined in the collection.
+    Returns empty list if config file does not exist or is invalid.
+    """
+    path = _CONFIG_DIR / "collection_text_cli.json"
+    if not path.exists():
+        return []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        items = data.get("directives", [])
+        return [(item["domain"], item["action"]) for item in items
+                if isinstance(item, dict) and "domain" in item and "action" in item]
+    except (json.JSONDecodeError, OSError, KeyError) as exc:
+        logger.warning("Failed to load collection config: %s — %s", path.name, exc)
+        return []
+
+
+def _filter_by_collection(directives: list[dict], collection: list[tuple]) -> list[dict]:
+    """Filter directives to only those matching (domain, action) pairs in collection."""
+    if not collection:
+        return []
+    wanted = set(collection)
+    return [d for d in directives
+            if (d.get("domain", ""), d.get("action", "")) in wanted]
 
 
 def _keyword_search(directives: list[dict], keyword: str) -> list[dict]:
@@ -325,8 +364,7 @@ def _render_delta(directives: list[dict]) -> str:
 
 # ── handler ──
 
-@directive("text-cli", "query")
-@directive("文本指令", "查询")
+@directive("text-cli", "query", domain_alias="文本指令", action_aliases={"query": "查询"})
 def schema_query(params: list[str]) -> str:
     """
     元指令：动态发现运行时全部Available directives。
@@ -379,6 +417,21 @@ def schema_query(params: list[str]) -> str:
         if cats:
             return "分类列表:\n" + "\n".join(f"  {c}" for c in cats)
         return "分类列表:\n  (无)"
+
+    if mode == "collection":
+        collection_items = _load_collection_directives()
+        if not collection_items:
+            return (
+                "═══ Collection (未配置) ═══\n\n"
+                "未找到 config/collection_text_cli.json。\n"
+                "从 config/collection_text_cli.json.example 复制一份以配置精选指令集。"
+            )
+        filtered = _filter_by_collection(directives, collection_items)
+        return _render_text(filtered) if filtered else "═══ Collection ═══\n\n(无匹配的指令)"
+
+    if mode == "path":
+        filtered = _filter_composite(directives)
+        return _render_text(filtered) if filtered else "═══ Path directives ═══\n\n(无已注册路径)"
 
     # ── 兜底：关键词搜索 ──
     results = _keyword_search(directives, mode)

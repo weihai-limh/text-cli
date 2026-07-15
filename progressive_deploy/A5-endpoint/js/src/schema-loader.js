@@ -37,7 +37,7 @@ export async function loadSchemaFromD1(db, endpointBaseUrl) {
       for (const row of results) {
         const base = endpointBaseUrl ? endpointBaseUrl.replace(/\/+$/, '') : '';
         schema[row.id] = {
-          url: base ? `${base}/cli/text_cli` : row.backend_url,
+          url: base ? `${base}/text-cli/cli` : row.backend_url,
           id: row.id,
           name: row.name,
           category: row.category,

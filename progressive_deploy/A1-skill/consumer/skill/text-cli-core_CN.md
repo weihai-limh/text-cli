@@ -86,7 +86,7 @@ Agent 解析意图
 {
   "基础应用;天气查询": [
     {
-      "endpoint": "https://test.text-cli.com/cli/text_cli",
+      "endpoint": "https://test.text-cli.com/text-cli/cli",
       "token_env": "TEXT_CLI_TOKEN_OFFICIAL",
       "rank": 1,
       "description": "查询指定城市和日期的天气",
@@ -96,7 +96,7 @@ Agent 解析意图
   ],
   "邮件;发送": [
     {
-      "endpoint": "http://localhost:20260/cli/text_cli",
+      "endpoint": "http://localhost:20260/text-cli/cli",
       "token_env": "TEXT_CLI_TOKEN_LOCAL",
       "rank": 1,
       "description": "通过预配置 SMTP 发送邮件（支持附件）",

@@ -68,7 +68,7 @@ A9  通过高级指令使用 text-cli — 聚合降级 + 多源统一 + 技能�
 Jack 是威海一家花店的老板。他在终端敲下：
 
 ```
-curl -X POST https://test.text-cli.com/cli/text_cli \
+curl -X POST https://test.text-cli.com/text-cli/cli \
   -d '{"prompt": "AI:基础应用;天气查询,明天,威海"}'
 ```
 

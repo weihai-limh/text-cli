@@ -127,7 +127,7 @@ export default {
       return textError('IP_BLOCKED', 403);
     }
 
-    if (method === 'POST' && path === '/cli/text_cli') {
+    if (method === 'POST' && path === '/text-cli/cli') {
       const serviceToken = request.headers.get('Service-token') || '';
       if (serviceToken) {
         const prefix = extractServiceTokenPrefix(serviceToken);
@@ -140,7 +140,7 @@ export default {
       }
     }
 
-    if (path === '/cli/text_cli' || (path === '/text-cli/cli' && method === 'GET')) {
+    if (path === '/text-cli/cli') {
       if (env.DB) {
         const allowed = await checkRateLimit(env.DB, env, method === 'GET');
         if (!allowed) {
@@ -149,7 +149,7 @@ export default {
       }
     }
 
-    if (method === 'POST' && path === '/cli/text_cli') {
+    if (method === 'POST' && path === '/text-cli/cli') {
       return handleTextCli(request, env);
     }
 
@@ -164,7 +164,7 @@ export default {
       return json(getExternalSchema());
     }
 
-    if (method === 'GET' && path === '/health') {
+    if (method === 'GET' && (path === '/text-cli/health' || path === '/health')) {
       const baseUrl = env.ENDPOINT_BASE_URL || '';
       const backendsRaw = env.A3_BACKENDS || '';
       if (backendsRaw) {

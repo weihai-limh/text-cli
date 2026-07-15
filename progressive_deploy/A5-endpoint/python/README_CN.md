@@ -80,7 +80,7 @@ progressive_deploy/A5-endpoint/python/
 
 | 端点 | 方法 | Token | 三道防线 | 默认 | 用途 |
 |------|------|-------|---------|------|------|
-| `/cli/text_cli` | POST | 双 Token | ✅ 全部生效（1000/h） | 开 | 业务执行 |
+| `/text-cli/cli` | POST | 双 Token | ✅ 全部生效（1000/h） | 开 | 业务执行 |
 | `/text_cli_schema.json` | GET | 无 | ① 仅 IP | 开 | 聚合 Schema |
 | `/text-cli/cli` | GET | 无 | ①+③（放宽到10000/h） | 关 | 人道主义通道 |
 
@@ -123,7 +123,8 @@ uvicorn main:app --host 0.0.0.0 --port 8000
 - `GET /text_cli_schema.json` — 对外 Schema（动态聚合）
 - `GET /health` — 健康检查
 - `GET /api/health` — 详细健康检查
-- `POST /cli/text_cli` — 发送指令（转发到后端）
+- `POST /text-cli/cli` — 发送指令（转发到后端）
+- 历史：v1.2 使用 `/cli/text_cli`，v1.3 起统一为 `/text-cli/cli`
 - `GET /text-cli/cli?skill_id=xxx` — 人道主义通道（需 `ENABLE_PUBLIC_CLI=true`）
 
 ---

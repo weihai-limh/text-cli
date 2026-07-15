@@ -5,6 +5,7 @@ from core.schema_loader import get_external_schema, get_backend_base_url
 router = APIRouter(tags=["health"])
 
 
+@router.get("/text-cli/health")
 @router.get("/api/health")
 async def health_check():
     db_ok = False

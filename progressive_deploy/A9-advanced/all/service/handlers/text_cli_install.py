@@ -59,8 +59,7 @@ def _find_init_fn(handler_path: str) -> tuple[str | None, str | None]:
     return None, None
 
 
-@directive("text-cli", "install")
-@directive("文本指令", "安装")
+@directive("text-cli", "install", domain_alias="文本指令", action_aliases={"install": "安装"})
 def text_cli_install(params: list[str]) -> str:
     """Install an instruction package by name."""
     if not params:
@@ -168,11 +167,18 @@ def _append_handler_init(mod_path: str, fn_name: str, arg_key: str = None):
     except FileNotFoundError:
         return
 
+    arg_key_str = repr(arg_key) if arg_key else 'None'
+
+    # Match existing entry: if found with same arg_key, skip;
+    # if found with different arg_key, replace the line.
     entry_pattern = f'("{mod_path}", "{fn_name}"'
     if entry_pattern in content:
-        return
-
-    arg_key_str = '"' + (arg_key or "None") + '"'
+        expected = f'("{mod_path}", "{fn_name}", {arg_key_str}, None)'
+        if expected in content:
+            return
+        lines = content.split('\n')
+        new_lines = [l for l in lines if entry_pattern not in l]
+        content = '\n'.join(new_lines)
     new_entry = f'    ("{mod_path}", "{fn_name}", {arg_key_str}, None),\n'
 
     handler_start = content.find("HANDLER_INITS = [")

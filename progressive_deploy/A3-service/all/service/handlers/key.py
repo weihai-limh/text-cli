@@ -40,8 +40,7 @@ def init_key_handler(db_path: str, dispatch_fn=None):
 if SQLITE_ENABLED:
     from core.registry import directive
 
-    @directive("密钥", "注册")
-    @directive("key", "register")
+    @directive("key", "register", domain_alias="密钥", action_aliases={"register": "注册"})
     def key_register(params: list[str]) -> str:
         if len(params) < 2:
             return 'Missing params: key;register,<service>,<value1>[,<value2>],<key_type>'
@@ -59,8 +58,7 @@ if SQLITE_ENABLED:
             return f'Key registered: {service} (type={key_type}, cred_count={cc})'
         return f'Registration failed: {r.get("detail", r.get("error", "?"))}'
 
-    @directive("密钥", "撤销")
-    @directive("key", "revoke")
+    @directive("key", "revoke", domain_alias="密钥", action_aliases={"revoke": "撤销"})
     def key_revoke(params: list[str]) -> str:
         if not params:
             return 'Missing params: key;revoke,<service>'
@@ -69,8 +67,7 @@ if SQLITE_ENABLED:
             return f'Key revoked: {params[0]}'
         return f'Revocation failed: {r.get("detail", r.get("error", "?"))}'
 
-    @directive("密钥", "列表")
-    @directive("key", "list")
+    @directive("key", "list", domain_alias="密钥", action_aliases={"list": "列表"})
     def key_list(params: list[str]) -> str:
         keys = _list(DB_PATH)
         if not keys:
@@ -86,8 +83,7 @@ if SQLITE_ENABLED:
             )
         return '\n'.join(lines)
 
-    @directive("key", "quota-track")
-    @directive("密钥", "配额追踪")
+    @directive("key", "quota-track", domain_alias="密钥", action_aliases={"quota-track": "配额追踪"})
     def key_quota_track(params: list[str]) -> str:
         if not params:
             return 'Missing params: key;quota-track,<service>[,<target1>,...]'
@@ -102,8 +98,7 @@ if SQLITE_ENABLED:
             return f'Quota tracking cleared for {service}'
         return f'Failed: {r.get("detail", r.get("error", "?"))}'
 
-    @directive("key", "export-xor")
-    @directive("密钥", "导出加密")
+    @directive("key", "export-xor", domain_alias="密钥", action_aliases={"export-xor": "导出加密"})
     def key_export_xor(params: list[str]) -> str:
         if not params:
             return 'Missing params: key;export-xor,<service>'

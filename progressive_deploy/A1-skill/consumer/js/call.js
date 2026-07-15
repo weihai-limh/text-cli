@@ -2,43 +2,73 @@
  * call.js — text-cli 指令调用（Node.js）
  *
  * 零依赖，仅用 Node.js 内置模块。
+ * 从 conf.json 或环境变量读取端点/令牌配置。
  *
  * 用法:
  *   const { callDirective } = require('./call');
- *
- *   const result = await callDirective('AI:weather;query,明天,威海');
- *   console.log(result);  // "明天威海: 晴, 15-22°C"
+ *   const result = await callDirective('AI:tc-datetime;now');
+ *   console.log(result);
  *
  * 环境变量:
- *   TEXT_CLI_TOKEN     鉴权 Token
- *   TEXT_CLI_ENDPOINT  端点地址
+ *   TEXT_CLI_ENDPOINT          覆盖端点地址
+ *   TEXT_CLI_SERVICE_TOKEN     覆盖 Service Token
+ *   TEXT_CLI_ACCESS_TOKEN      覆盖 Access Token
+ *
+ * 配置文件:
+ *   ../conf.json（与本文件相对路径）
+ *   { "endpoint": "...", "service_token": "...", "access_token": "..." }
  */
 
-const DEFAULT_ENDPOINT = 'https://test.text-cli.com/cli/text_cli';
+const path = require('path');
+const fs = require('fs');
+
+const CONF_PATH = path.resolve(__dirname, 'conf.json');
+const DEFAULT_ENDPOINT = 'https://test.text-cli.com/text-cli/cli';
 const DEFAULT_TIMEOUT = 10000;
+
+/**
+ * 加载 conf.json
+ */
+function loadConf() {
+  try {
+    if (fs.existsSync(CONF_PATH)) {
+      return JSON.parse(fs.readFileSync(CONF_PATH, 'utf-8'));
+    }
+  } catch (_) { /* 文件不存在或格式错误，使用默认值 */ }
+  return {};
+}
+
+/**
+ * 按优先级取值: 环境变量 > conf.json > default
+ */
+function getConfig(key, envName, defaultVal = '') {
+  if (typeof process.env[envName] === 'string' && process.env[envName] !== '') {
+    return process.env[envName];
+  }
+  const conf = loadConf();
+  return conf[key] !== undefined ? conf[key] : defaultVal;
+}
 
 /**
  * 调用 text-cli 指令，返回文本结果。
  *
- * @param {string} directive - 指令文本，格式 "AI:领域;动作,参数1,参数2"（`指令:` 仍兼容）
+ * @param {string} directive - 指令文本
  * @param {object} [options]
  * @param {string} [options.endpoint] - 端点 URL
- * @param {string} [options.token] - Access Token / Service Token
- * @param {number} [options.timeout] - 超时毫秒数 (默认 10000)
- * @returns {Promise<string>} 指令执行结果文本
- * @throws {Error} HTTP 错误、网络不可达、超时
+ * @param {string} [options.serviceToken] - Service Token
+ * @param {string} [options.accessToken] - Access Token
+ * @param {number} [options.timeout] - 超时毫秒 (默认 10000)
+ * @returns {Promise<string>}
  */
 async function callDirective(directive, options = {}) {
-  const url = options.endpoint || process.env.TEXT_CLI_ENDPOINT || DEFAULT_ENDPOINT;
-  const token = options.token || process.env.TEXT_CLI_TOKEN || '';
+  const url = options.endpoint || getConfig('endpoint', 'TEXT_CLI_ENDPOINT', DEFAULT_ENDPOINT);
+  const st = options.serviceToken || getConfig('service_token', 'TEXT_CLI_SERVICE_TOKEN');
+  const at = options.accessToken || getConfig('access_token', 'TEXT_CLI_ACCESS_TOKEN');
   const timeout = options.timeout || DEFAULT_TIMEOUT;
 
-  const body = JSON.stringify({ prompt: directive });
-
   const headers = { 'Content-Type': 'application/json' };
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
+  if (at) headers['Authorization'] = `Bearer ${at}`;
+  if (st) headers['Service-token'] = st;
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
@@ -47,7 +77,7 @@ async function callDirective(directive, options = {}) {
     const resp = await fetch(url, {
       method: 'POST',
       headers,
-      body,
+      body: JSON.stringify({ prompt: directive }),
       signal: controller.signal,
     });
 
@@ -76,7 +106,7 @@ async function callDirective(directive, options = {}) {
 /**
  * 批量调用多个指令（串行执行）。
  *
- * @param {string[]} directives - 指令数组
+ * @param {string[]} directives
  * @param {object} [options] - 同 callDirective
  * @returns {Promise<Array<{directive: string, result: string, error: string|null}>>}
  */
@@ -100,7 +130,7 @@ module.exports = { callDirective, callDirectiveBatch };
 if (require.main === module) {
   const directive = process.argv[2];
   if (!directive) {
-    console.error('用法: node call.js "AI:领域;动作,参数1,参数2"');
+    console.error('用法: node call.js "AI:域;动作,参数1,参数2"');
     process.exit(1);
   }
 

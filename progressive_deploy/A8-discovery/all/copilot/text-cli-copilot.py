@@ -66,7 +66,7 @@ class CopilotHandler(BaseHTTPRequestHandler):
         if self.path == '/ai_status':
             self._handle_ai_status()
             return
-        if self.path != '/cli/text_cli':
+        if self.path != '/text-cli/cli':
             self._send_error_json(404, 'not_found', 'Endpoint not found')
             return
 
@@ -110,7 +110,7 @@ class CopilotHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == '/text_cli_schema.json':
             self._send_json(200, self._build_schema())
-        elif self.path == '/health':
+        elif self.path == '/text-cli/health':
             self._send_json(200, {'status': 'ok'})
         else:
             self._send_error_json(404, 'not_found', 'Endpoint not found')

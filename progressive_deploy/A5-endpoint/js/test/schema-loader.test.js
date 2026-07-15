@@ -16,7 +16,7 @@ describe('schema-loader (aggregation mode)', () => {
     const schema = getExternalSchema();
     for (const entry of Object.values(schema)) {
       if (entry.url) {
-        expect(entry.url).toContain('/cli/text_cli');
+        expect(entry.url).toContain('/text-cli/cli');
       }
     }
   });

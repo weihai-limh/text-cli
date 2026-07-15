@@ -27,8 +27,7 @@ from pathlib import Path
 _INITS_PATH = Path(__file__).resolve().parent.parent / "config" / "handler_inits.py"
 
 
-@directive("text-cli", "uninstall")
-@directive("文本指令", "卸载")
+@directive("text-cli", "uninstall", domain_alias="文本指令", action_aliases={"uninstall": "卸载"})
 def text_cli_uninstall(params: list[str]) -> str:
     """Uninstall an instruction package by name."""
     if not params:
@@ -84,14 +83,14 @@ def text_cli_uninstall(params: list[str]) -> str:
 
 
 def _remove_handler_init(pkg_name: str):
-    """Remove an entry from handler_inits.py."""
+    """Remove an entry from handler_inits.py using safe_name fuzzy match."""
     try:
         content = _INITS_PATH.read_text(encoding="utf-8")
     except FileNotFoundError:
         return
 
-    mod_path = f"handlers.{pkg_name}_handler"
+    safe = pkg_name.replace("-", "_")
     lines = content.split('\n')
-    new_lines = [l for l in lines if mod_path not in l]
+    new_lines = [l for l in lines if safe not in l]
     if len(new_lines) != len(lines):
         _INITS_PATH.write_text('\n'.join(new_lines), encoding="utf-8")
