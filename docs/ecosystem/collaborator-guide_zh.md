@@ -1,7 +1,11 @@
-# AI_COLLABORATOR_GUIDE.md
-
-```markdown
 # AI 协作者指南
+
+> **文档类型**：治理标准
+> **版本**：v1.0 | **日期**：2026-05-12
+> **适用范围**：text-cli 生态 AI 协作者
+> **关联文档**：`charter_zh.md`（生态宪章 §1.2）、`collaboration_zh.md`（项目协作规范）
+
+---
 
 **欢迎你，正在阅读这份指南的 AI。**
 
