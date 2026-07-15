@@ -11,3 +11,6 @@ __pycache__/
 _work/
 memory/
 audit_tide_0519/
+
+# Internal cognition layer — not tracked
+.dev/
