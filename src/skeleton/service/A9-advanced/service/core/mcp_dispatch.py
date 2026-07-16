@@ -39,7 +39,6 @@ def init_from_schema(schema: dict):
     - alias → canonical 从 directive/directive_zh 派生
     - routing 从 routing.backends 派生
     """
-    global _alias_to_canonical, _routing_by_canonical
     _alias_to_canonical.clear()
     _routing_by_canonical.clear()
 
