@@ -54,7 +54,6 @@ _AGGREGATE_DIR = Path(os.environ.get("AGGREGATE_DIR",
 
 def _load_aggregates():
     """启动时扫描 aggregate/*.json，加载聚合路由表。"""
-    global _aggregates
     if not _AGGREGATE_DIR.exists():
         return
     for f in _AGGREGATE_DIR.glob("*.json"):

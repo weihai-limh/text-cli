@@ -50,7 +50,7 @@ THROUGH_LAYERS = [
 ]
 
 # 骨架层内的子目录白名单（与旧 ADD_SUBDIRS 对应）
-SKELETON_SUBDIRS = {"service", "copilot", "media", "MCPservice", "aggregate", "other"}
+SKELETON_SUBDIRS = {"service", "copilot", "media", "MCPservice", "aggregate", "other", "handlers", "packages", "config"}
 
 
 def _load_buildignore(project_root: pathlib.Path) -> set[str]:
