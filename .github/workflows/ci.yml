@@ -67,7 +67,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: deploy/A5-endpoint/python
+        working-directory: src/skeleton/endpoint/A5-endpoint/python
     steps:
       - uses: actions/checkout@v4
 
