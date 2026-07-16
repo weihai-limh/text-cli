@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://text-cli.com/path-schema.json",
+  "title": "text-cli Path Declaration",
+  "description": "Schema for text-cli path declarations. Paths are composite directive chains registered via text-cli;path --register and published via text-cli;pro.",
+  "type": "object",
+  "required": ["id", "name", "version", "type", "steps"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique path identifier (e.g. 'photo_analysis')"
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable name in primary locale"
+    },
+    "name_en": {
+      "type": "string",
+      "description": "English name"
+    },
+    "version": {
+      "type": "string",
+      "description": "Semver version string"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["skill", "pipeline"],
+      "description": "skill = consumer-facing composite capability; pipeline = internal processing chain"
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["toolchain"],
+      "description": "Execution mode. toolchain = linear sequential steps"
+    },
+    "locales": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Supported locale codes (e.g. ['cn', 'en'])"
+    },
+    "description": {
+      "type": "string",
+      "description": "Path description"
+    },
+    "description_cn": {
+      "type": "string",
+      "description": "Chinese description"
+    },
+    "input_schema": {
+      "type": "object",
+      "description": "JSON Schema fragment describing expected input"
+    },
+    "output_schema": {
+      "type": "object",
+      "description": "JSON Schema fragment describing expected output"
+    },
+    "requires": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Directives required for this path to execute (domain;action format)"
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["directive", "output_as"],
+        "properties": {
+          "directive": {"type": "string", "description": "text-cli directive with ${variable} placeholders"},
+          "output_as": {"type": "string", "description": "Variable name to store step output"}
+        }
+      }
+    },
+    "directives": {
+      "type": "array",
+      "description": "Filled by text-cli;pro after publication. The skill-domain directives this path is callable through."
+    }
+  }
+}

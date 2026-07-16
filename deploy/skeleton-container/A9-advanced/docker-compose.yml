@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  text-cli-skill:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./config:/app/config
+    environment:
+      - SERVICE_TOKEN=your-service-token
+      - LOG_LEVEL=info
+    restart: unless-stopped

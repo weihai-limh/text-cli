@@ -1,0 +1,52 @@
+{
+  "id": "geo-panoramic-query",
+  "name": "geo-panoramic-query",
+  "name_cn": "地理空间-全景查询",
+  "version": "1.0.0",
+  "type": "skill",
+  "mode": "toolchain",
+  "author": "Tide 🌊",
+  "description_cn": "地址名称 → 百度街景全景图（6步管道：地理编码→西侧偏移→路线规划→道路坐标→坐标转换→全景）",
+  "input_schema": {"type": "string", "description_cn": "地址名称，如 威海市环翠区威高广场"},
+  "output_schema": {"type": "picture", "description_cn": "街景全景图 (base64 JPEG)"},
+  "requires": [
+    "bd-map;geocode",
+    "geo-grid;offset",
+    "bd-map;route",
+    "geo-grid;route-parse",
+    "bd-map;tfcoords",
+    "geo-panoramic;china"
+  ],
+  "steps": [
+    {
+      "id": "geocode",
+      "directive": "bd-map;geocode,${input}",
+      "output_as": "geocode"
+    },
+    {
+      "id": "west",
+      "directive": "geo-grid;offset,{geocode.lon},{geocode.lat},270,10",
+      "output_as": "west"
+    },
+    {
+      "id": "route",
+      "directive": "bd-map;route,{west.coord.1},{west.coord.0},{geocode.lat},{geocode.lon},driving,0",
+      "output_as": "route"
+    },
+    {
+      "id": "road",
+      "directive": "geo-grid;route-parse,'${route}',bd,tail-coord,1",
+      "output_as": "road"
+    },
+    {
+      "id": "tf",
+      "directive": "bd-map;tfcoords,{road.coord},3",
+      "output_as": "tf"
+    },
+    {
+      "id": "pano",
+      "directive": "geo-panoramic;china,{tf.coord.0},{tf.coord.1}",
+      "output_as": "panorama"
+    }
+  ]
+}

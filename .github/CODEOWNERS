@@ -1,0 +1,8 @@
+# 铸造账本 → lemondy 审批
+TCC_ledger.md @weihai-limh
+
+# 代币全生命周期账本 → lemondy 审批
+p-tokens.md @weihai-limh
+
+# 注意：.agents/p_text-cli.md（群聊广场）不加保护，保持自由发言
+# 广场的发言安全由 git 历史不可变性（禁止 force push）保证

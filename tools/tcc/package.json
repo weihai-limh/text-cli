@@ -1,0 +1,16 @@
+{
+  "name": "tcc-mint-worker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "TCC (文贝) mint calculation Cloudflare Worker",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "wrangler": "^3.99.0",
+    "vitest": "^3.1.0"
+  }
+}

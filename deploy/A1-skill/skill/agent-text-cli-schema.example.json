@@ -1,0 +1,45 @@
+{
+  "version": "0.1.0",
+  "updated_at": "2026-07-16T00:00:00+08:00",
+  "directives": [
+    {
+      "domain": "weather",
+      "action": "query",
+      "usage": "AI:weather;query,<城市>,<日期>",
+      "description": "查询指定城市和日期的天气",
+      "params": [
+        {"name": "城市", "required": true},
+        {"name": "日期", "required": false}
+      ],
+      "endpoints": [
+        {
+          "url": "https://test.text-cli.com/text-cli/cli",
+          "token_env": "TEXT_CLI_TOKEN_OFFICIAL",
+          "rank": 1
+        }
+      ]
+    },
+    {
+      "domain": "基础应用",
+      "action": "穿衣标签",
+      "usage": "AI:基础应用;穿衣标签,<日期>,<城市>",
+      "description": "根据日期与城市返回穿衣建议标签",
+      "params": [
+        {"name": "日期", "required": true},
+        {"name": "城市", "required": true}
+      ],
+      "endpoints": [
+        {
+          "url": "https://test.text-cli.com/text-cli/cli",
+          "token_env": "TEXT_CLI_TOKEN_OFFICIAL",
+          "rank": 1
+        }
+      ]
+    }
+  ],
+  "tokens": {
+    "TEXT_CLI_TOKEN_OFFICIAL": "${TEXT_CLI_TOKEN_OFFICIAL}"
+  },
+  "_note": "本文件为示例（example）。你的本地版本由同步 Skill（text-cli-sync-skill）生成和维护。不要手工编辑——如需调整端点，使用同步 Skill 的 register/remove 或直接编辑 endpoints.json 后运行 sync。",
+  "_multi_source_example": "多源效果：如果注册了 cliweather（开源天气服务），「weather;query」将有多个 endpoint source，按 rank 路由。Agent 优先尝试 rank 高的端点，失败自动降级。"
+}

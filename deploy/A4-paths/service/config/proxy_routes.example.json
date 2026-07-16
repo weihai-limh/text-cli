@@ -1,0 +1,19 @@
+{
+  "_comment": "Proxy route configuration — matched directives are forwarded to downstream services.",
+  "_example": "Routes for file/git/mail operations forwarded to copilot",
+  "file;read": {
+    "url": "http://localhost:20260/text-cli/cli",
+    "token": "${COPILOT_TOKEN}",
+    "sensitive": false
+  },
+  "git;status": {
+    "url": "http://localhost:20260/text-cli/cli",
+    "token": "${COPILOT_TOKEN}",
+    "sensitive": false
+  },
+  "email;send": {
+    "url": "http://localhost:20260/text-cli/cli",
+    "token": "${COPILOT_TOKEN}",
+    "sensitive": true
+  }
+}

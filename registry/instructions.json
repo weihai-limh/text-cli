@@ -1,0 +1,511 @@
+{
+  "weather_query": {
+    "url": "https://test.text-cli.com/cli/text_cli",
+    "id": "weather_query",
+    "name": "天气查询",
+    "category": "基础应用",
+    "description": "根据指令中的日期与城市名称返回对应的天气",
+    "directive": "指令:基础应用;天气查询",
+    "parameters": [
+      {"name": "time", "type": "string", "enum": ["今天", "明天", "后天", "三天"]},
+      {"name": "city", "type": "string", "examples": ["威海", "北京"]}
+    ],
+    "prompt_template": "指令:基础应用;天气查询,{time},{city}",
+    "trigger_keywords": ["天气", "气温", "下雨"],
+    "response_type": "text",
+    "response_example": {
+      "rst_types": "text",
+      "rst_data": {
+        "text": "'明天天气(2026-04-28)':'10℃到16℃,多云转多云,日出时间为05:02'"
+      }
+    }
+  },
+
+  "clothing_tag": {
+    "url": "https://test.text-cli.com/cli/text_cli",
+    "id": "clothing_tag",
+    "name": "穿衣标签",
+    "category": "基础应用",
+    "description": "根据指令中的日期与城市名称返回合适的衣服标签",
+    "directive": "指令:基础应用;穿衣标签",
+    "parameters": [
+      {"name": "time", "type": "string", "enum": ["今天", "明天", "后天", "三天"]},
+      {"name": "city", "type": "string", "examples": ["威海", "北京"]}
+    ],
+    "prompt_template": "指令:基础应用;穿衣标签,{time},{city}",
+    "trigger_keywords": ["穿衣", "穿什么", "衣服"],
+    "response_type": "text",
+    "response_example": {
+      "rst_types": "text",
+      "rst_data": {
+        "text": "['薄外套', '开衫', '牛仔衫', '裤']"
+      }
+    }
+  },
+
+  "baidu_search": {
+    "url": "https://test.text-cli.com/cli/text_cli",
+    "id": "baidu_search",
+    "name": "百度搜索",
+    "category": "基础应用",
+    "description": "根据指令中的搜索目标返回搜索结果",
+    "directive": "指令:基础应用;百度搜索",
+    "parameters": [
+      {"name": "keyword", "type": "string", "examples": ["威海市统一路小学"]}
+    ],
+    "prompt_template": "指令:基础应用;百度搜索,{keyword}",
+    "trigger_keywords": ["搜索", "百度搜索", "搜一下"],
+    "response_type": "text",
+    "response_example": {
+      "rst_types": "text",
+      "rst_data": {
+        "text": "[{'id': 1, 'url': '...', 'title': '...', 'date': '...', 'content': '...', 'website': '...'}]"
+      }
+    }
+  },
+
+  "baidu_baike": {
+    "url": "https://test.text-cli.com/cli/text_cli",
+    "id": "baidu_baike",
+    "name": "百度百科",
+    "category": "基础应用",
+    "description": "根据指令中的搜索目标返回关于搜索目标的概念和相关知识",
+    "directive": "指令:基础应用;百度百科",
+    "parameters": [
+      {"name": "keyword", "type": "string", "examples": ["威海市统一路小学"]}
+    ],
+    "prompt_template": "指令:基础应用;百度百科,{keyword}",
+    "trigger_keywords": ["百科", "百度百科", "是什么"],
+    "response_type": "text",
+    "response_example": {
+      "rst_types": "text",
+      "rst_data": {
+        "text": "{'main': {'lemma_id': 12720678, 'lemma_title': '威海市统一路小学', 'summary': '...'}, 'relations': []}"
+      }
+    }
+  },
+
+  "hot_list_query": {
+    "url": "https://test.text-cli.com/cli/text_cli",
+    "id": "hot_list_query",
+    "name": "热榜榜单查询",
+    "category": "基础应用",
+    "description": "根据指令中的平台名称返回今天该平台上热度最高的内容",
+    "directive": "指令:基础应用;热榜榜单查询",
+    "parameters": [
+      {"name": "platform", "type": "string", "enum": ["微博", "头条", "知乎", "抖音", "百度", "贴吧", "快手", "小红书"]}
+    ],
+    "prompt_template": "指令:基础应用;热榜榜单查询,{platform}",
+    "trigger_keywords": ["热榜", "热搜", "榜单"],
+    "response_type": "text",
+    "response_example": {
+      "rst_types": "text",
+      "rst_data": {
+        "text": "[{'title': '...', 'hot': 9212000, 'url': '...', 'date': null, 'translateTitle': null}]"
+      }
+    }
+  },
+
+  "product_recognition": {
+    "url": "https://test.text-cli.com/cli/text_cli",
+    "id": "product_recognition",
+    "name": "商品识别",
+    "category": "基础应用",
+    "description": "根据指令中的图像url返回图像中商品对应的物品标签",
+    "directive": "指令:基础应用;商品识别",
+    "parameters": [
+      {"name": "image_url", "type": "string", "examples": ["http://example.com/image.jpg"]}
+    ],
+    "prompt_template": "指令:基础应用;商品识别,{image_url}",
+    "trigger_keywords": ["商品识别", "识别商品", "图片中的商品"],
+    "response_type": "text",
+    "response_example": {
+      "rst_types": "text",
+      "rst_data": {
+        "text": "男士西服套装(服饰内衣-男装),休闲鞋(鞋靴-时尚女鞋)"
+      }
+    }
+  },
+
+  "qrcode_recognition": {
+    "url": "https://test.text-cli.com/cli/text_cli",
+    "id": "qrcode_recognition",
+    "name": "二维码识别",
+    "category": "基础应用",
+    "description": "根据指令中的图像url返回图像中二维码的内容",
+    "directive": "指令:基础应用;二维码识别",
+    "parameters": [
+      {"name": "image_url", "type": "string", "examples": ["https://example.com/qrcode.jpg"]}
+    ],
+    "prompt_template": "指令:基础应用;二维码识别,{image_url}",
+    "trigger_keywords": ["二维码", "扫码", "QR码"],
+    "response_type": "text",
+    "response_example": {
+      "rst_types": "text",
+      "rst_data": {
+        "text": "[{'QR_CODE': 'http://weixin.qq.com/r/xxx'}]"
+      }
+    }
+  },
+
+  "ocr_recognition": {
+    "url": "https://test.text-cli.com/cli/text_cli",
+    "id": "ocr_recognition",
+    "name": "文字识别",
+    "category": "基础应用",
+    "description": "根据指令中的图像url和识别类型返回图像识别的文字",
+    "directive": "指令:基础应用;文字识别",
+    "parameters": [
+      {"name": "image_url", "type": "string", "examples": ["https://example.com/text.png"]},
+      {"name": "recognition_type", "type": "string", "examples": ["通用"]}
+    ],
+    "prompt_template": "指令:基础应用;文字识别,{image_url},{recognition_type}",
+    "trigger_keywords": ["文字识别", "OCR", "识别文字"],
+    "response_type": "text",
+    "response_example": {
+      "rst_types": "text",
+      "rst_data": {
+        "text": "['腾讯云AI']"
+      }
+    }
+  },
+
+  "image_enhance": {
+    "url": "https://test.text-cli.com/cli/text_cli",
+    "id": "image_enhance",
+    "name": "图像清晰度增强",
+    "category": "基础应用",
+    "description": "根据指令中的图像url返回图像更加清晰的新图像的url",
+    "directive": "指令:基础应用;图像清晰度增强",
+    "parameters": [
+      {"name": "image_url", "type": "string", "examples": ["https://example.com/blurry.jpg"]}
+    ],
+    "prompt_template": "指令:基础应用;图像清晰度增强,{image_url}",
+    "trigger_keywords": ["图像增强", "清晰度", "图片模糊"],
+    "response_type": "text",
+    "response_example": {
+      "rst_types": "text",
+      "rst_data": {
+        "text": "https://processing.10000.world/enhanced.jpg?e=1777306204&token=..."
+      }
+    }
+  },
+
+  "text_reasoning": {
+    "url": "https://test.text-cli.com/cli/text_cli",
+    "id": "text_reasoning",
+    "name": "文本推理",
+    "category": "ai集成",
+    "description": "根据指令中的参数返回转化推理后的结果",
+    "directive": "指令:ai集成;文本推理",
+    "parameters": [
+      {"name": "question", "type": "string", "examples": ["什么是量子计算"]},
+      {"name": "model", "type": "string", "examples": ["gpt-4", "claude-3"]}
+    ],
+    "prompt_template": "指令:ai集成;文本推理,{question},{model}",
+    "trigger_keywords": ["推理", "AI问答", "大模型"],
+    "response_type": "text",
+    "response_example": {
+      "rst_types": "text",
+      "rst_data": {
+        "text": "量子计算是一种利用量子力学原理进行计算的技术..."
+      }
+    }
+  },
+
+  "image_reasoning": {
+    "url": "https://test.text-cli.com/cli/text_cli",
+    "id": "image_reasoning",
+    "name": "图像推理",
+    "category": "ai集成",
+    "description": "根据指令中的参数返回转化推理后的结果",
+    "directive": "指令:ai集成;图像推理",
+    "parameters": [
+      {"name": "image_url", "type": "string", "examples": ["https://example.com/image.jpg"]},
+      {"name": "question", "type": "string", "examples": ["这张图片里有什么"]},
+      {"name": "model", "type": "string", "examples": ["gpt-4o", "claude-3"]}
+    ],
+    "prompt_template": "指令:ai集成;图像推理,{image_url},{question},{model}",
+    "trigger_keywords": ["图片分析", "图像理解", "看图说话"],
+    "response_type": "text",
+    "response_example": {
+      "rst_types": "text",
+      "rst_data": {
+        "text": "这张图片展示了一座城市的天际线..."
+      }
+    }
+  },
+
+  "language_translate": {
+    "url": "https://test.text-cli.com/cli/text_cli",
+    "id": "language_translate",
+    "name": "语言转化",
+    "category": "基础应用",
+    "description": "根据指令中的翻译类型和要翻译的文本完成对应的翻译",
+    "directive": "指令:基础应用;语言转化",
+    "parameters": [
+      {"name": "translation_type", "type": "string", "examples": ["中译英", "英译中"]},
+      {"name": "text", "type": "string", "examples": ["你好世界"]}
+    ],
+    "prompt_template": "指令:基础应用;语言转化,{translation_type},{text}",
+    "trigger_keywords": ["翻译", "语言转化", "中译英", "英译中"],
+    "response_type": "text",
+    "response_example": {
+      "rst_types": "text",
+      "rst_data": {
+        "text": "Hello World"
+      }
+    }
+  },
+
+  "task_query": {
+    "url": "https://test.text-cli.com/cli/text_cli",
+    "id": "task_query",
+    "name": "任务查询",
+    "category": "基础应用",
+    "description": "根据指令中的任务类型与任务id返回任务结果",
+    "directive": "指令:基础应用;任务查询",
+    "parameters": [
+      {"name": "task_type", "type": "string", "examples": ["空间导航"]},
+      {"name": "task_id", "type": "string", "examples": ["abc123"]}
+    ],
+    "prompt_template": "指令:基础应用;任务查询,{task_type},{task_id}",
+    "trigger_keywords": ["任务查询", "查询任务", "任务结果"],
+    "response_type": "text",
+    "response_example": {
+      "rst_types": "text",
+      "rst_data": {
+        "text": "任务结果数据..."
+      }
+    }
+  },
+
+  "voice_convert": {
+    "url": "https://test.text-cli.com/cli/text_cli",
+    "id": "voice_convert",
+    "name": "语音转换",
+    "category": "基础应用",
+    "description": "根据指令中的音色类型与文本返回生成的音频链接",
+    "directive": "指令:基础应用;语音转换",
+    "parameters": [
+      {"name": "voice_url", "type": "string", "examples": ["https://example.com/audio.mp3"]}
+    ],
+    "prompt_template": "指令:基础应用;语音转换,{voice_url}",
+    "trigger_keywords": ["语音", "语音转换", "TTS"],
+    "response_type": "text",
+    "response_example": {
+      "rst_types": "text",
+      "rst_data": {
+        "text": "https://processing.10000.world/audio/output.mp3?token=..."
+      }
+    }
+  },
+
+  "ip_query": {
+    "url": "https://test.text-cli.com/cli/text_cli",
+    "id": "ip_query",
+    "name": "ip查询",
+    "category": "地理空间",
+    "description": "根据指令中的域名或ip和地图类型返回该地址的地理位置",
+    "directive": "指令:地理空间;ip查询",
+    "parameters": [
+      {"name": "domain_or_ip", "type": "string", "examples": ["agentbot.space", "200.116.110.30"]},
+      {"name": "map_type", "type": "string", "examples": ["tdt"], "optional": true}
+    ],
+    "prompt_template": "指令:地理空间;ip查询,{domain_or_ip}",
+    "trigger_keywords": ["IP查询", "IP地址", "域名查询"],
+    "response_type": "text",
+    "response_example": {
+      "rst_types": "text",
+      "rst_data": {
+        "text": "{'city': '上海市XX区', 'long_lat': [121.26, 31.37]}"
+      }
+    }
+  },
+
+  "geocoding_query": {
+    "url": "https://test.text-cli.com/cli/text_cli",
+    "id": "geocoding_query",
+    "name": "经纬度查询",
+    "category": "地理空间",
+    "description": "根据指令中的经纬度和地图类型返回该经纬度对应的地址",
+    "directive": "指令:地理空间;经纬度查询",
+    "parameters": [
+      {"name": "longitude", "type": "number", "examples": [121.26176426088189]},
+      {"name": "latitude", "type": "number", "examples": [31.37678130972113]},
+      {"name": "map_type", "type": "string", "examples": ["tdt"], "optional": true}
+    ],
+    "prompt_template": "指令:地理空间;经纬度查询,{longitude},{latitude}",
+    "trigger_keywords": ["经纬度", "坐标查询", "坐标反查"],
+    "response_type": "text",
+    "response_example": {
+      "rst_types": "text",
+      "rst_data": {
+        "text": "{'name': '中国,上海市,上海市,嘉定区', 'address': '上海市嘉定区嘉戬公路', 'formatted_addresses': {'recommend': '上海市嘉定区人民政府(嘉戬公路北)', 'rough': '...', 'standard_address': '...'}}"
+      }
+    }
+  },
+
+  "address_query": {
+    "url": "https://test.text-cli.com/cli/text_cli",
+    "id": "address_query",
+    "name": "地址查询",
+    "category": "地理空间",
+    "description": "对指令中的地址进行查询,返回该地址的wgs84坐标",
+    "directive": "指令:地理空间;地址查询",
+    "parameters": [
+      {"name": "address", "type": "string", "examples": ["威海威高广场"]},
+      {"name": "map_type", "type": "string", "examples": ["tdt"]}
+    ],
+    "prompt_template": "指令:地理空间;地址查询,{address},{map_type}",
+    "trigger_keywords": ["地址查询", "地址转坐标", "地理编码"],
+    "response_type": "text",
+    "response_example": {
+      "rst_types": "text",
+      "rst_data": {
+        "text": "{'longitude': 122.12, 'latitude': 37.50}"
+      }
+    }
+  },
+
+  "static_map": {
+    "url": "https://test.text-cli.com/cli/text_cli",
+    "id": "static_map",
+    "name": "静态地图",
+    "category": "地理空间",
+    "description": "根据指令中的经纬度和地图类型返回静态地图图片的url",
+    "directive": "指令:地理空间;静态地图",
+    "parameters": [
+      {"name": "longitude", "type": "number", "examples": [121.26176426088189]},
+      {"name": "latitude", "type": "number", "examples": [31.37678130972113]},
+      {"name": "map_type", "type": "string", "examples": ["tdt"], "optional": true}
+    ],
+    "prompt_template": "指令:地理空间;静态地图,{longitude},{latitude}",
+    "trigger_keywords": ["静态地图", "地图图片", "位置地图"],
+    "response_type": "text",
+    "response_example": {
+      "rst_types": "text",
+      "rst_data": {
+        "text": "https://processing.10000.world/image/out.png?e=1777297522&token=..."
+      }
+    }
+  },
+
+  "static_line": {
+    "url": "https://test.text-cli.com/cli/text_cli",
+    "id": "static_line",
+    "name": "静态连线",
+    "category": "地理空间",
+    "description": "根据指令中的起终点和地图类型返回静态地图图片的url,图中包含起点,终点及两点的连线",
+    "directive": "指令:地理空间;静态连线",
+    "parameters": [
+      {"name": "origin", "type": "array", "examples": ["威海方邻汇购物中心"]},
+      {"name": "destination", "type": "array", "examples": ["威海威高广场"]},
+      {"name": "map_type", "type": "string", "examples": ["tdt"]}
+    ],
+    "prompt_template": "指令:地理空间;静态连线,{origin},{destination},{map_type}",
+    "trigger_keywords": ["连线", "两点连线", "路线图"],
+    "response_type": "text",
+    "response_example": {
+      "rst_types": "text",
+      "rst_data": {
+        "text": "https://processing.10000.world/image/out.png?e=1777109324&token=..."
+      }
+    }
+  },
+
+  "static_navigation": {
+    "url": "https://test.text-cli.com/cli/text_cli",
+    "id": "static_navigation",
+    "name": "静态导航",
+    "category": "地理空间",
+    "description": "根据指令中的起终点和地图类型返回静态地图图片的url,图中包含两点的导航路径",
+    "directive": "指令:地理空间;静态导航",
+    "parameters": [
+      {"name": "origin", "type": "array", "examples": ["威海方邻汇购物中心"]},
+      {"name": "destination", "type": "array", "examples": ["威海威高广场"]},
+      {"name": "map_type", "type": "string", "examples": ["tdt"]}
+    ],
+    "prompt_template": "指令:地理空间;静态导航,{origin},{destination},{map_type}",
+    "trigger_keywords": ["导航图", "静态导航", "导航路径图"],
+    "response_type": "text",
+    "response_example": {
+      "rst_types": "text",
+      "rst_data": {
+        "text": "https://processing.10000.world/image/out.png?token=..."
+      }
+    }
+  },
+
+  "navigation_path": {
+    "url": "https://test.text-cli.com/cli/text_cli",
+    "id": "navigation_path",
+    "name": "导航路径",
+    "category": "地理空间",
+    "description": "根据指令中的起终点和地图类型返回两点的导航的道路路径",
+    "directive": "指令:地理空间;导航路径",
+    "parameters": [
+      {"name": "origin", "type": "array", "examples": ["威海方邻汇购物中心"]},
+      {"name": "destination", "type": "array", "examples": ["威海威高广场"]},
+      {"name": "map_type", "type": "string", "examples": ["tdt"]}
+    ],
+    "prompt_template": "指令:地理空间;导航路径,{origin},{destination},{map_type}",
+    "trigger_keywords": ["导航路径", "路线规划", "路径"],
+    "response_type": "text",
+    "response_example": {
+      "rst_types": "text",
+      "rst_data": {
+        "text": "导航路径坐标数据..."
+      }
+    }
+  },
+
+  "static_search": {
+    "url": "https://test.text-cli.com/cli/text_cli",
+    "id": "static_search",
+    "name": "静态搜索",
+    "category": "地理空间",
+    "description": "根据指令中的参数返回静态地图图片的url,图中包含搜索结果",
+    "directive": "指令:地理空间;静态搜索",
+    "parameters": [
+      {"name": "address_or_coords", "type": "array", "examples": ["121.26176426088189,31.37678130972113"]},
+      {"name": "keyword", "type": "string", "examples": ["餐厅"]},
+      {"name": "range", "type": "string", "examples": ["1000"]},
+      {"name": "search_map_type", "type": "string", "examples": ["tdt"]},
+      {"name": "render_map_type", "type": "string", "examples": ["tdt"]}
+    ],
+    "prompt_template": "指令:地理空间;静态搜索,{address_or_coords},{keyword},{range},{search_map_type},{render_map_type}",
+    "trigger_keywords": ["静态搜索", "周边搜索图", "搜索地图"],
+    "response_type": "text",
+    "response_example": {
+      "rst_types": "text",
+      "rst_data": {
+        "text": "https://processing.10000.world/image/out.png?token=..."
+      }
+    }
+  },
+
+  "location_search": {
+    "url": "https://test.text-cli.com/cli/text_cli",
+    "id": "location_search",
+    "name": "位置搜索",
+    "category": "地理空间",
+    "description": "根据指令中的参数返回目标周边指定范围的关键内容",
+    "directive": "指令:地理空间;位置搜索",
+    "parameters": [
+      {"name": "address_or_coords", "type": "array", "examples": ["121.26176426088189,31.37678130972113"]},
+      {"name": "keyword", "type": "string", "examples": ["餐厅"]},
+      {"name": "range", "type": "string", "examples": ["1000"]},
+      {"name": "search_map_type", "type": "string", "examples": ["tdt"]}
+    ],
+    "prompt_template": "指令:地理空间;位置搜索,{address_or_coords},{keyword},{range},{search_map_type}",
+    "trigger_keywords": ["位置搜索", "周边搜索", "附近"],
+    "response_type": "text",
+    "response_example": {
+      "rst_types": "text",
+      "rst_data": {
+        "text": "周边搜索结果数据..."
+      }
+    }
+  }
+}

@@ -1,0 +1,245 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  service-check:
+    name: Service Syntax Check (A9)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: deploy/A9-advanced/service
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install flake8
+
+      - name: Lint with flake8
+        run: |
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 . --count --max-line-length=120 --statistics --exit-zero
+
+      - name: Syntax check
+        run: python -m py_compile main.py
+
+  copilot-check:
+    name: Copilot Syntax Check (A2)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: deploy/A2-copilot/copilot
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install flake8
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8
+
+      - name: Lint with flake8
+        run: |
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 . --count --max-line-length=120 --statistics --exit-zero
+
+      - name: Syntax check
+        run: python -m py_compile text-cli-copilot.py
+
+  endpoint-check:
+    name: Endpoint Syntax Check (A5)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: deploy/A5-endpoint/python
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install flake8
+
+      - name: Lint with flake8
+        run: |
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 . --count --max-line-length=120 --statistics --exit-zero
+
+      - name: Syntax check
+        run: python -m py_compile main.py
+
+      - name: Module import check
+        env:
+          ACCESS_TOKEN_REQUIRED: "false"
+          ADMIN_API_KEY: "test"
+        run: python -c "from main import app; print('FastAPI app loaded OK')"
+
+  tcc-worker-test:
+    name: TCC Worker Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tools/tcc
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: tools/tcc/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npx vitest run
+
+  markdown-lint:
+    name: Markdown Structure Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check required docs exist
+        run: |
+          for f in \
+            docs/ecosystem/collaboration_zh.md \
+            docs/ecosystem/production-tcc_zh.md \
+            .agents/p_text-cli.md \
+            p-tokens.md \
+            TCC_ledger.md \
+          ; do
+            if [ ! -f "$f" ]; then
+              echo "::error::Missing required file: $f"
+              exit 1
+            fi
+            echo "OK: $f"
+          done
+
+      - name: Check p_text-cli.md append-only (PR)
+        if: github.event_name == 'pull_request'
+        run: |
+          OLD=$(git show "${{ github.event.pull_request.base.sha }}:.agents/p_text-cli.md" 2>/dev/null || echo "")
+          NEW=$(cat .agents/p_text-cli.md)
+          if [ -z "$OLD" ]; then
+            echo "::notice::p_text-cli.md is new in this PR (first creation, skipping append-only check)."
+            exit 0
+          fi
+          if [[ "$NEW" != "$OLD"* ]]; then
+            echo "::error::p_text-cli.md 被非追加修改（插入、删除或改写）。"
+            echo "::error::  文件必须以旧内容为前缀，新内容只能追加在末尾。"
+            echo "::error::  请使用 Read→Write 协议（Read 完整内容 → 内存拼接 → Write 回写）。"
+            exit 1
+          fi
+          if [ ${#NEW} -le ${#OLD} ]; then
+            echo "::error::p_text-cli.md 未新增任何内容。"
+            exit 1
+          fi
+          echo "✓ p_text-cli.md: 纯追加，+$(( ${#NEW} - ${#OLD} )) bytes"
+
+      - name: Check p_text-cli.md append-only (push)
+        if: github.event_name == 'push'
+        run: |
+          BEFORE="${{ github.event.before }}"
+          OLD=$(git show "${BEFORE}:.agents/p_text-cli.md" 2>/dev/null || echo "")
+          NEW=$(cat .agents/p_text-cli.md)
+          if [ -z "$OLD" ]; then
+            echo "::notice::p_text-cli.md is new (first creation, skipping append-only check)."
+            exit 0
+          fi
+          if [[ "$NEW" != "$OLD"* ]]; then
+            echo "::error::p_text-cli.md 被非追加修改！直接 push main 绕过了 PR 审查。"
+            echo "::error::  文件必须以旧内容为前缀，新内容只能追加在末尾。"
+            echo "::error::  请恢复文件并走 feat/分支 → PR 流程。"
+            exit 1
+          fi
+          if [ ${#NEW} -le ${#OLD} ]; then
+            echo "::error::p_text-cli.md 未新增任何内容（可能是截断）。"
+            exit 1
+          fi
+          echo "✓ p_text-cli.md (push): 纯追加，+$(( ${#NEW} - ${#OLD} )) bytes"
+
+      - name: Check p_text-cli.md UTF-8 encoding
+        run: |
+          if ! file .agents/p_text-cli.md | grep -q 'UTF-8'; then
+            echo "::error::.agents/p_text-cli.md is not UTF-8 encoded."
+            echo "::error::  The file was corrupted by a tool using wrong encoding (e.g. UTF-16 LE)."
+            echo "::error::  Restore from git history and re-append using Add-Content -Encoding UTF8."
+            exit 1
+          fi
+          echo "✓ p_text-cli.md: UTF-8 encoding OK"
+
+  skeleton-sync:
+    name: Skeleton Source → Deploy Sync Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check src/skeleton/ → deploy/ consistency
+        run: python tools/build-all.py --check
+
+  tcc-recalculate:
+    name: TCC Mint Recalculate
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    defaults:
+      run:
+        working-directory: tools/tcc
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if TCC_ledger.md modified
+        id: check
+        run: |
+          if git diff --name-only ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} | grep -q 'TCC_ledger.md'; then
+            echo "modified=true" >> $GITHUB_OUTPUT
+          else
+            echo "modified=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set up Node.js
+        if: steps.check.outputs.modified == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: tools/tcc/package-lock.json
+
+      - name: Install dependencies
+        if: steps.check.outputs.modified == 'true'
+        run: npm ci
+
+      - name: Run recalculate
+        if: steps.check.outputs.modified == 'true'
+        run: node ci/recalculate.js ../../TCC_ledger.md

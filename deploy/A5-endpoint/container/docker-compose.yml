@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  text-cli-endpoint:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./config:/app/config
+    environment:
+      - ENDPOINT_BASE_URL=https://my-endpoint.example.com
+      - ADMIN_API_KEY=your-admin-key
+      - ACCESS_TOKEN_REQUIRED=true
+      - DB_PATH=/app/data/textcli.db
+      - LOG_LEVEL=info
+    restart: unless-stopped

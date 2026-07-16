@@ -1,0 +1,25 @@
+
+# IDE
+.vscode/
+.idea/
+
+# Cloudflare Wrangler
+.wrangler/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Environment & secrets
+.env
+*.db
+
+# Release build logs
+deploy/skeleton-*/_build.log
+
+# Internal cognition layer — not tracked
+.dev/

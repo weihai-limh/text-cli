@@ -1,0 +1,57 @@
+{
+  "id": "task-manager",
+  "name": "Task Manager",
+  "name_cn": "任务管理",
+  "runtime": "python",
+  "category": "基础设施",
+  "description": "Async task lifecycle management with SQLite persistence. Register, track, and retrieve results for long-running operations.",
+  "description_cn": "异步任务生命周期管理，基于 SQLite 持久化。注册、追踪和获取长耗时操作的结果。",
+  "requires": {},
+  "directives": [
+    {
+      "domain": "task",
+      "domain_cn": "任务",
+      "action": "status",
+      "action_cn": "状态",
+      "usage": "task;status,<task_id>",
+      "usage_cn": "任务;状态,<任务ID>",
+      "params": ["task_id"]
+    },
+    {
+      "domain": "task",
+      "domain_cn": "任务",
+      "action": "result",
+      "action_cn": "结果",
+      "usage": "task;result,<task_id>",
+      "usage_cn": "任务;结果,<任务ID>",
+      "params": ["task_id"]
+    },
+    {
+      "domain": "task",
+      "domain_cn": "任务",
+      "action": "list",
+      "action_cn": "列表",
+      "usage": "task;list",
+      "usage_cn": "任务;列表",
+      "params": []
+    },
+    {
+      "domain": "task",
+      "domain_cn": "任务",
+      "action": "track",
+      "action_cn": "追踪",
+      "usage": "task;track,<task_id>",
+      "usage_cn": "任务;追踪,<任务ID>",
+      "params": ["task_id"]
+    },
+    {
+      "domain": "task",
+      "domain_cn": "任务",
+      "action": "cancel",
+      "action_cn": "取消",
+      "usage": "task;cancel,<task_id>",
+      "usage_cn": "任务;取消,<任务ID>",
+      "params": ["task_id"]
+    }
+  ]
+}

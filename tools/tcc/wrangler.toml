@@ -1,0 +1,22 @@
+name = "tcc-mint-worker"
+main = "src/index.js"
+compatibility_date = "2026-05-01"
+workers_dev = true
+
+# Worker v3: 严格每日一次 Cron 触发（UTC 0:00），移除 webhook 事件驱动
+# GitHub Token 权限: contents:write + pull_requests:write + issues:write
+[vars]
+ANCHOR_FILE = ".agents/p_text-cli.md"
+LEDGER_FILE = "TCC_ledger.md"
+SCALING_FACTOR = "100"
+DAILY_MINT_CAP = "100"
+DELTA_BYTES_THRESHOLD = "10"
+RAW_SCORE_THRESHOLD = "200"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "tcc-idempotency"
+database_id = "eded8d51-4cb7-46e2-8cda-70cddb7b4d15"
+
+[triggers]
+crons = ["0 0 * * *"]
