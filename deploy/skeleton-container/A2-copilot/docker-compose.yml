@@ -1,0 +1,30 @@
+# =========================================================================
+# text-cli A2-copilot 单运行时镜像（仅本机 127.0.0.1:20260）
+# -------------------------------------------------------------------------
+# 前置（二次整合部署）：
+#   cd deploy/skeleton-container
+#   python build.py            # 生成 .build/copilot/（构建上下文）
+#   docker compose up -d       # 用下方 context 构建并启动
+#
+# 设计红线：copilot 仅 127.0.0.1 可达，【禁止】-p 20260:20260 暴露到 0.0.0.0。
+#   用 network_mode: host，让本机 AI 经回环 localhost:20260 调用。
+# =========================================================================
+version: '3.8'
+
+services:
+  text-cli-copilot:
+    build:
+      context: ../.build/copilot
+      dockerfile: Dockerfile
+    image: text-cli-copilot:local
+    # 红线：不发布端口，靠 host 网络让本机回环可达 localhost:20260
+    network_mode: host
+    environment:
+      - LOG_LEVEL=info
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:20260/text-cli/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s

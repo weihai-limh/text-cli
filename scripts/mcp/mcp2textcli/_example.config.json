@@ -1,0 +1,34 @@
+{
+  "_note": "MCP server config template. Copy this file, replace placeholders, and compile with: python3 mcp2textcli.py configs/<your-server>.json",
+  "_format_version": "1.0",
+
+  "server": {
+    "name": "<mcp-server-name>",
+    "label": "<human-readable label>",
+    "transport": "<stdio|sse|http>"
+  },
+
+  "domain": {
+    "semantic_id": "domain.<name>",
+    "aliases": {"zh": "<中文域名>", "en": "<domain_en>"},
+    "description": "<English description;中文说明>"
+  },
+
+  "env_params": [],
+
+  "tools": {
+    "<tool_name>": {
+      "semantic_id": "action.<name>",
+      "aliases": {"zh": "<中文动作名>", "en": "<action_en>"},
+      "description": "<English description;中文说明>",
+      "params": [
+        {"name": "<param1>", "type": "<string|number|json>", "position": 0, "alias_zh": "<中文参数名>", "alias_en": "<param1_en>"}
+      ],
+      "trigger_keywords": {
+        "zh": ["<关键词1>", "<关键词2>"],
+        "en": ["<keyword1>", "<keyword2>"]
+      },
+      "adapter": "<passthrough|json_parse>"
+    }
+  }
+}

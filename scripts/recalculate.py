@@ -117,7 +117,7 @@ def get_commits_by_date():
         'git', 'log', '--reverse', '--format=%H|%ai|%s',
         '--', ANCHOR_FILE
     ]
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
     if result.returncode != 0:
         print(f"Git 错误: {result.stderr}")
         sys.exit(1)
@@ -139,7 +139,7 @@ def get_commits_by_date():
 def get_file_content_at(sha: str) -> str:
     """获取指定 commit 时的文件内容。"""
     cmd = ['git', 'show', f'{sha}:{ANCHOR_FILE}']
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    result = subprocess.run(cmd, capture_output=True, text=True, check=False)
     if result.returncode != 0:
         return ''
     return result.stdout
@@ -303,10 +303,10 @@ def generate_genesis_template(genesis, daily_mints):
     lines.append("")
     lines.append("| 参数 | 值 |")
     lines.append("|------|----|")
-    lines.append(f"| 铸造日期 | 2026-05-04 |")
+    lines.append("| 铸造日期 | 2026-05-04 |")
     lines.append(f"| 算法建议上限 | {total_algorithm} TCC |")
-    lines.append(f"| 实际铸造量 | ___ TCC ← lemondy 填写 |")
-    lines.append(f"| casting_type | genesis |")
+    lines.append("| 实际铸造量 | ___ TCC ← lemondy 填写 |")
+    lines.append("| casting_type | genesis |")
     lines.append("| anchor_sha | (首次 p_text-cli.md commit) |")
     lines.append("")
     lines.append("## 建议分配方案 (方案 D)")

@@ -1,13 +1,51 @@
+# =========================================================================
+# text-cli A9-advanced 融合镜像（copilot + service + MCP bridge + aggregate）
+# -------------------------------------------------------------------------
+# 重要前置（二次整合部署）：
+#   本目录只是容器「元文件层」（Dockerfile/entrypoint/init_config），
+#   真实运行时代码来自 deploy/A9-advanced，由 build.py 重排成构建上下文：
+#
+#       cd deploy/skeleton-container
+#       python build.py            # 生成 .build/advanced/（构建上下文）
+#       docker compose up -d       # 用下方 context 构建并启动
+#
+#   compose 的 build.context 指向 build.py 生成的 .build/advanced，
+#   该目录不存在时请先运行上面的 build.py。
+# =========================================================================
 version: '3.8'
 
 services:
-  text-cli-skill:
-    build: .
+  text-cli:
+    # 构建上下文 = build.py 生成的 .build/advanced（含 service/copilot/MCPservice/A8-discovery + Dockerfile）
+    # 注意：上下文相对本 compose 文件所在目录解析，即 skeleton-container/.build/advanced
+    build:
+      context: ../.build/advanced
+      dockerfile: Dockerfile
+    image: text-cli-advanced:local
     ports:
-      - "8000:8000"
+      - "28050:28050"    # service（能力面）
+      - "9020:9020"      # MCP bridge（MCP 协议面）
+      # 20260 不映射（copilot 绑 127.0.0.1，仅内部可达）
     volumes:
-      - ./config:/app/config
+      # 数据持久化（可选）
+      - text-cli-data:/app/data
+      # 配置已随镜像 baked 进 /app/service/config 与 /app/copilot/config，
+      # 不要挂空目录覆盖！如需覆盖，请挂载【已存在】的目录，例如：
+      #   - /abs/path/to/my-service-config:/app/service/config
     environment:
-      - SERVICE_TOKEN=your-service-token
+      - PORT=28050
+      - MCP_PORT=9020
+      - SERVICE_TOKEN=${SERVICE_TOKEN:-test-token}
+      - COPILOT_ENABLED=true
+      - MCP_ENABLED=true
       - LOG_LEVEL=info
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:28050/text-cli/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  text-cli-data:

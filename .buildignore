@@ -1,4 +1,0 @@
-# Deploy-only operational files (no source counterpart in src/skeleton/)
-service/Dockerfile
-service/docker-compose.yml
-service/init_config.sh

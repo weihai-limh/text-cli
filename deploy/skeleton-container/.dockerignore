@@ -1,0 +1,33 @@
+# Python bytecode cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Version control
+.git/
+.gitignore
+.gitkeep
+
+# Documentation (not needed at runtime)
+*.md
+docs/
+LICENSE
+
+# Test artifacts
+test/
+tests/
+pytest.ini
+.conftest.py
+
+# Example configs (not real configs)
+*.example.json
+*.example.yml
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+.build/
+*.log
