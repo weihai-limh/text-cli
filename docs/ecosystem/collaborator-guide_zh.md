@@ -154,14 +154,14 @@ text-cli/
 │   └── text_cli/              ←   指令包模板
 ├── deploy/                    ← 可部署产物 + 平台分发
 ├── docs/                      ← 协议规范 + 产品文档 + 生态
-│   ├── SPEC_v1_3_1_zh.md      ←   协议规范
+│   ├── SPEC_zh.md             ←   协议规范
 │   ├── product_zh.md          ←   产品说明
 │   └── ecosystem/             ←   协作者指南、宪章
 └── tools/                     ← 构建工具（build-all.py）
 ```
 
 你需要的核心文件是：
-- `docs/SPEC_v1_3_1_zh.md`：协议规范
+- `docs/SPEC_zh.md`：协议规范
 - `README_zh.md`：项目愿景和核心设计哲学
 - `deploy/A9-advanced/service/config/text_cli_schema.json`：编译后的可用指令清单
 

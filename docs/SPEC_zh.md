@@ -1,9 +1,12 @@
-# text-cli Protocol Specification v1.3.1
+# text-cli Protocol Specification v1.3.2
 
+> 2026-07-22 — v1.3.2（修订）：新增 `estimated_time` / `estimated_time_note` 可选字段——指令最大预期执行时间及解释说明，为异步调度器做准备。
+> 2026-07-22 — v1.3.2（修订）：Schema 字段标准化——`_cn` → `_zh`（`name_cn`/`description_cn`/`domain_cn`/`action_cn`/`usage_cn` → ISO 639-1 语言代码后缀）。为后续多语言字段扩展做准备。
+> 2026-07-21 — v1.3.2：新增 `GET /text-cli/tasks/{task_id}` 异步任务查询端点；`rst_err` 结构化错误字段；错误码 `ERR_NOT_FOUND/ERR_EXECUTION/ERR_ROUTING`；未定义变量留空+WARNING；联邦 mesh 凭证模型（`peer_credentials`）。
 > 2026-07-16 — v1.3.1：移除 `指令:` 前缀过渡期标记，声明 v1.4 移除路线；`AI:` 为推荐前缀。
-> 2026-07-15 — 新增：`requires.npm`（Node.js 包依赖）、`requires.binaries` 格式升级为对象（支持 `source` 声明）、`entry_runtimes` 字段（多运行时环境声明）。文件清单补充 `package.json`。
+> 2026-07-15 — 新增：`requires.npm`、`requires.binaries` 格式升级、`entry_runtimes` 字段。文件清单补充 `package.json`。
 > 2026-05-31 — HTTP 端点统一至 `/text-cli/` 前缀。路径 step 新增 `source` 字段。`other/` 迁移至 `tools/`。
-> 2026-05-20 — 新增：path/aggregate runtime、门面入口（text-cli;pro）、知识引擎（text-cli;nocode）、JSON感知参数拆分、handler_inits 约定、config部署机制。
+> 2026-05-20 — 新增：path/aggregate runtime、门面入口、知识引擎、JSON感知参数拆分、handler_inits 约定、config部署机制。
 > 修复：credentials 格式统一为数组、步骤语法 directive→instruction、变量语法 `${}`→`{}`。
 
 ---
@@ -67,9 +70,12 @@ Service-token: <token>
 ```json
 {
   "rst_types": "text",
-  "rst_data": {"text": "..."}
+  "rst_data": {"text": "..."},
+  "rst_err": ""
 }
 ```
+
+- `rst_err`：结构化错误字段。空字符串 `""` 表示成功，非空表示失败。取值见 §5。
 
 异步指令返回 task_id：
 
@@ -77,7 +83,7 @@ Service-token: <token>
 {"rst_types": "text", "rst_data": {"text": "{\"status\":\"pending\",\"task_id\":\"asr-12345\"}"}}
 ```
 
-调用方通过 `task;status,<task_id>` 查询——task-manager 实时向外部服务获取最新状态。
+调用方通过 `GET /text-cli/tasks/{task_id}` 查询任务状态（见 §2.6）。
 
 ### 2.3 GET 应急通道
 
@@ -103,6 +109,32 @@ GET /text-cli/health
 
 公开层返回 `{status, body, version, public_skills}`。鉴权层返回完整 `capabilities`。
 
+### 2.6 异步任务查询
+
+```
+GET /text-cli/tasks/{task_id}
+```
+
+**成功响应**：
+
+```json
+{
+  "status": "ok",
+  "task": {
+    "task_id": "task-0001",
+    "domain": "domain",
+    "action": "action",
+    "state": "pending|running|done|error",
+    "result": {"..."},
+    "progress": "步骤 3/8"
+  }
+}
+```
+
+**任务不存在**：`404` + `{"rst_err": "not_found"}`
+
+替代旧的 `task;status,<task_id>` 指令查询方式。
+
 ---
 
 ## 3. 鉴权与计费
@@ -123,16 +155,47 @@ XXXXX-XX-XXXXXX
 │      │  │
 │      │  └── 后 6 位：用户身份码
 │      └───── 中间 2 位：策略控制面（段位翻转 = 批量拦截 / 集中轮换）
-└──────────── 前 5 位：A3 实例标识
+└──────────── 前 5 位：服务实例标识
 ```
 
 **前缀不变性原则**：不管 token 总长度多长，前 8 位永远固定。
-A5 的 `extract_st_prefix()` 只做 `token[:8]`，不关心后段结构。
-身份码位数可扩展（6→10），A5 无感知。
+集成端点（Endpoint）的 `extract_st_prefix()` 只做 `token[:8]`，不关心后段结构。
+身份码位数可扩展（6→10），集成端点无感知。
 
 ### 3.2 配额保护
 
 指令可在执行前通过 `quota;check,<target>[,<amount>]` 进行配额检查。配额耗尽返回 `{"status":"stop"}`——聚合层将其作为降级信号，自动切换到下一个提供方。
+
+### 3.3 联邦 Mesh 凭证模型
+
+多节点 text-cli 联邦拓扑中，proxy 转发按 peer 注入凭证：
+
+**peer_credentials 表**：
+
+```sql
+CREATE TABLE IF NOT EXISTS peer_credentials (
+    peer TEXT PRIMARY KEY,
+    service_token TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+);
+```
+
+**proxy_routes.json 扩展**：
+
+```json
+{
+  "tencent-maps;geocode": {
+    "url": "http://peer:28050/text-cli/cli",
+    "peer": "tencent-maps",
+    "token": "env:TENCENT_MAPS"
+  }
+}
+```
+
+**映射链**：`domain;action` → `proxy_routes[].peer` → `peer_credentials(peer)` → proxy 按 peer 注入 `_injected_credentials`
+
+无 `peer` 字段时回退旧行为（全量注入）；服务端 SQLite 未安装时退化为无凭证转发 + WARNING。
 
 ---
 
@@ -146,15 +209,15 @@ A5 的 `extract_st_prefix()` 只做 `token[:8]`，不关心后段结构。
 {
   "id": "xx-cloud",
   "name": "XX Cloud",
-  "name_cn": "XX云",
+  "name_zh": "XX云",
   "type": "native",
   "runtime": "python",
   "category": "云服务",
   "version": "1.0.0",
-  "locales": ["cn", "en"],
+  "locales": ["zh", "en"],
   "trust": "internal",
   "description": "...",
-  "description_cn": "...",
+  "description_zh": "...",
   "requires": {
     "pip": ["requests>=2.28"],
     "tc_packages": ["task-manager", "quota-manage"]
@@ -163,27 +226,29 @@ A5 的 `extract_st_prefix()` 只做 `token[:8]`，不关心后段结构。
     {
       "name": "xx_cloud_key",
       "description_en": "API key for XX Cloud",
-      "description_cn": "XX云 API 密钥",
-      "storage": "a6_key_registry",
+      "description_zh": "XX云 API 密钥",
+      "storage": "key_registry",
       "register_cmd": "AI:key;register,xx_cloud_key,<key>,api_key"
     }
   ],
   "directives": [
     {
       "domain": "xx-cloud",
-      "domain_cn": "XX云",
+      "domain_zh": "XX云",
       "action": "translation",
-      "action_cn": "翻译",
+      "action_zh": "翻译",
       "usage": "xx-cloud;translation,<text>[,<target>]",
-      "usage_cn": "XX云;翻译,<文本>[,<目标>]",
+      "usage_zh": "XX云;翻译,<文本>[,<目标>]",
       "description": "Translate text via API.",
-      "description_cn": "通过 API 翻译文本。",
+      "description_zh": "通过 API 翻译文本。",
       "params": ["text", "target"],
       "params_desc": {
         "text": "Text to translate",
         "target": "Target language ISO code (default: en)"
       },
-      "outputs": ["text"]
+      "outputs": ["text"],
+      "estimated_time": "3s",
+      "estimated_time_note": "单次翻译通常 1-3 秒，取决于文本长度和 API 响应速度"
     }
   ]
 }
@@ -197,7 +262,7 @@ A5 的 `extract_st_prefix()` 只做 `token[:8]`，不关心后段结构。
 | `type` | ✅ | `"native"` / `"nocode"` / `"aggregate"` / `"path"` |
 | `runtime` | ✅ | `"python"` / `"node"` / `"mcp"` / `"cmd"` / `"path"` / `"aggregate"` |
 | `category` | ✅ | 分类标签 |
-| `locales` | ✅ | 多语言覆盖 |
+| `locales` | ✅ | 多语言覆盖。格式 `["<ISO 639-1 语言代码>", ...]`（如 `["zh", "en"]`）。中文使用 `"zh"` 非 `"cn"` |
 | `trust` | ✅ | `"internal"` / `"community"` / `"public"` |
 | `requires.pip` | 否 | Python 包依赖 |
 | `requires.tc_packages` | 否 | 指令包间依赖 |
@@ -205,7 +270,7 @@ A5 的 `extract_st_prefix()` 只做 `token[:8]`，不关心后段结构。
 | `requires.npm` | 否 | Node.js 包依赖（项目级 `npm install`）。格式：`["@scope/name@^1.0"]` |
 | `requires.binaries` | 否 | 系统二进制 / 全局 CLI 依赖。格式：`{"<name>": {"source": "system"\|"package"\|"npm-global", "min_version": "..."}}`。`source: "system"` = OS 包管理器安装；`source: "package"` = 随包分发；`source: "npm-global"` = npm 全局安装 |
 | `entry_runtimes` | 否 | 包的运行时环境清单（当单个 `runtime` 不能完整描述时使用）。格式：`["python", "node"]`。不影响框架注册方式，仅声明运行前需准备的环境 |
-| `requires.service_db` | 否 | A6 骨架表依赖（`["token_registry", "token_call_logs"]`） |
+| `requires.service_db` | 否 | 指令包依赖服务端数据库（SQLite）。声明依赖的表名（如 `["token_registry", "token_call_logs"]`）。安装时自动建表，卸载时自动 DROP |
 | `tables` | 否 | 应用自建表的 CREATE TABLE 声明。install 时自动建表，uninstall 时自动 DROP |
 | `credentials` | 否 | 需要的凭据（key name → source） |
 | `entry` | 否 | 公开端点 URL |
@@ -217,17 +282,19 @@ A5 的 `extract_st_prefix()` 只做 `token[:8]`，不关心后段结构。
 | 字段 | 必填 | 说明 |
 |------|------|------|
 | `domain` | ✅ | 指令域 |
-| `domain_cn` | 推荐 | 中文域别名 |
+| `domain_zh` | 推荐 | 中文域别名 |
 | `action` | ✅ | 动作名 |
-| `action_cn` | 推荐 | 中文动作别名 |
+| `action_zh` | 推荐 | 中文动作别名 |
 | `usage` | ✅ | 用法示例（规范名） |
-| `usage_cn` | 推荐 | 中文用法示例 |
+| `usage_zh` | 推荐 | 中文用法示例 |
 | `description` | ✅ | 英文描述 |
-| `description_cn` | ✅ | 中文描述 |
+| `description_zh` | ✅ | 中文描述 |
 | `params` | 否 | 参数名列表 |
 | `params_desc` | 否 | 参数说明对象 |
 | `mcp_tool` | 否 | 原始 MCP tool 名 |
 | `outputs` | 否 | 指令返回的 status 级字段名列表（声明性，非运行时强制）。路径引擎用于 `{step.field}` 引用校验；后续考虑用图自动建立 `:OUTPUTS` 关系。声明了但未返回的字段不会导致错误 |
+| `estimated_time` | 否 | 指令最大预期执行时间。格式 `"<数值><ms\|s\|h>"`（如 `"500ms"`、`"30s"`、`"2h"`）。供异步调度器做超时预估和优先级决策。同步指令不填 |
+| `estimated_time_note` | 否 | 预估时间的解释说明。如 `"0.5h视频转换约120s，耗时与视频时长近似线性增长"`。配合 `estimated_time` 使用，帮助调用方推算不同输入规模下的预期耗时 |
 
 ### 4.4 聚合指令 Schema
 
@@ -238,7 +305,8 @@ A5 的 `extract_st_prefix()` 只做 `token[:8]`，不关心后段结构。
   "id": "map",
   "type": "aggregate",
   "domain": "map",
-  "description_cn": "地图服务：多提供方自动降级",
+  "name_zh": "地图服务",
+  "description_zh": "地图服务：多提供方自动降级",
   "default": ["x1-map", "x2-map", "x3-map"],
   "providers": {
     "x1-map": {"geocode": "x1-map;geocode", "route": "x1-map;route"},
@@ -261,7 +329,7 @@ A5 的 `extract_st_prefix()` 只做 `token[:8]`，不关心后段结构。
 ```json
 {
   "id": "route-map",
-  "name_cn": "地图连线",
+  "name_zh": "地图连线",
   "type": "path",
   "version": "1.0.0",
   "input_schema": {"type": "string"},
@@ -283,7 +351,7 @@ A5 的 `extract_st_prefix()` 只做 `token[:8]`，不关心后段结构。
 | `input_schema` | 推荐 | 输入参数的 JSON Schema 片段 |
 | `output_schema` | 推荐 | 输出结果的 JSON Schema 片段 |
 | `requires` | ✅ | 依赖的指令列表 |
-| `default_source` | 否 | 路径级默认端点 URL。省略时所有 step 在本机 A3 执行 |
+| `default_source` | 否 | 路径级默认端点 URL。省略时所有 step 在本机服务 执行 |
 | `steps` | ✅ | 步骤数组 |
 
 ---
@@ -294,13 +362,17 @@ A5 的 `extract_st_prefix()` 只做 `token[:8]`，不关心后段结构。
 
 | 错误码 | 含义 |
 |--------|------|
-| `INVALID_DIRECTIVE_FORMAT` | 指令格式不正确 |
+| `ERR_NOT_FOUND` | 能力不存在——上层可换路 |
+| `ERR_EXECUTION` | 执行失败——可重试 |
+| `ERR_ROUTING` | 路由/网络失败——停+告警 |
+| `INVALID_DIRECTIVE_FORMAT` | 指令格式不正确（向后兼容，已合并至 `ERR_EXECUTION` 语义） |
 | `INVALID_PARAMS` | 参数不合法 |
-| `DIRECTIVE_NOT_FOUND` | 未找到匹配的指令 |
 | `ACCESS_DENIED` | Access Token 无效 |
 | `SERVICE_DENIED` | Service Token 无效或额度不足 |
-| `BACKEND_TIMEOUT` | 后端服务超时 |
-| `BACKEND_ERROR` | 后端未知错误 |
+| `BACKEND_TIMEOUT` | 后端服务超时（向后兼容，已合并至 `ERR_ROUTING` 语义） |
+| `BACKEND_ERROR` | 后端未知错误（向后兼容，已合并至 `ERR_EXECUTION` 语义） |
+
+`rst_err` 字段承载错误码。空字符串 `""` 表示成功。旧错误码保留向后兼容，新实现应优先使用三码体系。
 
 错误以单行结构化字符串返回，不膨胀 Agent 上下文。
 
@@ -322,7 +394,10 @@ A5 的 `extract_st_prefix()` 只做 `token[:8]`，不关心后段结构。
 
 ## 7. 版本管理
 
-- 当前版本 v1.3.1
+- 当前版本 v1.3.2
+- v1.3.2（2026-07-22 修订）：新增 `estimated_time` / `estimated_time_note` 可选字段——指令最大预期执行时间及解释说明，为异步调度器做准备。
+- v1.3.2（2026-07-22 修订）：Schema 字段标准化——`_cn` → `_zh`（`name_zh`/`description_zh`/`domain_zh`/`action_zh`/`usage_zh`），统一使用 ISO 639-1 语言代码后缀，为后续多语言扩展做准备。
+- v1.3.2（2026-07-21）：新增 `GET /text-cli/tasks/{task_id}` 端点、`rst_err` 结构化错误字段、`ERR_NOT_FOUND/ERR_EXECUTION/ERR_ROUTING` 三码体系、联邦 mesh 凭证模型（`peer_credentials`）、未定义变量留空+WARNING 行为。错误码从旧命名体系迁移。
 - v1.3.1（2026-07-16）：`指令:` 前缀声明为过渡期，v1.4 移除。推荐 `AI:` 作为唯一前缀。
 - v1.3（2026-05-31）：HTTP 端点统一至 `/text-cli/` 前缀。路径 step 新增 `source` 字段。`other/` 迁移至 `tools/`。
 - v1.2 初始（2026-05-17）：聚合指令、nocode 指令包、包生命周期导出、管道闭包原则、service_manifest 白名单
@@ -337,7 +412,7 @@ A5 的 `extract_st_prefix()` 只做 `token[:8]`，不关心后段结构。
 - 服务提供方只用一种语言注册
 - 翻译在端点层做，不在服务层
 - 参数不翻译——语义由位置决定
-- 语言不匹配时返回 `DIRECTIVE_NOT_FOUND`
+- 语言不匹配时返回 `ERR_NOT_FOUND`
 
 ---
 
@@ -370,10 +445,12 @@ A5 的 `extract_st_prefix()` 只做 `token[:8]`，不关心后段结构。
 | `{step_id.field}` | 上一步输出的 JSON 字段（支持深度路径如 `{geo.poi.0.name}`） |
 | `"if"` | 可选条件——条件为 false 时跳过此步骤 |
 | `"instruction"` | 要分派的 text-cli 指令模板 |
-| `"source"` | 可选 — 步骤级端点 URL。省略时继承 `default_source` 或本机 A3。值必须为完整 URL，如 `"http://10.168.1.122/text-cli/cli"` |
+| `"source"` | 可选 — 步骤级端点 URL。省略时继承 `default_source` 或本机服务。值必须为完整 URL，如 `"http://10.168.1.122/text-cli/cli"` |
 
 > `{step_id.field}` 引用的字段应在目标指令的 schema.json `outputs` 声明范围内。路径引擎可据此做字段引用校验。
 > 详见 §4.3 `outputs` 字段说明。
+>
+> **未定义变量行为**：引用的变量不存在时，替换为空字符串 `""` 并记录 `WARNING: 未定义变量 {name}`。不抛错——异步场景下变量可能因步骤执行时序暂未就绪，抛错会阻断路径执行。
 
 路径跨节点执行示例：
 
@@ -388,7 +465,7 @@ A5 的 `extract_st_prefix()` 只做 `token[:8]`，不关心后段结构。
 }
 ```
 
-`source` 省略时继承 `default_source`；`default_source` 也省略时默认本机 A3。
+`source` 省略时继承 `default_source`；`default_source` 也省略时默认本机服务。
 
 ### 9.3 收敛模板
 
@@ -415,7 +492,7 @@ ai;infer,'只返回JSON如{"file":"根腐病.md"}'
 text-cli;pro,<name>[,<input_json>]
 ```
 
-A9 门面层将短名称解析为执行目标。门面注册表 `service/config/pro_registry.json` 映射 name → target：
+门面层将短名称解析为执行目标。门面注册表 `service/config/pro_registry.json` 映射 name → target：
 
 ```json
 {
@@ -429,7 +506,7 @@ A9 门面层将短名称解析为执行目标。门面注册表 `service/config/
 | `path` | 解析 `path` 字段 → 调度 `text-cli;path,<path_ref>,<input>` |
 | `aggregate` | 解析 `domain` + `action` → 调度 `domain;action,<params>` |
 
-门面指令与原子指令平权——调用方不感知背后的实现是单步还是多步。这是 A9 高级指令门面层的核心价值：**按服务领域数增长，而非按工具数增长。**
+门面指令与原子指令平权——调用方不感知背后的实现是单步还是多步。这是高级指令门面层的核心价值：**按服务领域数增长，而非按工具数增长。**
 
 ---
 
@@ -452,9 +529,9 @@ text-cli;install,<包名>
 | `python` | 部署 handler.py + schema.json + text_cli_modules/ + config/ + package.json（如有 npm 依赖） + 建表（`tables`）。若 `requires.npm` 非空，执行 `npm install` |
 | `node` | 部署 <entry>.js + schema.json + package.json + config/。若 `requires.npm` 非空，执行 `npm install` |
 | `path` | 部署 schema.json + path/*.json → `service/paths/<pkg>/` + knowledge/* → `service/knowledge/<pkg>/` |
-| `aggregate` | 部署 schema.json + 路由表 *.json → `A8-discovery/aggregate/` |
+| `aggregate` | 部署 schema.json + 路由表 *.json → 服务发现的 aggregate 目录 |
 
-若包含 `config/` 目录，安装器通过 `_deploy_package_config()` 自动复制到 `service/config/`，已存在文件跳过（不覆盖用户修改）。
+若包含 `config/` 目录，安装器自动复制配置到 `service/config/`，已存在文件跳过（不覆盖用户修改）。
 
 ### 10.2 指令包卸载
 
@@ -496,7 +573,7 @@ text-cli;query,<关键词>                        → 搜索指令
 
 `text-cli;path` 接收内联 JSON 步骤序列或指向 `service/paths/<pkg>/<file>.json` 的文件引用。用户输入通过 `{input.key}` 插值注入。
 
-`text-cli;nocode` 列出或读取 `service/knowledge/<domain>/` 下的 Markdown 知识文件。这些文件由 runtime=path 的包在安装时通过 `_deploy_path_resources()` 部署。
+`text-cli;nocode` 列出或读取 `service/knowledge/<domain>/` 下的 Markdown 知识文件。这些文件由 runtime=path 的包在安装时自动部署。
 
 ### 10.6 技能暴露控制
 
@@ -576,6 +653,7 @@ text-cli;query,<关键词>                        → 搜索指令
   "id": "map",
   "type": "aggregate",
   "domain": "map",
+  "name_zh": "地图服务",
   "default": ["x1-map", "x2-map", "x3-map"],
   "providers": {
     "x1-map": {"geocode": "x1-map;geocode", "route": "x1-map;route"},

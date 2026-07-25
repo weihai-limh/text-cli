@@ -4,7 +4,7 @@
 > **版本**：v1.0 | **日期**：2026-04-30
 > **适用范围**：text-cli 生态全体参与者（人类与 AI）
 > **状态**：草案，待社区讨论与共识
-> **关联文档**：`../SPEC_v1_3_1_zh.md`（协议规范）、`collaboration_zh.md`（项目协作规范）
+> **关联文档**：`../SPEC_zh.md`（协议规范）、`collaboration_zh.md`（项目协作规范）
 
 ---
 
@@ -213,7 +213,7 @@
 - 本宪章自发布之日起生效，其更新将记录在版本历史中。
 - 宪章以 Markdown 文本形式存放于 `docs/ecosystem/charter_zh.md`。
 - 宪章的中英文版本具有同等效力。如中英文版本存在冲突，以中文版本为准，但应以善意原则寻求一致解释。
-- 本宪章为开放协议的一部分，与 `SPEC_v1_3_1_zh.md`（协议规范）和 `ecosystem/collaboration_zh.md`（项目协作规范）一起构成 `text-cli` 的治理基础。
+- 本宪章为开放协议的一部分，与 `SPEC_zh.md`（协议规范）和 `ecosystem/collaboration_zh.md`（项目协作规范）一起构成 `text-cli` 的治理基础。
 
 ---
 

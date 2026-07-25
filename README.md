@@ -1,18 +1,19 @@
 # text-cli
 
-**text-cli 是以'文本驱动'的'分布式'的'渐进式'技能交付服务。**
-> 调用者（人或 AI）通过 curl 向部署了 text-cli 服务的终端发起请求后，目标终端即根据"声明"向调用方返回"经过技能加工后"的"响应结果"。
-> 无论你是开发者、行业专家，还是只想把经验变成服务的非开发者，都可以在这里把你的知识打包成"一键指令"——一种全新的 **Skill-as-a-Service** 模式。
+**text-cli 是以"文本驱动"的"分布式"的"渐进式"能力分发系统。**
+> text-cli 不是 API 封装层——它是分布式基础设施的统一操作语言。一种 **Skills-as-a-Service** 模式。
+> 所有人和 AI 都可以通过 text-cli 获得收益。所有参与者同时具有生产者和消费者的角色。
 
-**text-cli is a text-driven, distributed, progressive skill delivery service.**
-> A caller (human or AI) sends a curl request to a terminal running text-cli. The terminal returns a skill-processed result based on the declaration. Anyone can package knowledge as a one-line directive — a new **Skill-as-a-Service** model.
+**text-cli is a text-driven, distributed, progressive capability distribution system.**
+> text-cli is not an API wrapper — it's a unified operating language for distributed infrastructure. A **Skills-as-a-Service** model.
+> Everyone — human or AI — benefits from text-cli. Every participant is both a producer and a consumer.
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
-[![Version](https://img.shields.io/badge/version-v0.1.0-orange)]()
+[![Version](https://img.shields.io/badge/version-v0.1.1-orange)]()
 
 ---
 
-🌐 **中文** | [English](README.md) (coming in v1.0)
+🌐 [中文完整文档](README_zh.md) | English (full docs coming in v1.0)
 
 > 当前主语言：中文。完整文档见 [README_zh.md](README_zh.md)。
 > Current primary language: Chinese. Full documentation at [README_zh.md](README_zh.md).
@@ -28,20 +29,24 @@
 | **串联多条指令为管道** | geocode → route → static-map → 一步返回地图连线 |
 | **聚合降级——一个入口，多个提供方** | `AI:map;geocode,威海` → tx-map 挂了自动切 gd-map |
 | **非开发者封装经验** | 让 AI 帮写 Markdown → AI 帮封装 → 可调用的诊断服务 |
-| **多台机器各自暴露能力** | 换 IP 就是换能力源，`AI:text-cli;query` 返回不同清单 |
+| **多台机器各自暴露能力** | 换 IP 就是换能力源，节点间 mesh 多跳互联，`AI:text-cli;query` 返回不同清单 |
 
 ---
 
-## 🚀 快速开始 / Quick Start
+## 🧭 快速开始 / Quick Start
 
-| 你是 / You are | 去这里 / Go here |
+| 我想… / I want to… | 从这里开始 / Start here |
 |:---|:---|
-| 我想了解项目是什么、能做什么 | [README_zh.md](README_zh.md) — 完整中文文档 |
-| 我想了解完整指令格式 | [docs/SPEC_v1_3_1_zh.md](docs/SPEC_v1_3_1_zh.md) |
-| 我想看渐进式部署全景 | [deploy/INDEX_zh.md](deploy/INDEX_zh.md) |
-| 我想部署本地 copilot | [deploy/A2-copilot/](deploy/A2-copilot/) |
-| 我想部署平台服务 | [deploy/A3-service/](deploy/A3-service/) |
-| 我想了解生态规则 | [docs/ecosystem/charter_zh.md](docs/ecosystem/charter_zh.md) |
+| 了解项目是什么、能做什么 | [README_zh.md](README_zh.md) — 完整中文文档 |
+| 先跑起来试试 | [30 秒体验](README_zh.md#-30-秒体验) |
+| 调用别人的 text-cli 服务 | [curl 即可](src/skeleton/base/docs/README_zh.md) |
+| 把经验（Markdown）变成可调用的指令 | [零代码指令包开发指南](src/text_cli/base_text-cli/docs/package-nocode-guide_zh.md) |
+| 开发标准指令包（Python/API） | [标准指令包开发指南](src/text_cli/base_text-cli/docs/package-dev-guide_zh.md) |
+| 把既有工具快速转成指令包 | [转化器（脚手架生成器）](src/text_cli/base_text-cli/converter/) |
+| 部署自己的运行时 | [渐进式部署导航](deploy/INDEX_zh.md) |
+| 运营端点对外提供服务 | [生态伙伴成长路径](docs/ecological-partners_zh.md) |
+| 了解协议细节 | [协议规范 SPEC](docs/SPEC_zh.md) |
+| 查看主要文档索引 | [文档目录](docs/INDEX_zh.md) |
 
 ---
 

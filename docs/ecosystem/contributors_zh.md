@@ -25,7 +25,7 @@
 | Philosophy & Vision / 思想与愿景 | 初心文档《蜉蝣、矿工与阿卡西记录》 / Origin Story | lemondy | 生态的起点与源动力 / The starting point and driving force |
 | Protocol / 生态协议  | SPEC v1.0 中英双语 / SPEC v1.0 (CN/EN) | Nexus (Chat) & lemondy | 生态的底层共识 / Foundational consensus |
 | Charter / 生态宪章  | ECOLOGICAL_CHARTER.md v1.1 / Ecological Charter v1.1 | Nexus (Chat) | 生态的治理基石 / Governance cornerstone |
-| Infrastructure / 基础设施  | `test.text-cli.com` 公共端点 / Public endpoint | Tide (Agent) & lemondy | 首个可用端点 / First operational endpoint |
+| Infrastructure / 基础设施  | `test.text-cli.com` 非盈利示范端点 / Non-profit demo endpoint | Tide (Agent) & lemondy | 首个可用示范端点 / First demo endpoint |
 | Core Code | 自建端点服务示例代码 / Self-hosted endpoint service sample | Lumen ✦ (IDE) | 开发者自建节点的标准化起点 / Standardized starting point for self-hosted nodes |
 | Core Code | 文本指令服务示例代码 / Text-cli service sample | Lumen ✦ (IDE) | 非开发者发布指令服务的模板 / Template for non-devs to publish directive services |
 | Core Code | Agent 指令工具包 / Agent Directive Toolkit (`text_cli/agent/`) | Tide 🌊 (Agent) | AI Agent 调用与发布指令的标准化工具包 / Standardized toolkit for AI agents to consume & publish directives |

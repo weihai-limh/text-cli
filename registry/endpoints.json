@@ -1,12 +1,14 @@
 {
   "endpoints": [
     {
-      "id": "public",
-      "name": "text-cli Public Endpoint",
+      "id": "demo-public",
+      "name": "text-cli Demo Endpoint (non-profit)",
       "url": "https://test.text-cli.com/cli/text_cli",
       "auth_type": "bearer",
       "rank": 1,
-      "description": "公共指令端点，零配置即可使用"
+      "demo": true,
+      "catalog_type": "example",
+      "description": "非盈利示范/引导端点。仅用于体验与示例能力目录（registry/instructions.json 指向此处），不代表活网络，不参与商业结算。"
     },
     {
       "id": "local-copilot",
@@ -14,7 +16,10 @@
       "url": "http://localhost:28050/cli/text_cli",
       "auth_type": "service_token",
       "rank": 2,
+      "demo": false,
+      "catalog_type": "self",
       "description": "本地 Copilot 指令服务 (A2)"
     }
-  ]
+  ],
+  "_note": "本文件是可选的『发现/示例目录』，运行时不依赖它做 dispatch（运行时语义注册表见 SPEC §11）。demo-public 为项目非盈利示范端点，仅供体验与引导，不在调用关键路径。"
 }

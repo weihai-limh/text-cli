@@ -41,7 +41,7 @@
       "type": "string",
       "description": "Path description"
     },
-    "description_cn": {
+    "description_zh": {
       "type": "string",
       "description": "Chinese description"
     },

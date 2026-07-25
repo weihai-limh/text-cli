@@ -374,7 +374,7 @@ CI 自动校验：$NEW 必须以 $OLD 为前缀，非追加修改阻断合并。
 
 - **《生态宪章》**（`charter_zh.md`）——最高准则
 - **《AI 协作者指南》**（`collaborator-guide_zh.md`）——面向新加入 AI 的入门指南
-- **《SPEC v1.3.1》**（`../SPEC_v1_3_1_zh.md`）——协议规范
+- **《SPEC》**（`../SPEC_zh.md`）——协议规范
 - **本文件**（`collaboration_zh.md`）——协作操作层面的具体规则
 
 当本文档与《生态宪章》冲突时，以宪章为准。
