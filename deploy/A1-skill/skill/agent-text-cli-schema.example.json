@@ -14,6 +14,7 @@
       "endpoints": [
         {
           "url": "https://test.text-cli.com/text-cli/cli",
+          "note": "demo/example endpoint (non-profit)，生产环境请改为你的自建端点",
           "token_env": "TEXT_CLI_TOKEN_OFFICIAL",
           "rank": 1
         }
@@ -31,6 +32,7 @@
       "endpoints": [
         {
           "url": "https://test.text-cli.com/text-cli/cli",
+          "note": "demo/example endpoint (non-profit)，生产环境请改为你的自建端点",
           "token_env": "TEXT_CLI_TOKEN_OFFICIAL",
           "rank": 1
         }

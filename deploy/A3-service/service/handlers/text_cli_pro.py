@@ -72,7 +72,7 @@ def text_cli_pro(params: list[str]) -> str:
     if target_type == "path":
         path_ref = entry.get("path", "")
         if not path_ref:
-            return json.dumps({"status": "error", "reason": f"path target has no 'path' field"})
+            return json.dumps({"status": "error", "reason": "path target has no 'path' field"})
 
         path_params = [path_ref]
         if len(params) > 1:
@@ -88,7 +88,7 @@ def text_cli_pro(params: list[str]) -> str:
         domain = entry.get("domain", "")
         action = entry.get("action", "")
         if not domain or not action:
-            return json.dumps({"status": "error", "reason": f"aggregate target missing domain/action"})
+            return json.dumps({"status": "error", "reason": "aggregate target missing domain/action"})
 
         agg_params = params[1:] if len(params) > 1 else []
 

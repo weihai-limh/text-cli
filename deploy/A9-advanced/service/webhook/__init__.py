@@ -160,8 +160,7 @@ async def handle_webhook(provider: str, request: Request):
     body = await request.body()
     verifier_name = pconf.get("verify", "")
     verifier = _VERIFIERS.get(verifier_name)
-    if verifier:
-        if not verifier(pconf, request, body):
+    if verifier and not verifier(pconf, request, body):
             logger.warning("webhook verify failed: provider=%s, verifier=%s", provider, verifier_name)
             return JSONResponse(
                 status_code=403,

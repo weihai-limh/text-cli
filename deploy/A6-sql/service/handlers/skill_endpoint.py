@@ -96,7 +96,7 @@ def list_skills() -> dict:
         result[skill_id] = {
             "visibility": vis,
             "description": entry.get("description_public", schema.get("description", "")),
-            "description_cn": entry.get("description_public", schema.get("description_cn", schema.get("description", ""))),
+            "description_zh": entry.get("description_public", schema.get("description_zh", schema.get("description", ""))),
             "version": schema.get("version", "?"),
             "rate_limit": entry.get("rate_limit"),
             "credit_cost": entry.get("credit_cost", 0),
@@ -131,7 +131,7 @@ def get_skill_detail(skill_id: str) -> dict | None:
         "id": skill_id,
         "visibility": vis,
         "description": entry.get("description_public", schema.get("description", "")),
-        "description_cn": entry.get("description_public", schema.get("description_cn", schema.get("description", ""))),
+        "description_zh": entry.get("description_public", schema.get("description_zh", schema.get("description", ""))),
         "version": schema.get("version", "?"),
         "input_schema": schema.get("input_schema", {}),
         "output_schema": schema.get("output_schema", {}),

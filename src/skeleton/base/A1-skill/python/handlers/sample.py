@@ -1,5 +1,5 @@
 """
-sample.py — 示例：将 Agent 既有能力转化为 text-cli 指令 (SPEC v1.3)
+sample.py — 示例：将 Agent 既有能力转化为 text-cli 指令 (SPEC v1.3.2
 
 如果你已经有这些函数:
     def my_weather(city): ...
@@ -24,12 +24,13 @@ def sample_query(params: list[str]) -> str:
 @register(domain="示例领域", action="计算", category="示例", description="将本地工具包装为 text-cli 指令")
 def sample_calc(params: list[str]) -> str:
     """示例：将本地工具包装为 text-cli 指令"""
+    import ast
     if not params:
         return "请提供计算表达式"
     try:
-        result = eval(params[0])
+        result = ast.literal_eval(params[0])
         return f"计算结果: {result}"
-    except Exception:
+    except (ValueError, SyntaxError):
         return f"无法计算: {params[0]}"
 
 

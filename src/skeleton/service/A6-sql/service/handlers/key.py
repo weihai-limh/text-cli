@@ -10,18 +10,17 @@ SQLite module available → handle locally
 SQLite module unavailable → routed to copilot via proxy_routes.json (no handler registered)
 """
 
-import json
 import logging
 
 logger = logging.getLogger(__name__)
 
 try:
+    from text_cli_modules.key.key_registry import get_quota_track as _get_qt
+    from text_cli_modules.key.key_registry import list_keys as _list
     from text_cli_modules.key.key_registry import register as _reg
     from text_cli_modules.key.key_registry import revoke as _rev
-    from text_cli_modules.key.key_registry import list_keys as _list
-    from text_cli_modules.key.key_registry import set_quota_track as _set_qt
-    from text_cli_modules.key.key_registry import get_quota_track as _get_qt
     from text_cli_modules.key.key_registry import set_dispatch as _set_dispatch
+    from text_cli_modules.key.key_registry import set_quota_track as _set_qt
     SQLITE_ENABLED = True
     logger.info("SQLite key module loaded, local key management enabled")
 except ImportError:
@@ -85,7 +84,7 @@ if SQLITE_ENABLED:
         for k in keys:
             cc = k.get('cred_count', 1)
             qt = k.get('quota_track')
-            qt_str = f' [追踪: {",".join(qt)}]' if qt else ''
+            qt_str = f' [tracking: {",".join(qt)}]' if qt else ''
             lines.append(
                 f'  {k["service"]} ({k["key_type"]}, '
                 f'cred_count={cc}) — {k["registered_at"]}{qt_str}'

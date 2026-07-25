@@ -7,7 +7,7 @@ skill.py — Agent 技能基类：将 text-cli 指令封装为可复用的语义
 
 技能 = 意图映射 + 指令编排 + 结果加工 + 降级策略
 
-SPEC v1.3 响应格式:
+SPEC v1.3.2 响应格式:
     {"rst_types": "text", "rst_data": {"text": "..."}}
 
 用法:
@@ -29,6 +29,7 @@ import json
 import urllib.request
 from dataclasses import dataclass
 from typing import Callable
+from urllib.parse import urlparse
 
 
 @dataclass
@@ -100,10 +101,12 @@ class Skill:
 
     def _call_endpoint(self, directive: str, endpoint: str, token: str) -> str:
         """通过 urllib 直接调用 text-cli endpoint（零依赖）。"""
+        if urlparse(endpoint).scheme not in ('http', 'https'):
+            raise ValueError(f"Invalid endpoint scheme: {endpoint}")
         body = json.dumps({"prompt": directive}).encode("utf-8")
         headers = {"Content-Type": "application/json; charset=utf-8"}
         if token:
-            headers["Authorization"] = f"Bearer {token}"
+            headers["Service-token"] = token
 
         req = urllib.request.Request(endpoint, data=body, headers=headers, method="POST")
         with urllib.request.urlopen(req, timeout=30) as resp:
@@ -118,7 +121,7 @@ class Skill:
 
     def on_error(self, params: tuple, error: str) -> str:
         """错误时返回兜底文本。子类覆盖此方法实现降级策略。"""
-        return f"[{self.name}] 指令执行失败: {error}"
+        return f"[{self.name}] instruction execution failed: {error}"
 
     @classmethod
     def run(cls, *params: str, endpoint: str | None = None, token: str | None = None) -> SkillResult:

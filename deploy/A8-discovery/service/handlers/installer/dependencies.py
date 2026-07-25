@@ -36,17 +36,17 @@ def install_deps(req_path: str | None, name: str, requires: dict = None) -> tupl
         try:
             result = subprocess.run(
                 [VENV_PIP, "install", "-q", "-r", req_path],
-                capture_output=True, text=True, timeout=60,
+                capture_output=True, text=True, timeout=60, check=False,
             )
             if result.returncode != 0:
                 last_err = result.stderr.strip().splitlines()[-1] if result.stderr else f"exit={result.returncode}"
-                return False, f"pip 安装失败: {last_err}"
+                return False, f"pip install failed: {last_err}"
         except subprocess.TimeoutExpired:
-            return False, "pip 安装超时（60s）"
+            return False, "pip install timeout (60s)"
         except FileNotFoundError:
-            return False, f"pip 不可用: {VENV_PIP}"
+            return False, f"pip unavailable: {VENV_PIP}"
         except OSError as e:
-            return False, f"pip 错误: {e}"
+            return False, f"pip error: {e}"
 
     # Install new-format packages individually
     failed = []
@@ -55,7 +55,7 @@ def install_deps(req_path: str | None, name: str, requires: dict = None) -> tupl
             result = subprocess.run(
                 [sys.executable, "-m", "pip", "install", pkg,
                  "--break-system-packages", "-q"],
-                capture_output=True, text=True, timeout=60,
+                capture_output=True, text=True, timeout=60, check=False,
             )
             if result.returncode != 0:
                 failed.append(pkg)
@@ -63,12 +63,12 @@ def install_deps(req_path: str | None, name: str, requires: dict = None) -> tupl
             failed.append(pkg)
 
     if failed:
-        return False, f"pip 安装失败: {', '.join(failed)}"
+        return False, f"pip install failed: {', '.join(failed)}"
 
     total = (1 if req_path else 0) + len(pkgs_to_install)
     if total == 0:
-        return True, "无 pip 依赖"
-    return True, "依赖就绪"
+        return True, "no pip dependencies"
+    return True, "dependencies ready"
 
 
 def check_deps_shared(removing_name: str, all_schema_files) -> list[str]:

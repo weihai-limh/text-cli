@@ -49,7 +49,7 @@ def _get_config(key: str, env_name: str, default: str = "") -> str:
     return conf.get(key, default)
 
 
-DEFAULT_ENDPOINT = "https://test.text-cli.com/text-cli/cli"
+DEFAULT_ENDPOINT = "https://test.text-cli.com/text-cli/cli"  # 非盈利示范/引导端点(demo)，可用 TEXT_CLI_ENDPOINT 覆盖
 TIMEOUT = 10
 
 
@@ -102,9 +102,9 @@ def call_directive(
         status = e.response.status_code if e.response is not None else 0
         raise ValueError(f"HTTP {status}: {error_body}") from e
     except requests.exceptions.ConnectionError as e:
-        raise ConnectionError(f"无法连接至 {url}: {e}") from e
+        raise ConnectionError(f"cannot connect to {url}: {e}") from e
     except requests.exceptions.Timeout as e:
-        raise TimeoutError(f"请求超时 ({timeout}s): {url}") from e
+        raise TimeoutError(f"request timeout ({timeout}s): {url}") from e
 
     if data.get("rst_types") == "text":
         return data["rst_data"]["text"]

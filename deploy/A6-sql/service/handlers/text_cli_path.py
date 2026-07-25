@@ -22,17 +22,17 @@ Directives:
   "lang": "en",
   "mode": "toolchain",
   "description": "...",
-  "description_cn": "...",
-  "input_schema": {"type": "string", "description_cn": "图片路径"},
-  "output_schema": {"type": "text", "description_cn": "照片摘要"},
+  "description_zh": "...",
+  "input_schema": {"type": "string", "description_zh": "图片路径"},
+  "output_schema": {"type": "text", "description_zh": "照片摘要"},
   "requires": ["image;info", "image;encode", "AI;vision", "AI;reasoning"],
   "steps": [
-    {"directive": "image;info,${input}", "output_as": "metadata"},
-    {"directive": "image;encode,${input},1024", "output_as": "encoded"}
+    {"instruction": "image;info,{input}", "output_as": "metadata"},
+    {"instruction": "image;encode,{input},1024", "output_as": "encoded"}
   ]
 }
 
-变量: ${input} = 初始输入, ${step_name} = 上一步 output_as 的输出
+变量: {input} = 初始输入, {step_name} = 上一步 output_as 的输出
 
 Author: Tide 🌊
 """
@@ -48,7 +48,7 @@ import re
 from core.registry import directive, dispatch, get_registered_directives
 
 logger = logging.getLogger(__name__)
-VAR_RE = re.compile(r'\$\{(\w+)\}')
+VAR_RE = re.compile(r'\{(\w+)\}')
 
 # P1: inline interpolation — {step.field} or {step.field.index}
 INLINE_RE = re.compile(r'\{(\w+)\.(\w+)(?:\.(\d+))?\}')
@@ -65,9 +65,9 @@ _ACCEPTED_TYPES = frozenset({"skill", "pipeline"})
 # ── Config paths ─────────────────────────────────
 _CONFIG_DIR = pathlib.Path(__file__).parent.parent / "config"
 _MESSAGES_EN_PATH = _CONFIG_DIR / "path_messages_en.json"
-_MESSAGES_CN_PATH = _CONFIG_DIR / "path_messages_cn.json"
+_MESSAGES_ZH_PATH = _CONFIG_DIR / "path_messages_zh.json"
 
-# In-memory cache: (lang, mtime_en, mtime_cn) → messages dict
+# In-memory cache: (lang, mtime_en, mtime_zh) → messages dict
 _messages_cache: dict[str, dict] = {}
 
 
@@ -83,11 +83,11 @@ def _load_messages(lang: str) -> dict:
     except OSError:
         mtime_en = 0
     try:
-        mtime_cn = _MESSAGES_CN_PATH.stat().st_mtime if _MESSAGES_CN_PATH.is_file() else 0
+        mtime_zh = _MESSAGES_ZH_PATH.stat().st_mtime if _MESSAGES_ZH_PATH.is_file() else 0
     except OSError:
-        mtime_cn = 0
+        mtime_zh = 0
 
-    cache_key = f"{lang}_{mtime_en}_{mtime_cn}"
+    cache_key = f"{lang}_{mtime_en}_{mtime_zh}"
     if cache_key in _messages_cache:
         return _messages_cache[cache_key]
 
@@ -128,10 +128,25 @@ def _fmt(key: str, messages: dict, **kwargs) -> str:
 
 
 def _resolve_var(text: str, variables: dict[str, str]) -> str:
-    """Replace ${var} placeholders with values from variables dict."""
+    """Replace {var} placeholders with values from variables dict.
+    
+    Undefined variables are replaced with empty string and a WARNING is logged.
+    This prevents path execution from breaking when steps produce variables 
+    asynchronously (e.g., synth-loop T8 results).
+    """
+    undefined = set()
+
     def _repl(m):
-        return variables.get(m.group(1), m.group(0))
-    return VAR_RE.sub(_repl, text)
+        name = m.group(1)
+        if name in variables:
+            return variables[name]
+        undefined.add(name)
+        return ""
+
+    result = VAR_RE.sub(_repl, text)
+    if undefined:
+        logger.warning("undefined variable: %s", ", ".join(sorted(undefined)))
+    return result
 
 
 # ── P1: inline interpolation ───────────────────
@@ -262,8 +277,12 @@ def _http_dispatch(url: str, domain: str, action: str, params: list[str],
     
     返回远端 raw 响应字符串。超时或网络错误时主动抛出异常由调用方处理。
     """
-    import urllib.request
     import urllib.error
+    import urllib.request
+    from urllib.parse import urlparse
+
+    if urlparse(url).scheme not in ('http', 'https'):
+        raise ValueError(f"Invalid URL scheme for remote dispatch: {url}")
 
     params_str = ",".join(params)
     # 如果有特殊字符，用单引号包裹但简单场景保持最简
@@ -299,7 +318,9 @@ def _execute_step(step: dict, variables: dict[str, str], step_index: int,
     Returns (status, result_text, output_as_key).
     status: "ok" | "error" | "delegated"
     """
-    raw_directive = step.get("directive", "")
+    raw_directive = step.get("instruction", "") or step.get("directive", "")
+    if step.get("directive") and not step.get("instruction"):
+        logger.warning("DEPRECATED: step uses 'directive' instead of 'instruction' — please migrate to 'instruction' per SPEC v1.2+")
     if not raw_directive:
         return "error", _fmt("STEP_ERR_NO_DIRECTIVE", messages, i=step_index), ""
 
@@ -530,7 +551,7 @@ def _check_condition(cond: dict, variables: dict[str, str]) -> tuple[bool, str]:
 def _references_skipped(directive: str, skipped_outputs: set) -> bool:
     """Check if a directive references any skipped output_as via {name.field} or ${name}."""
     for name in skipped_outputs:
-        if f"{{{name}." in directive or f"${{{name}}}" in directive:
+        if f"{{{name}." in directive or f"{{{name}}}" in directive:
             return True
     return False
 
@@ -705,14 +726,14 @@ def _register_path(path_def: dict, source_file: str, messages: dict) -> tuple[bo
     output = {
         "id": path_id,
         "name": path_def.get("name_en", path_def.get("name", path_id)),
-        "name_cn": path_def.get("name", path_id),
+        "name_zh": path_def.get("name", path_id),
         "runtime": "composite",
         "type": path_def.get("type", "skill"),
         "version": path_def.get("version", "0.1.0"),
         "mode": path_def.get("mode", "toolchain"),
         "locales": path_def.get("locales", ["en", "cn"]),
         "description": path_def.get("description", ""),
-        "description_cn": path_def.get("description_cn", path_def.get("description", "")),
+        "description_zh": path_def.get("description_zh", path_def.get("description", "")),
         "input_schema": path_def.get("input_schema", {"type": "string"}),
         "output_schema": path_def.get("output_schema", {"type": "text"}),
         "requires": path_def.get("requires", []),
@@ -775,7 +796,7 @@ def _execute_path(path_def: dict, initial_input: str,
                     "output_as": output_as, "reason": reason,
                 })
                 # Check if any subsequent step references this skipped output
-                directive_str = step.get('directive', '')
+                _directive_str = step.get('directive', '')
                 for later_step in steps[i:]:
                     ld = later_step.get('directive', '')
                     if _references_skipped(ld, skipped_outputs):
@@ -1058,7 +1079,7 @@ def text_cli_path(params: list[str]) -> str:
                     _pd = json.loads(_pf.read_text(encoding="utf-8"))
                 except (json.JSONDecodeError, OSError):
                     continue
-                _names = {_pd.get("id", ""), _pd.get("name", ""), _pd.get("name_cn", "")}
+                _names = {_pd.get("id", ""), _pd.get("name", ""), _pd.get("name_zh", "")}
                 if path_file in _names:
                     p = _pf
                     break

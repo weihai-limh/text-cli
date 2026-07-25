@@ -4,7 +4,7 @@ skills/weather.py — 示例：天气查询技能
 展示最基本的技能用法：单一指令封装 + 结果格式化 + 错误降级。
 """
 
-from ..skill import Skill, skill, SkillResult
+from ..skill import Skill, skill
 
 
 @skill("天气查询", domain="天气", action="查询")

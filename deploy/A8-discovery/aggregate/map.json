@@ -2,7 +2,7 @@
   "id": "map",
   "type": "aggregate",
   "domain": "map",
-  "description_cn": "地图服务：多提供方自动降级",
+  "description_zh": "地图服务：多提供方自动降级",
   "default": ["tx-map", "tencent-maps", "gd-map", "bd-map", "skill-bdmap"],
   "providers": {
     "tx-map": {

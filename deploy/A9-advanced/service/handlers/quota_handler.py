@@ -17,9 +17,8 @@ Author: Tide 🌊 — 2026-05-15
 """
 
 import json
-import sqlite3
 import logging
-from pathlib import Path
+import sqlite3
 
 logger = logging.getLogger(__name__)
 
@@ -113,8 +112,7 @@ def check_and_update(target: str, amount: int = 1) -> dict:
         if usage_date[:7] != now_date[:7]:
             flipped = True
             new_count = amount
-    elif cycle_type == "year":
-        if usage_date[:4] != now_date[:4]:
+    elif cycle_type == "year" and usage_date[:4] != now_date[:4]:
             flipped = True
             new_count = amount
     # forever: never flips, new_count stays usage_count + amount
@@ -209,7 +207,7 @@ def quota_register(params: list[str]) -> str:
     target, cycle, limit_str = params[0], params[1], params[2]
 
     # Validate cycle
-    valid_cycles = {"day", "日", "week", "周", "month", "月", "year", "年", "forever", "永久"}
+    _valid_cycles = {"day", "日", "week", "周", "month", "月", "year", "年", "forever", "永久"}
     cn_to_en = {"日": "day", "周": "week", "月": "month", "年": "year", "永久": "forever"}
     cycle = cn_to_en.get(cycle, cycle)
     if cycle not in {"day", "week", "month", "year", "forever"}:
@@ -276,9 +274,7 @@ def quota_list(params: list[str]) -> str:
                 week_start = conn.execute("SELECT date(?, 'weekday 0', '-7 days')", (today,)).fetchone()[0]
                 if usage_date < week_start:
                     effective_count = 0
-            elif cycle_type == "month" and usage_date[:7] != today[:7]:
-                effective_count = 0
-            elif cycle_type == "year" and usage_date[:4] != today[:4]:
+            elif cycle_type == "month" and usage_date[:7] != today[:7] or cycle_type == "year" and usage_date[:4] != today[:4]:
                 effective_count = 0
 
             items.append({

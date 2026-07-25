@@ -1,0 +1,38 @@
+{
+  "id": "tc-math",
+  "name": "TC Math Evaluator",
+  "name_zh": "计算工具",
+  "version": "0.1.1",
+  "license": "MIT",
+  "type": "native",
+  "runtime": "python",
+  "category": "基础设施",
+  "locales": [
+    "zh",
+    "en"
+  ],
+  "description": "Safe arithmetic expression evaluator for path pipelines. AST-validated, zero dependencies, stdlib math only.",
+  "description_zh": "路径管道用安全算术求值器。AST 校验，零依赖，仅用 math 标准库。",
+  "requires": {},
+  "directives": [
+    {
+      "domain": "tc-math",
+      "domain_zh": "计算",
+      "action": "eval",
+      "action_zh": "求值",
+      "usage": "tc-math;eval,<expression>",
+      "usage_zh": "计算;求值,<表达式>",
+      "description": "Safely evaluate an arithmetic expression. Supports sqrt, sin, cos, tan, log, log10, abs, ceil, floor, round, pi, e, +, -, *, /, **, (, ).",
+      "description_zh": "安全求算术表达式。支持 sqrt/sin/cos/tan/log/log10/abs/ceil/floor/round/pi/e 和基本运算符。",
+      "params": [
+        "expression"
+      ],
+      "params_desc": {
+        "expression": "Arithmetic expression to evaluate"
+      },
+      "outputs": [
+        "result"
+      ]
+    }
+  ]
+}

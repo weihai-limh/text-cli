@@ -13,16 +13,18 @@ Author: Tide 🌊
 
 from __future__ import annotations
 
+import logging
 import os
+from pathlib import Path
 
 from core.registry import directive
 
-from .installer.validate import SYSTEM_DOMAINS
-from .installer.filesystem import remove_files
-from .installer.dependencies import check_deps_shared
+logger = logging.getLogger(__name__)
+
 from .installer.audit import log_uninstall
+from .installer.filesystem import remove_files
+from .installer.validate import SYSTEM_DOMAINS
 from .package_manifest import remove as manifest_remove
-from pathlib import Path
 
 _INITS_PATH = Path(__file__).resolve().parent.parent / "config" / "handler_inits.py"
 
@@ -30,54 +32,74 @@ _INITS_PATH = Path(__file__).resolve().parent.parent / "config" / "handler_inits
 @directive("text-cli", "uninstall", domain_alias="文本指令", action_aliases={"uninstall": "卸载"})
 def text_cli_uninstall(params: list[str]) -> str:
     """Uninstall an instruction package by name."""
+    import json
+
+    from core.registry import unregister as _registry_unregister
+
     if not params:
-        return "用法: AI:text-cli;uninstall,<包名>\n\n" \
-               "使用 AI:text-cli;query 查看已安装的包。"
+        return "usage: AI:text-cli;uninstall,<package>\n\n" \
+               "Use AI:text-cli;query to view installed packages."
 
     name = params[0].strip()
 
     # 1. System domain protection
     if name in SYSTEM_DOMAINS:
-        log_uninstall(name, False, f"rejected: system domain")
-        return f"\"{name}\" 是系统保留域，不可卸载。"
+        log_uninstall(name, False, "rejected: system domain")
+        return f"\"{name}\" is a system reserved domain, cannot be uninstalled."
 
-    # 2. Remove files
+    # Unregister in-memory registry entries
+    safe = name.replace("-", "_")
+    schema_path = Path(__file__).resolve().parent / "schema" / f"{safe}_schema.json"
+    _was_mcp = False
+    try:
+        schema_data = json.loads(schema_path.read_text(encoding="utf-8"))
+        _was_mcp = schema_data.get("runtime") == "mcp"
+        for d in schema_data.get("directives", []):
+            _registry_unregister(d.get("domain", name), d.get("action", ""))
+    except Exception as e:
+        logger.debug("Failed to parse schema for uninstall '%s': %s", name, e)
+        pass
     ok, msg = remove_files(name)
     if not ok:
         log_uninstall(name, False, msg)
-        return f"卸载失败: {msg}"
+        return f"uninstall failed: {msg}"
 
     # 2.5 Drop tables (schema.tables → DROP TABLE)
-    from pathlib import Path
     from .installer.filesystem import _drop_tables
-    safe = name.replace("-", "_")
-    schema_path = Path(__file__).resolve().parent / "schema" / f"{safe}_schema.json"
     tbl_msg = ""
     try:
         ok_tbl, tbl_msg = _drop_tables(schema_path, name)
-    except Exception:
+    except Exception as e:
+        logger.debug("Failed to drop tables for '%s': %s", name, e)
         pass
-
-    # 3. Build result
     lines = [
-        f"已卸载: {name}",
+        f"uninstalled: {name}",
         f"  {msg}",
     ]
     if tbl_msg:
         lines.append(f"  {tbl_msg}")
     lines += [
         "",
-        "  pip 依赖未移除（可能被其他包共用）。",
-        "  如确认不再需要，手动清理:",
+        "  pip dependencies not removed (may be shared by other packages).",
+        "  if confirmed no longer needed, clean up manually:",
         f"    {Path(os.environ.get('TEXT_CLI_HOME', str(Path.home() / 'text-cli'))) / 'service' / '.venv' / 'bin' / 'pip'} uninstall <pkg>",
     ]
 
     result = "\n".join(lines)
     log_uninstall(name, True, "uninstalled")
+    # Refresh MCP routing if an MCP package was removed
+    if _was_mcp:
+        try:
+            from core.mcp_dispatch import refresh_routes
+            refresh_routes()
+        except Exception as e:
+            logger.debug("Failed to refresh MCP routes during uninstall of '%s': %s", name, e)
+            pass
     try:
         manifest_remove(name)
         _remove_handler_init(name)
-    except Exception:
+    except Exception as e:
+        logger.debug("Failed to remove manifest/init for '%s': %s", name, e)
         pass
     return result
 

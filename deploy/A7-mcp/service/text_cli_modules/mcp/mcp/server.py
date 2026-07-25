@@ -26,7 +26,6 @@ import logging
 import os
 import pathlib
 import re
-from typing import Optional
 
 import requests
 from fastmcp import FastMCP
@@ -138,8 +137,8 @@ def _load_schema_map() -> dict[str, dict]:
             schema_map[key] = d
 
             # 中文变体
-            dc = d.get("domain_cn", "")
-            ac = d.get("action_cn", "")
+            dc = d.get("domain_zh", "")
+            ac = d.get("action_zh", "")
             if dc and ac and f"{dc};{ac}" != key:
                 schema_map[f"{dc};{ac}"] = d
 
@@ -211,7 +210,7 @@ def _register_tools():
         param_names = _extract_param_names(directive_def)
         domain = directive_def.get("domain", "")
         action = directive_def.get("action", "")
-        description = directive_def.get("description_cn", directive_def.get("description", ""))
+        description = directive_def.get("description_zh", directive_def.get("description", ""))
 
         # 生成工具名和函数名
         tool_name = f"{domain}_{action}".replace("-", "_").replace(".", "_")
@@ -230,6 +229,11 @@ def {func_name}({sig}) -> str:
 '''
 
         try:
+            # Security: exec() generates MCP tool wrappers from trusted
+            # package schema definitions. All interpolated values (func_name,
+            # sig, directive_id, description) come from schema.json of
+            # installed packages. A malicious package's handler.py already
+            # has arbitrary code execution without needing this exec().
             exec(func_code, tool_ns)
         except SyntaxError as e:
             logger.error("无法生成工具函数 %s: %s", tool_name, e)

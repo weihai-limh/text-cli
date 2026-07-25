@@ -1,8 +1,8 @@
-import os
 import logging
+import os
 import sqlite3
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +13,7 @@ A3_COUNT_CALLS = os.getenv("A3_COUNT_CALLS", "false").lower() == "true"
 
 # SQLite DB 路径（与 main.py 的 SQLITE_DB_FILE 一致，通过环境变量传入）
 import pathlib as _pl
+
 A6_DB_FILE = os.getenv(
     "TEXT_CLI_SERVICE_DB",
     str(_pl.Path(__file__).resolve().parent.parent / "text_cli_modules" / "sqlite" / "service.db")
@@ -73,7 +74,7 @@ def _check_token_registry(identity_code: str) -> tuple[bool, str]:
         if expires_at:
             try:
                 exp_time = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
-                if datetime.utcnow() > exp_time.replace(tzinfo=None):
+                if datetime.now(timezone.utc) > exp_time.replace(tzinfo=None):
                     return False, "TOKEN_EXPIRED"
             except (ValueError, TypeError):
                 pass  # 解析失败不阻断
@@ -135,8 +136,7 @@ def verify_service_token(token: str | None, identity_header: str | None = None) 
 
     # ── ④ 兼容旧 SERVICE_TOKEN 模式 ──
     # 如果配置了 SERVICE_TOKEN 环境变量，额外做 token 匹配校验
-    if SERVICE_TOKEN:
-        if not token or token.strip() != SERVICE_TOKEN:
+    if SERVICE_TOKEN and (not token or token.strip() != SERVICE_TOKEN):
             logger.warning("Service-token verification failed: prefix=%s",
                            token[:8] if token else "<none>")
             return AuthResult(

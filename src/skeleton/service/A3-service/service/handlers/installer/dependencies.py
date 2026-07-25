@@ -13,7 +13,7 @@ import sys
 _PROJECT = pathlib.Path(os.environ.get("TEXT_CLI_HOME", str(pathlib.Path.home() / "text-cli")))
 
 
-def install_deps(req_path: str | None, name: str, requires: dict = None) -> tuple[bool, str]:
+def install_deps(req_path: str | None, name: str, requires: dict | None = None) -> tuple[bool, str]:
     """Install dependencies from requirements.txt and/or schema requires field.
 
     Returns (ok, message).
@@ -36,17 +36,17 @@ def install_deps(req_path: str | None, name: str, requires: dict = None) -> tupl
         try:
             result = subprocess.run(
                 [sys.executable, "-m", "pip", "install", "-q", "-r", req_path],
-                capture_output=True, text=True, timeout=60,
+                capture_output=True, text=True, timeout=60, check=False,
             )
             if result.returncode != 0:
                 last_err = result.stderr.strip().splitlines()[-1] if result.stderr else f"exit={result.returncode}"
-                return False, f"pip 安装失败: {last_err}"
+                return False, f"pip install failed: {last_err}"
         except subprocess.TimeoutExpired:
-            return False, "pip 安装超时（60s）"
+            return False, "pip install timeout (60s)"
         except FileNotFoundError:
-            return False, "pip 不可用（找不到 Python 解释器）"
+            return False, "pip unavailable (Python interpreter not found)"
         except OSError as e:
-            return False, f"pip 错误: {e}"
+            return False, f"pip error: {e}"
 
     # Install new-format packages individually
     failed = []
@@ -55,7 +55,7 @@ def install_deps(req_path: str | None, name: str, requires: dict = None) -> tupl
             result = subprocess.run(
                 [sys.executable, "-m", "pip", "install", pkg,
                  "-q"],
-                capture_output=True, text=True, timeout=60,
+                capture_output=True, text=True, timeout=60, check=False,
             )
             if result.returncode != 0:
                 failed.append(pkg)
@@ -63,12 +63,12 @@ def install_deps(req_path: str | None, name: str, requires: dict = None) -> tupl
             failed.append(pkg)
 
     if failed:
-        return False, f"pip 安装失败: {', '.join(failed)}"
+        return False, f"pip install failed: {', '.join(failed)}"
 
     total = (1 if req_path else 0) + len(pkgs_to_install)
     if total == 0:
-        return True, "无 pip 依赖"
-    return True, "依赖就绪"
+        return True, "no pip dependencies"
+    return True, "dependencies ready"
 
 
 def install_npm_deps(npm_dir: str) -> tuple[bool, str]:
@@ -80,23 +80,23 @@ def install_npm_deps(npm_dir: str) -> tuple[bool, str]:
     pkg_dir = pathlib.Path(npm_dir)
     pkg_json = pkg_dir / "package.json"
     if not pkg_json.is_file():
-        return True, "无 package.json，跳过 npm"
+        return True, "no package.json, skip npm"
     try:
         result = subprocess.run(
             ["npm", "install", "--no-audit", "--no-fund"],
             cwd=str(pkg_dir),
-            capture_output=True, text=True, timeout=120,
+            capture_output=True, text=True, timeout=120, check=False,
         )
         if result.returncode != 0:
             last_err = result.stderr.strip().splitlines()[-1] if result.stderr else f"exit={result.returncode}"
-            return False, f"npm 安装失败: {last_err}"
+            return False, f"npm install failed: {last_err}"
     except subprocess.TimeoutExpired:
-        return False, "npm 安装超时（120s）"
+        return False, "npm install timeout (120s)"
     except FileNotFoundError:
-        return False, "npm 不可用（请安装 Node.js）"
+        return False, "npm unavailable (please install Node.js)"
     except OSError as e:
-        return False, f"npm 错误: {e}"
-    return True, "npm 依赖就绪"
+        return False, f"npm error: {e}"
+    return True, "npm dependencies ready"
 
 
 def check_deps_shared(removing_name: str, all_schema_files) -> list[str]:

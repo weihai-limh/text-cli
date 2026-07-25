@@ -42,7 +42,7 @@ class SkillBridgeHandlers:
         if route is None:
             return None
 
-        from core import ok, error
+        from core import error, ok
 
         # Build command from template
         cmd = route["command"]
@@ -73,12 +73,12 @@ class SkillBridgeHandlers:
         # Execute skill
         try:
             result = subprocess.run(
-                cmd,
-                shell=True,
+                shlex.split(cmd),
                 capture_output=True,
                 text=True,
                 timeout=timeout_ms / 1000.0,
                 env={**os.environ},
+                check=False,
             )
         except subprocess.TimeoutExpired:
             return error("skill_timeout",

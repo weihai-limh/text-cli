@@ -21,8 +21,8 @@ import json
 import os
 import time
 from pathlib import Path
-from core import ok, error
 
+from core import error, ok
 
 # ═══════════════════════════════════════════════════════════
 # Key routing (from key_routing.json)
@@ -91,7 +91,7 @@ class KeyHandlers:
     def _handle_key_get(self, params: list) -> dict:
         """密钥;获取,<service> → 按路由返回"""
         if not params:
-            return error('missing_param', '缺少参数: 服务名')
+            return error('missing_param', 'missing parameter: service name')
 
         service = params[0]
         result = self.key_router.resolve(service)
@@ -105,17 +105,17 @@ class KeyHandlers:
             self._log_call('KEY_GET', service=service, source='env',
                            detail='empty')
             return error('env_not_set',
-                        f'环境变量未设置: {service}')
+                        f'env var not set: {service}')
 
         if result["source"] == "service":
             self._log_call('KEY_GET', service=service, source='delegated')
-            return error('delegated', f'密钥 {service} 由 service 管理',
+            return error('delegated', f'key {service} managed by service',
                         __delegated__=True)
 
         self._log_call('KEY_GET', service=service, source='not_found',
                        detail='not_in_routing')
         return error('not_found',
-                    f'密钥 {service} 不在路由表中。编辑 config/key_routing.json 添加。')
+                    f'key {service} not in routing table. Edit config/key_routing.json to add.')
 
     # ── 注册 / 撤销 / 列表 → 全部 delegated ──
 
@@ -124,7 +124,7 @@ class KeyHandlers:
         self._log_call('KEY_REGISTER', delegated=True,
                        detail=f'params={params}')
         return error('delegated',
-                    '密钥注册由 service 处理',
+                    'key registration handled by service',
                     __delegated__=True)
 
     def _handle_key_revoke(self, params: list) -> dict:
@@ -132,14 +132,14 @@ class KeyHandlers:
         self._log_call('KEY_REVOKE', delegated=True,
                        detail=f'params={params}')
         return error('delegated',
-                    '密钥撤销由 service 处理',
+                    'key revocation handled by service',
                     __delegated__=True)
 
     def _handle_key_list(self, params: list) -> dict:
         """密钥;列表 → ⤴ delegated"""
         self._log_call('KEY_LIST', delegated=True)
         return error('delegated',
-                    '密钥列表由 service 管理',
+                    'key list managed by service',
                     __delegated__=True)
 
     def _handle_key_quota_track(self, params: list) -> dict:

@@ -10,9 +10,8 @@ Agent 可直接导入使用，也可作为编写自定义技能的参考模板�
     自适应技能  → 根据端点可用性动态选择策略
 """
 
-from ..skill import Skill, skill, SkillResult
-
-from .weather import WeatherSkill
+from ..skill import Skill, SkillResult, skill
 from .translator import TranslatorSkill
+from .weather import WeatherSkill
 
-__all__ = ["Skill", "skill", "SkillResult", "WeatherSkill", "TranslatorSkill"]
+__all__ = ["Skill", "SkillResult", "TranslatorSkill", "WeatherSkill", "skill"]

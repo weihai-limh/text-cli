@@ -10,7 +10,7 @@ Format per whitelist file:
   "commands": [
     {
       "action": "gateway-status",
-      "action_cn": "网关状态",
+      "action_zh": "网关状态",
       "args": ["gateway", "status"],
       "args_pattern": "^$",
       "timeout": 10
@@ -24,7 +24,6 @@ Author: Tide 🌊 · 2026-05-14
 import json
 import pathlib
 import re
-from typing import Optional
 
 
 class WhitelistIndex:
@@ -63,7 +62,7 @@ class WhitelistIndex:
                 self._index[key] = {
                     "tool": tool,
                     "action": action,
-                    "action_cn": cmd.get("action_cn", action),
+                    "action_zh": cmd.get("action_zh", action),
                     "args": cmd.get("args", []),
                     "args_pattern": cmd.get("args_pattern"),
                     "timeout": cmd.get("timeout", 30),
@@ -73,13 +72,13 @@ class WhitelistIndex:
                 self._tool_actions[tool].add(action)
 
                 # Also index Chinese alias
-                action_cn = cmd.get("action_cn", "")
-                if action_cn and action_cn != action:
-                    key_cn = f"{tool};{action_cn}"
-                    self._index[key_cn] = self._index[key]
+                action_zh = cmd.get("action_zh", "")
+                if action_zh and action_zh != action:
+                    key_zh = f"{tool};{action_zh}"
+                    self._index[key_zh] = self._index[key]
 
-    def lookup(self, domain: str, action: str) -> Optional[dict]:
-        """Look up a whitelist entry by domain;action or domain;action_cn."""
+    def lookup(self, domain: str, action: str) -> dict | None:
+        """Look up a whitelist entry by domain;action or domain;action_zh."""
         return self._index.get(f"{domain};{action}")
 
     def list_tools(self) -> list[str]:

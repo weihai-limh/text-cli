@@ -3,7 +3,8 @@ Codec handler mixin — base64, hex
 """
 
 import base64
-from core import ok, error
+
+from core import error, ok
 
 
 class CodecHandlers:

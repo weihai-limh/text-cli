@@ -49,4 +49,4 @@ def _append(entry: dict):
 
 def _ts_human() -> str:
     import datetime
-    return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S")

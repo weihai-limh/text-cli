@@ -46,7 +46,7 @@ A0 是"怎么调"，A1 是"怎么造 + 怎么让 AI 调"。
 
 ### 响应解析
 
-所有实现统一解析 SPEC v1.3 响应：`rst_types == "text"` → 提取 `rst_data.text`。
+所有实现统一解析 SPEC v1.3.2 响应：`rst_types == "text"` → 提取 `rst_data.text`。
 
 ---
 
@@ -57,7 +57,7 @@ A1 提供三条路径：编译（造指令）、消费（调指令）、NoCode�
 ```
 A1-skill/
 ├── python/
-│   ├── cli.py              ← 编译路径：@register → SPEC v1.3 schema.json
+│   ├── cli.py              ← 编译路径：@register → SPEC v1.3.2 schema.json
 │   ├── skill.py            ← 消费路径：Skill 基类 + @skill 装饰器
 │   ├── handlers/           ← 示例处理器
 │   └── skills/             ← 预置技能库（weather、translator）
@@ -72,7 +72,7 @@ A1-skill/
 
 ### 编译路径（cli.py）
 
-Agent 开发者用 `@register` 装饰器将既有函数包装为 text-cli 指令，自动生成 SPEC v1.3 兼容的 `schema.json`：
+Agent 开发者用 `@register` 装饰器将既有函数包装为 text-cli 指令，自动生成 SPEC v1.3.2 兼容的 `schema.json`：
 
 ```python
 from cli import register, serve
@@ -104,7 +104,7 @@ class WeatherSkill(Skill):
 result = WeatherSkill.run("北京", "明天")
 ```
 
-Skill 默认通过 `urllib` 直调 text-cli endpoint（零跨层依赖），解析 SPEC v1.3 响应格式。可通过 `call_fn` 参数注入自定义调用函数。
+Skill 默认通过 `urllib` 直调 text-cli endpoint（零跨层依赖），解析 SPEC v1.3.2 响应格式。可通过 `call_fn` 参数注入自定义调用函数。
 
 ### NoCode 路径（nocode/）
 
@@ -124,7 +124,7 @@ python markdown_converter.py 盆栽急救手册.md
 | `SKILL.md` | 元指令调度 + 精品目录 + 多模态渲染 |
 | `text-cli-core_zh.md` | System Prompt 模板 v2.0——含 tool 定义 |
 | `text-cli-sync-skill.md` | 同步 Skill（概念设计） |
-| `agent-text-cli-schema.example.json` | 聚合 Schema 示例（SPEC v1.3） |
+| `agent-text-cli-schema.example.json` | 聚合 Schema 示例（SPEC v1.3.2 |
 
 ## 构建
 

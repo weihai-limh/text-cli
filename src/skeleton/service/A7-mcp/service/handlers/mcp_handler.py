@@ -1,24 +1,80 @@
 """
 MCP call handler — invoke MCP tools via mcporter.
 
+Infrastructure resolution (3-layer fallback):
+  1. service/config/mcporter.json  — explicit user config
+  2. text_cli_modules/bin/mcporter — zero-config auto-discovery
+  3. PATH                          — system / Docker install (fallback)
+
 Isomorphic with copilot's mcp_handler — same mcporter subprocess pattern.
 """
 
 import json
-import os
-from pathlib import Path
 import logging
 import subprocess
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-# mcporter working directory (where config lives)
-MCWD = "/root/.openclaw/workspace"
+# ── mcporter infrastructure resolution ─────────────
+
+_MODULES_ROOT = Path(__file__).resolve().parent.parent.parent / "text_cli_modules"
+_SERVICE_CONFIG = Path(__file__).resolve().parent.parent / "config"
+
+_MCPORTER_CONFIG_PATH = _SERVICE_CONFIG / "mcporter.json"
+
+_MCPORTER_HELP = (
+    "MCP call engine not ready: mcporter not found.\n\n"
+    "Available options:\n"
+    "  a) Create service/config/mcporter.json with bin and cwd\n"
+    "  b) Place mcporter binary at text_cli_modules/bin/mcporter\n"
+    "  c) Install mcporter globally (available on PATH)\n\n"
+    "Search order: config/mcporter.json -> text_cli_modules/bin/mcporter -> PATH"
+)
 
 
-# MCP quota config
-_QUOTA_CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "mcp_quota.json"
-_mcp_quota_config: dict | None = None
+def _resolve_mcporter():
+    """Resolve mcporter binary + working directory via 3-layer fallback.
+
+    Returns:
+        (bin_path: str, cwd: str | None)
+    Raises:
+        FileNotFoundError: mcporter not found at any layer (with _MCPORTER_HELP message)
+    """
+    # Layer 1: explicit config
+    if _MCPORTER_CONFIG_PATH.exists():
+        try:
+            cfg = json.loads(_MCPORTER_CONFIG_PATH.read_text(encoding="utf-8"))
+            bin_path = cfg.get("bin", "mcporter")
+            cwd = cfg.get("cwd")
+            if Path(bin_path).exists() or bin_path == "mcporter":
+                logger.debug("mcporter resolved via config: bin=%s cwd=%s", bin_path, cwd)
+                return bin_path, cwd
+            raise FileNotFoundError(f"mcporter binary not found at configured path: {bin_path}")
+        except (json.JSONDecodeError, KeyError) as e:
+            logger.warning("Invalid mcporter.json: %s, falling through", e)
+
+    # Layer 2: auto-discovery in text_cli_modules/bin/
+    auto_bin = _MODULES_ROOT / "bin" / "mcporter"
+    if auto_bin.exists():
+        auto_cwd = _MODULES_ROOT / "bin"
+        logger.debug("mcporter resolved via auto-discovery: %s", auto_bin)
+        return str(auto_bin), str(auto_cwd)
+
+    # Layer 3: PATH fallback
+    try:
+        result = subprocess.run(
+            ["mcporter", "--version"],
+            capture_output=True, text=True, timeout=5, check=False,
+        )
+        if result.returncode == 0:
+            logger.debug("mcporter resolved via PATH")
+            return "mcporter", None
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+
+    raise FileNotFoundError(_MCPORTER_HELP)
+
 
 def call_mcp_tool(server: str, tool: str, arguments: dict,
                   timeout_ms: int = 30000) -> dict:
@@ -41,12 +97,17 @@ def call_mcp_tool(server: str, tool: str, arguments: dict,
     logger.info("MCP call: %s.%s args=%s", server, tool, args_json[:200])
 
     try:
+        mcporter_bin, mcporter_cwd = _resolve_mcporter()
+    except FileNotFoundError as e:
+        return {"ok": False, "degrade": True, "error": str(e)}
+
+    try:
         result = subprocess.run(
-            ['mcporter', 'call', server, tool,
+            [mcporter_bin, 'call', server, tool,
              '--args', args_json, '--output', 'json', '--raw-strings'],
             capture_output=True, text=True,
             timeout=timeout_sec,
-            cwd=MCWD,
+            cwd=mcporter_cwd or None, check=False,
         )
 
         if result.returncode == 0:

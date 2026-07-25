@@ -1,8 +1,0 @@
-{
-  "_comment": "copilot key routing — source=env(环境变量直取) / source=service(delegated to service)",
-  "zhipu":               {"source": "env", "var": "ZHIPU_API_KEY"},
-  "bigmodel-embedding-3": {"source": "env", "var": "BIGMODEL_EMBEDDING_KEY"},
-  "tx":                   {"source": "service"},
-  "github-tide":          {"source": "env", "var": "GITHUB_TOKEN"},
-  "smtp-tide":            {"source": "env", "var": "SMTP_PASSWORD"}
-}

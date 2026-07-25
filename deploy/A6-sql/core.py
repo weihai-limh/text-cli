@@ -1,6 +1,6 @@
 """
 text-cli-copilot 核心 — 配置加载、指令解析、响应辅助、dispatch 引擎
-零依赖，Python stdlib only。MCP 桥为可选模块（懒加载）。
+零依赖，Python stdlib only。
 """
 
 import json
@@ -11,7 +11,6 @@ import time
 from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any
-
 
 # ═══════════════════════════════════════════════════════════════
 # 配置加载
@@ -118,7 +117,7 @@ def parse_instruction(prompt: str) -> dict | None:
 # 响应辅助
 # ═══════════════════════════════════════════════════════════════
 
-def ok(text: str, type: str = 'text', url: str = None, **extra) -> dict:
+def ok(text: str, type: str = 'text', url: str | None = None, **extra) -> dict:
     """text-cli 标准成功响应"""
     rst_data = {'text': text}
     if url:
@@ -143,11 +142,11 @@ def error(code: str, detail: str, **extra) -> dict:
 
 
 # ═══════════════════════════════════════════════════════════════
-# Copilot 核心引擎（含 MCP 路由支持）
+# Copilot 核心引擎
 # ═══════════════════════════════════════════════════════════════
 
 class CopilotCore:
-    """指令辅助服务器核心 — dispatch、凭据、安全校验、MCP 路由"""
+    """指令辅助服务器核心 — dispatch、凭据、安全校验"""
 
     def __init__(self, config_path: str):
         self.config = load_config(config_path)
@@ -163,13 +162,9 @@ class CopilotCore:
         self.cache_dir = self.config_dir / '.cache'
         self._handlers: dict[str, callable] = {}
         self._alias_map: dict[str, str] = {}
-        self._routing_prefs: dict[str, str] = {}
-        self._mcp_registry: dict[str, dict] = {}
         self._security_overrides: dict[str, dict] = {}
         self._register_handlers()
         self._setup_git_workdir()
-        self._load_routing_preferences()
-        self._build_mcp_registry()
 
     # ── Handler 注册（三层匹配） ──
     # ① @directive 装饰器注册表（内存，自动发现）→ co-install reload 后立即可用
@@ -266,43 +261,10 @@ class CopilotCore:
         self.git_workdir = wd if wd else os.getcwd()
         self.git_remote_name = git_cfg.get('remote_name', 'origin')
 
-    # ── MCP 路由配置 ──
-
-    def _load_routing_preferences(self):
-        """加载 routing_preferences.json。文件不存在 = 全部默认 local。"""
-        prefs_path = self.config_dir / 'data' / 'routing_preferences.json'
-        try:
-            with open(prefs_path, 'r', encoding='utf-8') as f:
-                prefs = json.load(f)
-            self._routing_prefs['_default'] = prefs.get('default', 'local')
-            for op_id, pref in prefs.get('preferences', {}).items():
-                self._routing_prefs[op_id] = pref
-            print(f"[copilot] 路由偏好已加载: default={self._routing_prefs['_default']}, "
-                  f"{len(prefs.get('preferences', {}))} 条逐项覆盖")
-        except FileNotFoundError:
-            print(f"[copilot] routing_preferences.json 未找到，全部默认 local")
-            self._routing_prefs['_default'] = 'local'
-        except Exception as e:
-            print(f"[copilot] [WARN] routing preferences load failed: {e}, fallback to all local")
-            self._routing_prefs['_default'] = 'local'
-
-    def _build_mcp_registry(self):
-        """从 operations 配置中提取所有含 MCP 路由的条目。"""
-        operations = self.config.get('security', {}).get('operations', {})
-        for op_id, op_cfg in operations.items():
-            mcp_cfg = op_cfg.get('mcp')
-            if mcp_cfg:
-                self._mcp_registry[op_id] = mcp_cfg
-                # 同时注册到 alias（让英文和中文 lookup 都能命中 MCP 路由）
-                for alias in op_cfg.get('aliases', []):
-                    self._mcp_registry[alias] = mcp_cfg
-        if self._mcp_registry:
-            print(f"[copilot] MCP 路由注册表: {len(self._mcp_registry)} 条目")
-
     # ── Dispatch ──
 
     def dispatch(self, parsed: dict) -> dict:
-        """根据解析结果路由到对应 handler，支持 MCP 路由"""
+        """根据解析结果路由到对应 handler"""
         self._request_count += 1
         lookup = f"{parsed['domain']};{parsed['action']}"
         canonical = self._alias_map.get(lookup)
@@ -312,22 +274,6 @@ class CopilotCore:
             return error('unknown_instruction',
                         f'未识别的指令: {lookup}。'
                         f'可用指令: {", ".join(self._handlers.keys())}')
-
-        # 检查路由偏好：此指令是否配置了 MCP，且偏好走 MCP？
-        # 按 lookup → canonical → _default 查找，同时检查所有 alias
-        pref = self._routing_prefs.get(lookup,
-                self._routing_prefs.get(canonical,
-                self._routing_prefs.get('_default', 'local')))
-        if pref == 'local':
-            # 检查 canonical 的所有 alias 是否有被偏好为 mcp 的
-            for alias, cid in self._alias_map.items():
-                if cid == canonical and self._routing_prefs.get(alias) == 'mcp':
-                    pref = 'mcp'
-                    break
-        mcp_cfg = self._mcp_registry.get(canonical) or self._mcp_registry.get(lookup)
-
-        if pref == 'mcp' and mcp_cfg:
-            return self._dispatch_mcp(parsed, canonical, mcp_cfg)
 
         # 默认走本地 handler
         handler = self._handlers.get(canonical)
@@ -351,63 +297,6 @@ class CopilotCore:
         except Exception as e:
             self._error_count += 1
             return error('internal_error', f'{type(e).__name__}: {e}')
-
-    def _dispatch_mcp(self, parsed: dict, canonical: str, mcp_cfg: dict) -> dict:
-        """通过 MCP 桥执行指令（懒加载 mcporter）"""
-        try:
-            from packages.mcp_bridge.handler import call_mcp_tool, parse_mcp_result
-        except ImportError:
-            return error('internal_error', 'MCP bridge package not installed')
-
-        server = mcp_cfg['server']
-        tool = mcp_cfg['tool']
-        timeout_ms = mcp_cfg.get('timeout_ms', 30000)
-
-        # 参数适配：位置参数 → MCP 结构化参数
-        arguments = self._adapt_params_mcp(parsed['params'], mcp_cfg)
-
-        print(f"[copilot] MCP 路由: {canonical} → {server}.{tool}")
-
-        success, raw_result = call_mcp_tool(server, tool, arguments, timeout_ms)
-
-        if not success:
-            self._error_count += 1
-            return error('mcp_error', raw_result)
-
-        result = parse_mcp_result(raw_result)
-        if 'rst_err' in result:
-            self._error_count += 1
-        return result
-
-    def _adapt_params_mcp(self, params: list, mcp_cfg: dict) -> dict:
-        """将 text-cli 位置参数适配为 MCP 工具的结构化参数"""
-        adapter = mcp_cfg.get('adapter', 'passthrough')
-
-        if adapter == 'git_push':
-            try:
-                from handlers.github_adapter import adapt_git_push
-                return adapt_git_push(params, mcp_cfg, workdir=self.git_workdir)
-            except ImportError:
-                return {"error": "github_adapter not installed"}
-
-        if adapter == 'passthrough':
-            param_names = mcp_cfg.get('param_names', [])
-            args = {}
-            for i, p in enumerate(params):
-                if i < len(param_names):
-                    args[param_names[i]] = p
-                else:
-                    args[f'arg{i}'] = p
-            return args
-
-        if adapter == 'json_parse' and params:
-            try:
-                return json.loads(params[0])
-            except json.JSONDecodeError:
-                return {'_raw': params[0]}
-
-        # 未知 adapter → 报错，不吞
-        return {'_params': params}
 
     def track_error(self):
         self._request_count += 1
@@ -433,7 +322,7 @@ class CopilotCore:
         try:
             result = subprocess.run(
                 ['git', 'remote', 'get-url', self.git_remote_name],
-                cwd=self.git_workdir, capture_output=True, text=True, timeout=10
+                cwd=self.git_workdir, capture_output=True, text=True, timeout=10, check=False
             )
             if result.returncode == 0:
                 return result.stdout.strip()
@@ -444,7 +333,7 @@ class CopilotCore:
     def resolve_credential(self, cred_value: str | None) -> dict:
         if cred_value is None or cred_value == '':
             return {'mode': 'ssh'}
-        if cred_value.startswith('http://') or cred_value.startswith('https://'):
+        if cred_value.startswith(('http://', 'https://')):
             return {'mode': 'inject', 'url': cred_value}
         return {'mode': 'https', 'token': cred_value}
 

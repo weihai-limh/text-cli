@@ -18,16 +18,17 @@ import json
 import os
 import sys
 import time
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
-from core import CopilotCore, parse_instruction, error
-from handlers import (
-    CodecHandlers, KeyHandlers,
-    SkillBridgeHandlers, PackageManagerHandlers,
-)
-
 import handlers as _h
+from core import CopilotCore, error, parse_instruction
+from handlers import (
+    CodecHandlers,
+    KeyHandlers,
+    PackageManagerHandlers,
+    SkillBridgeHandlers,
+)
 
 _pkg_bases = getattr(_h, '_discovered_classes', [])
 
@@ -47,7 +48,6 @@ _CopilotBases = (
 
 class Copilot(*_CopilotBases):
     """指令辅助服务器 — 骨架 mixin + 核心引擎 + 动态发现的包 handler"""
-    pass
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -268,7 +268,7 @@ def main():
     if copilot.token:
         print(f"[copilot] [AUTH] token: {'*' * 8}")
     else:
-        print(f"[copilot] [OPEN] token: null（不校验，127.0.0.1 本地安全）")
+        print("[copilot] [OPEN] token: null（不校验，127.0.0.1 本地安全）")
 
     try:
         server.serve_forever()

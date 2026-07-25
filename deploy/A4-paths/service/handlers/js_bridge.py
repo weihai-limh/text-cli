@@ -50,7 +50,7 @@ def make_js_handler(js_file: str, domain: str, action: str):
 
         try:
             result = subprocess.run(
-                ["node", str(js_path)],
+                ["node", str(js_path, check=False)],
                 input=input_data,
                 capture_output=True,
                 text=True,
@@ -61,9 +61,9 @@ def make_js_handler(js_file: str, domain: str, action: str):
                 return f"JS handler error ({js_file}): {err}"
             return result.stdout.strip()
         except subprocess.TimeoutExpired:
-            return f"JS handler timeout ({js_file}): 超过 {JS_TIMEOUT}s"
+            return f"JS handler timeout ({js_file}): exceeded {JS_TIMEOUT}s"
         except FileNotFoundError:
-            return f"JS runtime not available: node 未安装"
+            return "JS runtime not available: node not installed"
         except OSError as e:
             return f"JS handler OS error ({js_file}): {e}"
 

@@ -15,7 +15,7 @@ import pathlib
 import shutil
 import types
 
-from core import ok, error
+from core import error, ok
 
 logger = logging.getLogger("copilot.package_manager")
 
@@ -82,8 +82,8 @@ class PackageManagerHandlers:
         config_path = pathlib.Path(__file__).resolve().parent.parent / "auxiliary_config.json"
         try:
             config = json.loads(config_path.read_text(encoding="utf-8"))
-        except Exception:
-            logger.warning("Cannot read auxiliary_config.json")
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning("Cannot read auxiliary_config.json: %s", e)
             return 0
 
         operations = config.setdefault("security", {}).setdefault("operations", {})
@@ -102,10 +102,10 @@ class PackageManagerHandlers:
 
             # Build aliases: English canonical + Chinese
             aliases = [op_id]
-            domain_cn = d.get("domain_cn", "")
-            action_cn = d.get("action_cn", "")
-            if domain_cn and action_cn:
-                aliases.append(f"{domain_cn};{action_cn}")
+            domain_zh = d.get("domain_zh", "")
+            action_zh = d.get("action_zh", "")
+            if domain_zh and action_zh:
+                aliases.append(f"{domain_zh};{action_zh}")
 
             # Build parameters list
             param_names = d.get("params", [])
@@ -122,8 +122,8 @@ class PackageManagerHandlers:
             operations[op_id] = {
                 "level": "read",
                 "aliases": aliases,
-                "description": d.get("description_cn", d.get("description", "")),
-                "description_en": d.get("description", d.get("description_cn", "")),
+                "description": d.get("description_zh", d.get("description", "")),
+                "description_en": d.get("description", d.get("description_zh", "")),
                 "parameters": params_display,
                 "parameters_en": param_names,
                 "returns": "rst_data.text = result output",
@@ -151,7 +151,8 @@ class PackageManagerHandlers:
         config_path = pathlib.Path(__file__).resolve().parent.parent / "auxiliary_config.json"
         try:
             config = json.loads(config_path.read_text(encoding="utf-8"))
-        except Exception:
+        except (json.JSONDecodeError, OSError) as e:
+            logger.debug("Cannot read aux config for uninstall: %s", e)
             return 0
 
         operations = config.get("security", {}).get("operations", {})
@@ -169,6 +170,7 @@ class PackageManagerHandlers:
                         del operations[op_id]
                         removed += 1
             except Exception:
+                logger.debug("Failed to parse schema at %s", schema_file)
                 pass
 
         if removed:
@@ -229,7 +231,8 @@ class PackageManagerHandlers:
                     schema = json.loads(candidate.read_text(encoding="utf-8"))
                     if schema.get("id") == name:
                         return candidate.parent
-                except Exception:
+                except Exception as e:
+                    logger.debug("Failed to parse schema for %s: %s", candidate, e)
                     pass
         return None
 
@@ -306,7 +309,7 @@ class PackageManagerHandlers:
 
         # Build full route entries
         skill_name = SKILL_DIR_MAP.get(pkg_id,
-                                        pkg_id[6:] if pkg_id.startswith("skill-") else pkg_id)
+                                        pkg_id.removeprefix("skill-"))
         directives = {f"{d.get('domain', '')};{d.get('action', '')}": d
                       for d in schema.get("directives", [])}
 
@@ -319,7 +322,7 @@ class PackageManagerHandlers:
                     params.append({"name": pn, "position": i})
 
             script, runtime = self._infer_skill_script(skill_name)
-            param_part = " ".join(f"'{{{p['name']}}}'" for p in params)
+            param_part = " ".join(f"{{{p['name']}}}" for p in params)
 
             entry = {
                 "skill": skill_name,
@@ -328,7 +331,7 @@ class PackageManagerHandlers:
                 "adapter": route_def.get("adapter", "passthrough"),
                 "timeout_ms": route_def.get("timeout_ms", 30000),
                 "description": directive.get("description", ""),
-                "description_cn": directive.get("description_cn", ""),
+                "description_zh": directive.get("description_zh", ""),
             }
             if route_def.get("adapter_config"):
                 entry["adapter_config"] = route_def["adapter_config"]
@@ -349,7 +352,8 @@ class PackageManagerHandlers:
             return 0
         try:
             schema = json.loads(schema_path.read_text(encoding="utf-8"))
-        except Exception:
+        except (json.JSONDecodeError, OSError) as e:
+            logger.debug("Cannot read schema for skill routes of %s: %s", pkg_id, e)
             return 0
 
         route_entries = self._read_skill_routes(schema)
@@ -373,10 +377,9 @@ class PackageManagerHandlers:
         # Reload handlers so dispatch picks up new skill routes
         try:
             self._register_handlers()
-        except Exception:
+        except Exception as e:
+            logger.debug("Failed to reload handlers after skill route write: %s", e)
             pass
-
-        return written
 
     def _remove_skill_routes(self, pkg_id: str) -> int:
         """Remove routes belonging to a package from skill_bridge_routes.json.
@@ -390,7 +393,8 @@ class PackageManagerHandlers:
 
         try:
             schema = json.loads(schema_path.read_text(encoding="utf-8"))
-        except Exception:
+        except (json.JSONDecodeError, OSError) as e:
+            logger.debug("Cannot read schema for skill routes of %s: %s", pkg_id, e)
             return 0
 
         route_entries = self._read_skill_routes(schema)
@@ -404,8 +408,7 @@ class PackageManagerHandlers:
                 del routes[op_id]
                 removed += 1
 
-        if removed:
-            if _save_skill_routes_file(routes):
+        if removed and _save_skill_routes_file(routes):
                 logger.info("Removed %d skill route(s) from skill_bridge_routes.json for '%s'",
                             removed, pkg_id)
 
@@ -479,7 +482,7 @@ class PackageManagerHandlers:
                         adst = adapters_dst / rel
                         adst.parent.mkdir(parents=True, exist_ok=True)
                         shutil.copy2(f, adst)
-                    copied.append(f"adapters/ → copilot/adapters/")
+                    copied.append("adapters/ → copilot/adapters/")
                     continue
 
                 # whitelists/ → copilot/whitelists/ (merged)
@@ -488,7 +491,7 @@ class PackageManagerHandlers:
                               / "whitelists")
                     for f in item.iterdir():
                         shutil.copy2(f, wl_dst / f.name)
-                    copied.append(f"whitelists/ → copilot/whitelists/")
+                    copied.append("whitelists/ → copilot/whitelists/")
                     continue
 
                 # Regular file or directory → packages/<pkg_id>/
@@ -574,9 +577,9 @@ class PackageManagerHandlers:
             if attr.startswith(f'_handle_{name.replace("-", "_")}_'):
                 try:
                     delattr(self, attr)
-                except Exception:
+                except Exception as e:
+                    logger.debug("Failed to remove handler attr %s: %s", attr, e)
                     pass
-        self._register_handlers()
 
         return ok(f"Package '{name}' uninstalled. Instructions removed immediately.")
 
@@ -595,16 +598,17 @@ class PackageManagerHandlers:
                         schema = json.loads(schema_file.read_text(encoding="utf-8"))
                         installed.append({
                             "id": schema.get("id", pkg_dir.name),
-                            "name_cn": schema.get("name_cn", ""),
+                            "name_zh": schema.get("name_zh", ""),
                             "runtime": schema.get("runtime", ""),
                             "directives": len(schema.get("directives", [])),
                         })
-                    except Exception:
+                    except (json.JSONDecodeError, OSError) as e:
+                        logger.debug("co-list: failed to parse schema for %s: %s", pkg_dir.name, e)
                         installed.append({"id": pkg_dir.name, "error": "schema parse failed"})
 
         if not installed:
             return ok("No copilot packages installed.")
 
-        lines = [f"{p['id']}  {p.get('name_cn', '')}  ({p.get('runtime', '')}, {p.get('directives', 0)} directives)"
+        lines = [f"{p['id']}  {p.get('name_zh', '')}  ({p.get('runtime', '')}, {p.get('directives', 0)} directives)"
                  for p in installed]
         return ok("\n".join(lines))

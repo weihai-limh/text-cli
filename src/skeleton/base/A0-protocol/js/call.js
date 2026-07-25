@@ -95,7 +95,7 @@ async function callDirective(directive, options = {}) {
     return JSON.stringify(data);
   } catch (e) {
     if (e.name === 'AbortError') {
-      throw new Error(`请求超时 (${timeout}ms): ${url}`);
+      throw new Error(`request timeout (${timeout}ms): ${url}`);
     }
     throw e;
   } finally {
@@ -130,7 +130,7 @@ module.exports = { callDirective, callDirectiveBatch };
 if (require.main === module) {
   const directive = process.argv[2];
   if (!directive) {
-    console.error('用法: node call.js "AI:域;动作,参数1,参数2"');
+    console.error('usage: node call.js "AI:domain;action,params1,params2"');
     process.exit(1);
   }
 

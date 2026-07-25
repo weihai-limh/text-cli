@@ -28,12 +28,12 @@ $ErrorActionPreference = "Stop"
 # ── 帮助 ─────────────────────────────────────────────
 
 if ($h -or $help) {
-    Write-Host "用法: .\call.ps1 `"AI:域;动作,参数`""
-    Write-Host "  -d, -directive <文本>  指令文本"
-    Write-Host "  -e, -endpoint <URL>    指定端点地址（可选）"
-    Write-Host "  -h, -help              显示帮助"
+    Write-Host "usage: .\call.ps1 `"AI:domain;action,params`""
+    Write-Host "  -d, -directive <text>  directive text"
+    Write-Host "  -e, -endpoint <URL>    specify endpoint (optional)"
+    Write-Host "  -h, -help             show help"
     Write-Host ""
-    Write-Host "示例:"
+    Write-Host "Examples:"
     Write-Host "  .\call.ps1 `"AI:tc-datetime;now`""
     Write-Host "  .\call.ps1 -d `"AI:tc-math;eval,2+3`""
     Write-Host "  `"AI:tc-datetime;now`" | .\call.ps1"
@@ -82,10 +82,10 @@ if ($d) {
 }
 
 if (-not $DirectiveText) {
-    Write-Host "用法: .\call.ps1 `"AI:域;动作,参数`"" -ForegroundColor Red
-    Write-Host "  -d, -directive <文本>  指令文本" -ForegroundColor Yellow
-    Write-Host "  -e, -endpoint <URL>    指定端点地址（可选）" -ForegroundColor Yellow
-    Write-Host "  -h, -help              显示帮助" -ForegroundColor Yellow
+    Write-Host "usage: .\call.ps1 `"AI:domain;action,params`"" -ForegroundColor Red
+    Write-Host "  -d, -directive <text>  directive text" -ForegroundColor Yellow
+    Write-Host "  -e, -endpoint <URL>    specify endpoint (optional)" -ForegroundColor Yellow
+    Write-Host "  -h, -help             show help" -ForegroundColor Yellow
     exit 1
 }
 
@@ -124,11 +124,11 @@ try {
             Write-Output $Response.Content
         }
     } else {
-        Write-Host "[ERR] 调用失败 (HTTP $($Response.StatusCode))" -ForegroundColor Red
+        Write-Host "[ERR] call failed (HTTP $($Response.StatusCode))" -ForegroundColor Red
         Write-Output $Response.Content
         exit 1
     }
 } catch {
-    Write-Host "[ERR] 调用失败: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "[ERR] call failed: $($_.Exception.Message)" -ForegroundColor Red
     exit 1
 }

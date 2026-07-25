@@ -16,9 +16,9 @@ text-cli MCP Server — 将 text-cli 热指令暴露为 MCP tools
   MCP_PORT             — 监听端口 (默认 9020)
 """
 
-import os
 import json
 import logging
+import os
 
 import requests
 from fastmcp import FastMCP

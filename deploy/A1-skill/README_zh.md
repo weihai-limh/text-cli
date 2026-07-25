@@ -28,8 +28,8 @@ A1-skill/
 
 | 路径 | 入口 | 受众 | 产物 |
 |------|------|------|------|
-| `cli.py` | `@register(domain, action, ...)` 装饰器 | Agent 开发者 | SPEC v1.3 `schema.json` |
-| `nocode/zh/markdown_converter.py` | 结构化 Markdown 文档 | 非开发者（花店老板式用户） | SPEC v1.3 `schema.json` |
+| `cli.py` | `@register(domain, action, ...)` 装饰器 | Agent 开发者 | SPEC v1.3.2 `schema.json` |
+| `nocode/zh/markdown_converter.py` | 结构化 Markdown 文档 | 非开发者（花店老板式用户） | SPEC v1.3.2 `schema.json` |
 
 两者殊途同归——都生成 text-cli service 可安装的指令包 Schema。
 
@@ -43,10 +43,10 @@ def weather(params):
     city = params[0]
     return f"{city}: 晴, 20°C"
 
-serve(package_id="my-weather")  # 启动 HTTP 服务，自动生成 SPEC v1.3 Schema
+serve(package_id="my-weather")  # 启动 HTTP 服务，自动生成 SPEC v1.3.2 Schema
 ```
 
-生成的 Schema 包含 `id`/`type`/`runtime`/`category`/`trust`/`version`/`directives[]`——完全兼容 SPEC v1.3，可被 `AI:text-cli;install,my-weather` 直接安装。
+生成的 Schema 包含 `id`/`type`/`runtime`/`category`/`trust`/`version`/`directives[]`——完全兼容 SPEC v1.3.2 可被 `AI:text-cli;install,my-weather` 直接安装。
 
 ## python/skill.py — 消费路径
 
@@ -64,7 +64,7 @@ class WeatherSkill(Skill):
 result = WeatherSkill.run("北京", "明天")
 ```
 
-Skill 默认通过 `urllib` 直接调用 text-cli endpoint（零跨层依赖），解析 SPEC v1.3 响应格式 `{"rst_types": "text", "rst_data": {"text": "..."}}`。可通过 `call_fn` 参数注入自定义调用函数。
+Skill 默认通过 `urllib` 直接调用 text-cli endpoint（零跨层依赖），解析 SPEC v1.3.2 响应格式 `{"rst_types": "text", "rst_data": {"text": "..."}}`。可通过 `call_fn` 参数注入自定义调用函数。
 
 ## nocode/ — NoCode 路径
 
@@ -97,7 +97,7 @@ python markdown_converter.py 盆栽急救手册.md
 | `SKILL.md` | 元指令调度 + 精品目录 + 多模态渲染规则 |
 | `text-cli-core_zh.md` | System Prompt 模板 v2.0——含 `fetch_available_directives` 和 `text_cli` tool 定义 |
 | `text-cli-sync-skill.md` | 同步 Skill（概念设计）——端点注册 + 多源拉取 + 聚合写入 |
-| `agent-text-cli-schema.example.json` | 聚合 Schema 示例（SPEC v1.3 `directives[]` 格式） |
+| `agent-text-cli-schema.example.json` | 聚合 Schema 示例（SPEC v1.3.2 `directives[]` 格式） |
 
 ## 与 A0 的关系
 

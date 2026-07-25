@@ -1,8 +1,12 @@
+import asyncio
 import json
 import logging
 import os
 import sys
 from contextlib import asynccontextmanager
+
+logger = logging.getLogger(__name__)
+
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -19,11 +23,16 @@ _modules_root = Path(__file__).resolve().parent / "text_cli_modules"
 if str(_modules_root.parent) not in sys.path:
     sys.path.append(str(_modules_root.parent))
 
-from core.parser import parse_directive, DirectiveParseError
 from core.auth import verify_service_token
+from core.parser import DirectiveParseError, parse_directive
 from core.registry import dispatch, get_registered_directives
-from core.response import ok, error
+from core.response import error, ok
 from handlers.proxy import proxy_dispatch
+from handlers.task_manager import complete as task_manager_complete
+from handlers.task_manager import fail as task_manager_fail
+from handlers.task_manager import get as task_manager_get
+from handlers.task_manager import register as task_manager_register
+from handlers.task_manager import update as task_manager_update
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "info").upper()
 logging.basicConfig(level=getattr(logging, LOG_LEVEL, logging.INFO))
@@ -63,8 +72,8 @@ def _load_aggregates():
                 continue
             domain = agg["domain"]
             _aggregates[domain] = agg
-            logger.info("聚合已加载: %s (%d providers)", domain, len(agg.get("providers", {})))
-        except Exception as e:
+            logger.info("aggregates loaded: %s (%d providers)", domain, len(agg.get("providers", {})))
+        except (json.JSONDecodeError, OSError) as e:
             logger.warning("Failed to load aggregate %s: %s", f.name, e)
 
 
@@ -93,22 +102,26 @@ def _aggregate_dispatch(domain: str, action: str, params: list) -> str | None:
         p_domain, p_action = parts
         try:
             result = dispatch(p_domain, p_action, list(params))
-            if result and "未找到匹配的指令" not in result and "No matching directive" not in result:
-                # 检查是否配额耗尽或其他软错误
+            if result:
                 try:
                     rj = json.loads(result)
-                    if rj.get("status") == "stop":
-                        logger.info("聚合降级: %s;%s 配额耗尽, 尝试下一个", p_domain, p_action)
-                        continue
-                    if rj.get("status") == "error":
-                        logger.info("聚合降级: %s;%s 返回错误, 尝试下一个", p_domain, p_action)
-                        continue
                 except (json.JSONDecodeError, TypeError):
-                    pass
-                logger.info("聚合命中: %s → %s;%s", domain, p_domain, p_action)
+                    logger.info("aggregate hit (non-JSON): %s → %s;%s", domain, p_domain, p_action)
+                    return result
+                # 检查 rst_err 或 status 判定是否继续降级
+                if rj.get("rst_err"):
+                    logger.info("aggregate degrade: %s;%s rst_err=%s, trying next", p_domain, p_action, rj["rst_err"])
+                    continue
+                if rj.get("status") == "stop":
+                    logger.info("aggregate degrade: %s;%s quota exhausted, trying next", p_domain, p_action)
+                    continue
+                if rj.get("status") == "error":
+                    logger.info("aggregate degrade: %s;%s returned error, trying next", p_domain, p_action)
+                    continue
+                logger.info("aggregate hit: %s → %s;%s", domain, p_domain, p_action)
                 return result
         except Exception as e:
-            logger.info("聚合降级: %s;%s 异常 %s, 尝试下一个", p_domain, p_action, e)
+            logger.info("aggregate degrade: %s;%s exception %s, trying next", p_domain, p_action, e)
             continue
 
     return None
@@ -123,7 +136,8 @@ def _internal_dispatch(domain: str, action: str, params: list) -> dict:
     """
     try:
         result_str = dispatch(domain, action, params)
-    except Exception:
+    except Exception as e:
+        logger.debug("dispatch error for %s;%s: %s", domain, action, e)
         return {"rst_types": "text", "rst_data": {"text": "dispatch error"},
                 "rst_err": "internal_error"}
     try:
@@ -160,7 +174,7 @@ try:
     }
 
     try:
-        from config.handler_inits import HANDLER_INITS, DISPATCH_INJECTS
+        from config.handler_inits import DISPATCH_INJECTS, HANDLER_INITS
     except ImportError:
         HANDLER_INITS, DISPATCH_INJECTS = [], []
 
@@ -185,11 +199,11 @@ try:
         except Exception as e:
             logger.warning("Failed to inject dispatch for %s: %s", mod_path, e)
 
-    logger.info("SQLite 模块已初始化: %s", SQLITE_DB_FILE)
+    logger.info("SQLite module initialized: %s", SQLITE_DB_FILE)
 except ImportError:
-    logger.info("SQLite 模块未安装")
+    logger.info("SQLite module not installed")
 except Exception as e:
-    logger.warning("SQLite 初始化失败: %s", e)
+    logger.warning("SQLite initialization failed: %s", e)
 
 # ── 聚合指令加载（平台级，不依赖 SQLite）──
 _load_aggregates()
@@ -246,8 +260,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="text-cli 示例指令服务",
-    description="text-cli 标准指令服务模板，可被 Service_endpoint 集成",
+    title="text-cli sample directive service",
+    description="text-cli standard directive service template, integratable with Service_endpoint",
     version="0.1.0",
     lifespan=lifespan,
 )
@@ -269,7 +283,7 @@ async def image_cache_retrieve(key: str):
     if data is None:
         return JSONResponse(
             status_code=410,
-            content={"rst_types": "text", "rst_data": {"text": "缓存已过期或不存在"},
+            content={"rst_types": "text", "rst_data": {"text": "cache expired or not found"},
                       "rst_err": "cache_expired"},
         )
     return Response(content=data, media_type="text/plain; charset=utf-8")
@@ -291,12 +305,12 @@ async def health(request: Request):
             try:
                 s = __import__('json').loads(sf.read_text(encoding="utf-8"))
                 installed.append(s.get("id", sf.stem.replace("_schema", "")))
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Failed to parse schema %s: %s", sf.name, e)
 
         return {
             "status": "ok",
-            "body": "vm-4-2",
+            "body": os.getenv("TEXT_CLI_INSTANCE_ID", "text-cli"),
             "version": "1.0.0",
             "capabilities": {
                 "packages": [p for p in installed if p not in ("sample",)],
@@ -318,12 +332,13 @@ async def health(request: Request):
             1 for v in skills.values()
             if isinstance(v, dict) and v.get("visibility") == "public"
         )
-    except (ImportError, Exception):
+    except Exception as e:
+        logger.debug("Failed to list skills for public count: %s", e)
         public_count = 0
 
     return {
         "status": "ok",
-        "body": "vm-4-2",
+        "body": os.getenv("TEXT_CLI_INSTANCE_ID", "text-cli"),
         "version": "1.0.0",
         "public_skills": public_count,
     }
@@ -340,7 +355,7 @@ async def stct():
 @app.post("/text-cli/cli")
 async def handle_directive(request: Request):
     service_token = request.headers.get("Service-token")
-    identity_header = request.headers.get("X-Text-CLI-Identity")
+    _identity_header = request.headers.get("X-Text-CLI-Identity")
     import time
     _req_start = time.time()
     auth = verify_service_token(service_token)
@@ -351,25 +366,23 @@ async def handle_directive(request: Request):
         )
 
     # 注入 identity_code 到异步安全上下文（供 handler 读取）
-    # 兼容旧代码：同时保留 _ai_im_auth_name（threading 方式）
-    from core.identity_context import set_identity, _IDENTITY_CTX as _identity_ctx
+    from core.identity_context import _IDENTITY_CTX as _identity_ctx
     _identity_ctx.set(auth.identity_code)
-    import threading
-    threading.current_thread()._ai_im_auth_name = auth.client_name
 
     try:
         body = await request.json()
-    except Exception:
+    except (json.JSONDecodeError, TypeError) as e:
+        logger.debug("Invalid JSON in request body: %s", e)
         return JSONResponse(
             status_code=400,
-            content=error("请求体不是有效 JSON"),
+            content=error("request body is not valid JSON"),
         )
 
     prompt = body.get("prompt")
     if not prompt:
         return JSONResponse(
             status_code=400,
-            content=error("缺少 prompt 字段"),
+            content=error("missing prompt field"),
         )
 
     try:
@@ -385,6 +398,15 @@ async def handle_directive(request: Request):
         parsed.domain, parsed.action, parsed.params,
     )
 
+    # --async 检测：异步任务模式
+    if parsed.params and parsed.params[-1] == "--async":
+        parsed.params.pop()  # 从参数中移除 --async
+        task_id = task_manager_register(parsed.domain, parsed.action, parsed.params)
+        asyncio.create_task(_async_dispatch(parsed, prompt, task_id, auth, request, _req_start))
+        response = ok(json.dumps({"status": "pending", "task_id": task_id}, ensure_ascii=False))
+        _write_call_log(request, auth, parsed, _req_start, True)
+        return response
+
     # 0. 聚合指令优先（降级链多提供方调度）
     agg_result = _aggregate_dispatch(parsed.domain, parsed.action, parsed.params)
     if agg_result is not None:
@@ -393,7 +415,7 @@ async def handle_directive(request: Request):
         return response
 
     # 1. MCP 优先路由（显式偏好 mcp 时优先）
-    from core.mcp_dispatch import decide_backend, get_mcp_route, adapt_params
+    from core.mcp_dispatch import adapt_params, decide_backend, get_mcp_route
     try:
         from packages.mcp.handler import check_mcp_quota
     except ImportError:
@@ -421,25 +443,34 @@ async def handle_directive(request: Request):
                 )
                 if mcp_result["ok"]:
                     return ok(format_mcp_result(mcp_result))
+                elif mcp_result.get("degrade"):
+                    logger.info("MCP preferred but unavailable for %s;%s, falling through to local",
+                                parsed.domain, parsed.action)
                 else:
                     return JSONResponse(
                         status_code=502,
-                        content=error(f"MCP 调用失败: {mcp_result['error']}"),
+                        content=error(f"MCP call failed: {mcp_result['error']}"),
                     )
             except ImportError:
                 return JSONResponse(
                     status_code=500,
-                    content=error("MCP handler 不可用"),
+                    content=error("MCP handler unavailable"),
                 )
         else:
             return JSONResponse(
                 status_code=400,
-                content=error(f"该指令无 MCP 路由配置: {parsed.domain};{parsed.action}"),
+                content=error(f"directive has no MCP route configured: {parsed.domain};{parsed.action}"),
             )
 
     # 2. 本地 dispatch
     result = dispatch(parsed.domain, parsed.action, parsed.params)
-    local_handled = bool(result) and '未找到匹配的指令' not in result and 'No matching directive' not in result
+    local_handled = False
+    if result:
+        try:
+            rj = json.loads(result)
+            local_handled = not rj.get("rst_err")
+        except (json.JSONDecodeError, TypeError):
+            local_handled = bool(result)
 
     if local_handled:
         return ok(result)
@@ -469,9 +500,9 @@ async def handle_directive(request: Request):
             pass
 
     # 4. 本地和 MCP 都没匹配 → 尝试代理转发
-    proxy_result = proxy_dispatch(parsed.domain, parsed.action,
-                                  parsed.params, raw_prompt=prompt,
-                                  db_path=SQLITE_DB_PATH)
+    proxy_result = await proxy_dispatch(parsed.domain, parsed.action,
+                                        parsed.params, raw_prompt=prompt,
+                                        db_path=SQLITE_DB_PATH)
     if proxy_result is not None:
         # 旁路通知 stream subscriber
         from core.stream_subscriber_registry import STREAM_SUBSCRIBERS
@@ -486,9 +517,11 @@ async def handle_directive(request: Request):
                     for sub in STREAM_SUBSCRIBERS:
                         try:
                             await sub.on_end(im_session, im_target, str(text))
-                        except Exception:
+                        except Exception as e:
+                            logger.debug("Stream subscriber on_end failed: %s", e)
                             pass
-            except Exception:
+            except Exception as e:
+                logger.debug("IM proxy send failed: %s", e)
                 pass
         return JSONResponse(content=proxy_result)
 
@@ -519,25 +552,70 @@ async def skills_detail(skill_id: str):
         return JSONResponse(
             status_code=503,
             content={"status": "error", "error": "unavailable",
-                      "message": "技能端点尚未就绪"},
+                      "message": "skill endpoint not ready"},
         )
     detail = get_skill_detail(skill_id)
     if detail is None:
         return JSONResponse(
             status_code=404,
             content={"status": "error", "error": "not_found",
-                      "message": f"技能 '{skill_id}' 不存在或未对外暴露"},
+                      "message": f"skill '{skill_id}' not found or not exposed"},
         )
     return JSONResponse(content=detail)
 
 
 @app.post("/text-cli/skills/{skill_id}")
 async def skills_execute(skill_id: str, request: Request):
-    """执行一个技能（尚不支持）"""
+    """Execute a skill by dispatching to the path engine."""
+    try:
+        from handlers.skill_endpoint import get_skill_detail
+    except ImportError:
+        return JSONResponse(
+            status_code=503,
+            content={"rst_types": "text", "rst_data": {"text": "skill endpoint not ready"},
+                      "rst_err": "ERR_EXECUTION"},
+        )
+
+    detail = get_skill_detail(skill_id)
+    if detail is None:
+        return JSONResponse(
+            status_code=404,
+            content={"rst_types": "text", "rst_data": {"text": f"skill '{skill_id}' not found"},
+                      "rst_err": "ERR_NOT_FOUND"},
+        )
+
+    # Extract input from request body
+    try:
+        body = await request.json()
+        skill_input = body.get("input", {})
+    except (json.JSONDecodeError, TypeError):
+        skill_input = {}
+
+    # Dispatch via path engine if skill has path reference
+    path_id = detail.get("path_id") or skill_id
+    try:
+        from handlers.text_cli_path import path_dispatch
+        result = path_dispatch(path_id, skill_input)
+        return JSONResponse(content={
+            "rst_types": "text",
+            "rst_data": {"text": result},
+            "rst_err": "",
+        })
+    except ImportError:
+        pass
+
+    # Fallback: dispatch as directive
+    directive = detail.get("directive")
+    if directive:
+        from core.registry import dispatch as _dispatch
+        params = [str(v) for v in skill_input.values()] if skill_input else []
+        result = _dispatch(directive, "", params)
+        return ok(result)
+
     return JSONResponse(
-        status_code=501,
-        content={"status": "error", "error": "not_implemented",
-                  "message": "技能执行端点尚未实现"},
+        status_code=422,
+        content={"rst_types": "text", "rst_data": {"text": f"skill '{skill_id}' has no executable entry"},
+                  "rst_err": "ERR_NOT_FOUND"},
     )
 
 
@@ -573,7 +651,7 @@ async def copilot_proxy(request: Request, rest: str):
         logger.error("copilot proxy error: %s -> %d", rest, e.response.status_code)
         return JSONResponse(
             status_code=e.response.status_code,
-            content={"rst_types": "text", "rst_data": {"text": f"[proxy] copilot 返回 {e.response.status_code}"},
+            content={"rst_types": "text", "rst_data": {"text": f"[proxy] copilot returned {e.response.status_code}"},
                       "rst_err": "proxy_error"},
         )
     except Exception as e:
@@ -583,6 +661,69 @@ async def copilot_proxy(request: Request, rest: str):
             content={"rst_types": "text", "rst_data": {"text": f"[proxy] {e}"},
                       "rst_err": "proxy_error"},
         )
+
+
+# ── 异步任务后台执行 ──────────────────────
+
+async def _async_dispatch(parsed, prompt: str, task_id: str, auth, request: Request, req_start: float):
+    """后台执行异步任务：运行完整 dispatch 链，更新 task_manager 状态。"""
+    import json as _json
+    try:
+        task_manager_update(task_id, "running")
+
+        # 0. 聚合指令
+        agg_result = _aggregate_dispatch(parsed.domain, parsed.action, parsed.params)
+        if agg_result is not None:
+            try:
+                result_data = _json.loads(agg_result)
+            except (_json.JSONDecodeError, TypeError):
+                result_data = {"text": agg_result}
+            task_manager_complete(task_id, result_data)
+            return
+
+        # 1-2. 本地 dispatch
+        from core.registry import dispatch as _local_dispatch
+        result = _local_dispatch(parsed.domain, parsed.action, parsed.params)
+        if result:
+            try:
+                rj = _json.loads(result)
+                if not rj.get("rst_err"):
+                    task_manager_complete(task_id, rj)
+                    return
+            except (_json.JSONDecodeError, TypeError):
+                task_manager_complete(task_id, {"text": result})
+                return
+
+        # 3. 尝试 proxy
+        proxy_result = await proxy_dispatch(parsed.domain, parsed.action,
+                                            parsed.params, raw_prompt=prompt,
+                                            db_path=SQLITE_DB_PATH)
+        if proxy_result is not None:
+            task_manager_complete(task_id, proxy_result)
+            return
+
+        # 4. 返回本地结果
+        try:
+            result_data = _json.loads(result) if result else {"text": "no result"}
+        except (_json.JSONDecodeError, TypeError):
+            result_data = {"text": str(result)}
+        task_manager_complete(task_id, result_data)
+
+    except Exception as e:
+        task_manager_fail(task_id, str(e))
+
+
+@app.get("/text-cli/tasks/{task_id}")
+async def get_task(task_id: str):
+    """查询异步任务状态与结果。"""
+    task = task_manager_get(task_id)
+    if task is None:
+        return JSONResponse(
+            status_code=404,
+            content={"rst_types": "text", "rst_data": {"text": f"task not found: {task_id}"},
+                      "rst_err": "not_found"},
+        )
+    return JSONResponse(content={"status": "ok", "task": task})
 
 
 # ── Webhook 路由 ──
@@ -609,7 +750,8 @@ def _write_call_log(request: Request, auth, parsed, req_start: float,
         status = 'ok' if success else 'error'
         duration_ms = int((time.time() - req_start) * 1000) if req_start else 0
         write_call_log(auth.identity_code, domain, action, status, duration_ms=duration_ms)
-    except Exception:
+    except Exception as e:
+        logger.debug("Audit log write skipped: %s", e)
         pass  # 日志写入失败不阻断业务
 
 

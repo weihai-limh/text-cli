@@ -20,7 +20,7 @@ Agent 全程不需要持有密码或 API Key——凭据由 copilot 居中持有
 
 | 层 | 名称 | 核心能力 |
 |:---:|------|------|
-| A2 | copilot | 本地 Copilot——cmd engine、Skill Bridge、MCP 桥、三层 dispatch 匹配、输出适配 |
+| A2 | copilot | 本地 Copilot——cmd engine、Skill Bridge、三层 dispatch 匹配、输出适配 |
 
 ### A2 核心文件
 
@@ -56,7 +56,6 @@ Agent 全程不需要持有密码或 API Key——凭据由 copilot 居中持有
 | system | 系统;健康/状态 |
 | media | 媒体;加载/下载 |
 | terminal | 终端;命令 |
-| mcp-bridge | MCP 桥接 |
 
 ## 启动与验证
 

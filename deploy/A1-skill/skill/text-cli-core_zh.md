@@ -86,7 +86,7 @@ Agent 解析意图
 {
   "基础应用;天气查询": [
     {
-      "endpoint": "https://test.text-cli.com/text-cli/cli",
+      "endpoint": "https://test.text-cli.com/text-cli/cli",  # 非盈利示范端点(demo)；生产请改自建端点
       "token_env": "TEXT_CLI_TOKEN_OFFICIAL",
       "rank": 1,
       "description": "查询指定城市和日期的天气",

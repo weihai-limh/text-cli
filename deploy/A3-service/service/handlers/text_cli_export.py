@@ -17,7 +17,8 @@ import shutil
 from pathlib import Path
 
 from core.registry import directive
-from .package_manifest import get, list_all, register as manifest_register, MANIFEST_PATH
+
+from .package_manifest import MANIFEST_PATH, get, list_all
 
 logger = logging.getLogger(__name__)
 
@@ -129,7 +130,7 @@ def text_cli_export(params: list[str]) -> str:
 
         # Copy paths
         for p_path in files.get("paths", []):
-            src = Path(p_path) if Path(p_path).is_absolute() else Path(p_path)
+            src = Path(p_path)
             if src.exists():
                 pdest = dest / "paths" / src.name
                 pdest.parent.mkdir(parents=True, exist_ok=True)
@@ -182,9 +183,9 @@ def text_cli_packages(params: list[str]) -> str:
     """List installed packages from manifest."""
     pkgs = list_all()
     if not pkgs:
-        return "未安装任何指令包（manifest 为空）。"
+        return "No directive packages installed (manifest empty)."
 
-    lines = [f"已安装 {len(pkgs)} 个指令包:", ""]
+    lines = [f"installed {len(pkgs)} directive packages:", ""]
     for p in sorted(pkgs, key=lambda x: x.get("id", "")):
         directives = p.get("directives", [])
         lines.append(f"  {p['id']:20s} {p.get('type','?')}   {len(directives)} directives")

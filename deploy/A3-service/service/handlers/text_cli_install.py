@@ -14,16 +14,19 @@ Author: Tide 🌊
 
 from __future__ import annotations
 
+import ast
+import logging
+from pathlib import Path
+
+logger = logging.getLogger(__name__)
+
 from core.registry import directive
 
-from .installer.validate import validate_package
-from .installer.filesystem import install_files
-from .installer.dependencies import install_deps, install_npm_deps
 from .installer.audit import log_install
+from .installer.dependencies import install_deps, install_npm_deps
+from .installer.filesystem import install_files
+from .installer.validate import validate_package
 from .package_manifest import register as manifest_register
-
-import ast
-from pathlib import Path
 
 _INITS_PATH = Path(__file__).resolve().parent.parent / "config" / "handler_inits.py"
 
@@ -54,7 +57,8 @@ def _find_init_fn(handler_path: str) -> tuple[str | None, str | None]:
                     return fn_name, None
                 # 无参数
                 return fn_name, None
-    except Exception:
+    except Exception as e:
+        logger.debug("Failed to scan handler.py for directive fn: %s", e)
         pass
     return None, None
 
@@ -63,8 +67,8 @@ def _find_init_fn(handler_path: str) -> tuple[str | None, str | None]:
 def text_cli_install(params: list[str]) -> str:
     """Install an instruction package by name."""
     if not params:
-        return "用法: AI:text-cli;install,<包名>\n\n" \
-               "使用 AI:text-cli;query,category 查看可用分类。"
+        return "usage: AI:text-cli;install,<package>\n\n" \
+               "Use AI:text-cli;query,category to view available categories."
 
     name = params[0].strip()
     force = len(params) > 1 and params[1].strip() == "--force"
@@ -73,7 +77,7 @@ def text_cli_install(params: list[str]) -> str:
     ok, msg, meta = validate_package(name)
     if not ok:
         log_install(name, {}, False, msg)
-        return msg if msg.startswith("安装失败") else f"安装失败: {msg}"
+        return msg if msg.startswith("installation failed") else f"installation failed: {msg}"
 
     schema = meta["schema"]
 
@@ -82,7 +86,7 @@ def text_cli_install(params: list[str]) -> str:
     ok, msg = install_files(name, meta, runtime=runtime, force=force)
     if not ok:
         log_install(name, meta, False, msg)
-        return msg if msg.startswith("安装失败") else f"安装失败: {msg}"
+        return msg if msg.startswith("installation failed") else f"installation failed: {msg}"
 
     # 3. Check required secrets
     secrets_warnings = _check_secrets(schema, skip_check="--skip-secrets-check" in params)
@@ -97,15 +101,15 @@ def text_cli_install(params: list[str]) -> str:
         if npm_dir:
             ok_deps, dep_msg = install_npm_deps(npm_dir)
         else:
-            ok_deps, dep_msg = True, "无 package.json，跳过 npm"
+            ok_deps, dep_msg = True, "no package.json, skip npm"
     else:
-        ok_deps, dep_msg = True, "无依赖"
+        ok_deps, dep_msg = True, "no dependencies"
 
     # 4. Format result
     directives = schema.get("directives", [])
     mcp_server = schema.get("mcp_server", "")
     lines = [
-        f"安装完成: {name} ({schema.get('name_cn', '')})",
+        f"install complete: {name} ({schema.get('name_zh', '')})",
         f"  runtime: {runtime}",
     ]
     if mcp_server:
@@ -113,7 +117,7 @@ def text_cli_install(params: list[str]) -> str:
     lines += [
         f"  {dep_msg}",
         "",
-        f"  {len(directives)} 条指令:",
+        f"  {len(directives)} directives:",
     ]
     for d in directives:
         usage = d.get("usage", f"{d.get('domain','')};{d.get('action','')}")
@@ -124,8 +128,8 @@ def text_cli_install(params: list[str]) -> str:
 
     if not ok_deps:
         lines.append("")
-        lines.append(f"  [WARN] 依赖安装失败: {dep_msg}")
-        lines.append("    指令已部署，但可能因缺少依赖而无法执行。")
+        lines.append(f"  [WARN] dependency install failed: {dep_msg}")
+        lines.append("    directive deployed, but may fail to execute due to missing dependencies.")
 
     result = "\n".join(lines)
 
@@ -140,7 +144,14 @@ def text_cli_install(params: list[str]) -> str:
 
     log_install(name, meta, True, "installed")
 
-    # Write manifest for export tracking
+    # Refresh MCP routing if this is an MCP package
+    if schema.get("runtime") == "mcp":
+        try:
+            from core.mcp_dispatch import refresh_routes
+            refresh_routes()
+        except Exception as e:
+            logger.debug("Failed to refresh MCP routes after install: %s", e)
+            pass
     try:
         safe = _safe_name(name)
         pkg_source = str(meta["path"])
@@ -159,13 +170,14 @@ def text_cli_install(params: list[str]) -> str:
         if init_fn is None:
             init_fn = f"init_{safe}_handler"
         _append_handler_init(f"packages.{name}.handler", init_fn, arg_key)
-    except Exception:
+    except Exception as e:
+        logger.debug("Manifest/init optional for '%s': %s", name, e)
         pass  # manifest/init optional, don't block install
 
     return result
 
 
-def _append_handler_init(mod_path: str, fn_name: str, arg_key: str = None):
+def _append_handler_init(mod_path: str, fn_name: str, arg_key: str | None = None):
     """Append an entry to handler_inits.py for auto-load on restart."""
     import re
     try:
@@ -214,9 +226,10 @@ def _check_secrets(schema: dict, skip_check: bool = False) -> str:
     # Try to access key_registry
     missing = []
     try:
-        from text_cli_modules.key.key_registry import get as key_get
         # We need DB_PATH — try common locations
         import os
+
+        from text_cli_modules.key.key_registry import get as key_get
         db_path = os.environ.get("TEXT_CLI_DB", str(Path(os.environ.get("TEXT_CLI_HOME", str(Path.home() / "text-cli"))) / "service" / "text_cli.db"))
         for secret_name in secrets:
             val = key_get({"config": db_path}, secret_name)
@@ -225,17 +238,18 @@ def _check_secrets(schema: dict, skip_check: bool = False) -> str:
     except ImportError:
         # key_registry not available — all secrets missing
         missing = list(secrets)
-    except Exception:
+    except Exception as e:
+        logger.debug("Secrets check failed for '%s': %s", schema.get("name", "?"), e)
         missing = list(secrets)
 
     if not missing:
         return ""
 
     lines = [
-        "⚠ 缺少所需凭据:",
+        "⚠ missing required credentials:",
     ]
     for s in missing:
-        lines.append(f"  • {s} — 使用 AI:key;register,{s},<值>,api_key 注册")
+        lines.append(f"  • {s} — use AI:key;register,{s},<value>,api_key to register")
     lines.append("")
-    lines.append("  跳过检查: AI:text-cli;install,<包名>,--skip-secrets-check")
+    lines.append("  skip check: AI:text-cli;install,<package>,--skip-secrets-check")
     return "\n".join(lines)

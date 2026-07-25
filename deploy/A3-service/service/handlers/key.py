@@ -7,19 +7,18 @@ export for secure credential injection into external systems.
 Dependencies: text_cli_modules/key/, text_cli_modules/sqlite/
 """
 
-import json
 import logging
 
 logger = logging.getLogger(__name__)
 
 try:
-    from text_cli_modules.key.key_registry import register as _reg
-    from text_cli_modules.key.key_registry import revoke as _rev
-    from text_cli_modules.key.key_registry import list_keys as _list
-    from text_cli_modules.key.key_registry import set_quota_track as _set_qt
     from text_cli_modules.key.key_registry import get_quota_track as _get_qt
     from text_cli_modules.key.key_registry import get_raw as _get_raw
+    from text_cli_modules.key.key_registry import list_keys as _list
+    from text_cli_modules.key.key_registry import register as _reg
+    from text_cli_modules.key.key_registry import revoke as _rev
     from text_cli_modules.key.key_registry import set_dispatch as _set_dispatch
+    from text_cli_modules.key.key_registry import set_quota_track as _set_qt
     SQLITE_ENABLED = True
     logger.info("SQLite key module loaded, local key management enabled")
 except ImportError:

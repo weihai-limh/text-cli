@@ -25,11 +25,10 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import pathlib
-import urllib.request
 import urllib.error
-from typing import Optional
+import urllib.request
+from urllib.parse import urlparse
 
 from core.registry import directive
 
@@ -39,11 +38,11 @@ logger = logging.getLogger("text-cli.schema_query")
 
 def _fetch_a2_directives() -> list[dict]:
     """Fetch A2 copilot directive list via GET /text_cli_schema.json."""
+    a2_url = "http://127.0.0.1:20260/text_cli_schema.json"
+    if urlparse(a2_url).scheme not in ('http', 'https'):
+        return []
     try:
-        req = urllib.request.Request(
-            "http://127.0.0.1:20260/text_cli_schema.json",
-            method="GET",
-        )
+        req = urllib.request.Request(a2_url, method="GET")
         with urllib.request.urlopen(req, timeout=5) as resp:
             data = json.loads(resp.read().decode("utf-8"))
             return data.get("directives", [])
@@ -120,11 +119,11 @@ def _flatten_directives(schemas: list[dict]) -> list[dict]:
         pkg_meta = {
             "id": s.get("id", ""),
             "name": s.get("name", ""),
-            "name_cn": s.get("name_cn", ""),
+            "name_zh": s.get("name_zh", ""),
             "runtime": runtime,
             "category": s.get("category", s.get("type", "")),
             "description": s.get("description", ""),
-            "description_cn": s.get("description_cn", ""),
+            "description_zh": s.get("description_zh", ""),
         }
 
         # Composite path/skill entries — show as pending publication
@@ -142,16 +141,16 @@ def _flatten_directives(schemas: list[dict]) -> list[dict]:
                     result.append(entry)
             else:
                 # Not yet published — show as pending composite
-                req_str = ", ".join(reqs) if reqs else "(无)"
+                req_str = ", ".join(reqs) if reqs else "(none)"
                 result.append({
                     "domain": "skill",
-                    "action": s.get("name_cn", s.get("id", "")),
-                    "domain_cn": "技能",
-                    "action_cn": s.get("name_cn", s.get("id", "")),
-                    "usage": f"skill;{s.get('name_cn', s.get('id', ''))}",
-                    "usage_cn": f"skill;{s.get('name_cn', s.get('id', ''))}",
+                    "action": s.get("name_zh", s.get("id", "")),
+                    "domain_zh": "技能",
+                    "action_zh": s.get("name_zh", s.get("id", "")),
+                    "usage": f"skill;{s.get('name_zh', s.get('id', ''))}",
+                    "usage_zh": f"skill;{s.get('name_zh', s.get('id', ''))}",
                     "description": f"[{ptype} v{ver}] {s.get('description', '')}",
-                    "description_cn": f"[{ptype} v{ver}] {s.get('description_cn', s.get('description', ''))}\n    ─ 依赖: {req_str}\n    ─ 状态: 待发布 (text-cli;pro)",
+                    "description_zh": f"[{ptype} v{ver}] {s.get('description_zh', s.get('description', ''))}\n    ─ 依赖: {req_str}\n    ─ 状态: 待发布 (text-cli;pro)",
                     "_package": pkg_meta,
                 })
             continue
@@ -229,11 +228,11 @@ def _keyword_search(directives: list[dict], keyword: str) -> list[dict]:
     for d in directives:
         pkg = d.get("_package", {})
         searchable = " ".join([
-            d.get("domain", ""), d.get("domain_cn", ""),
-            d.get("action", ""), d.get("action_cn", ""),
-            d.get("description", ""), d.get("description_cn", ""),
-            pkg.get("name", ""), pkg.get("name_cn", ""),
-            pkg.get("description", ""), pkg.get("description_cn", ""),
+            d.get("domain", ""), d.get("domain_zh", ""),
+            d.get("action", ""), d.get("action_zh", ""),
+            d.get("description", ""), d.get("description_zh", ""),
+            pkg.get("name", ""), pkg.get("name_zh", ""),
+            pkg.get("description", ""), pkg.get("description_zh", ""),
         ]).lower()
         if kw in searchable:
             result.append(d)
@@ -244,7 +243,7 @@ def _keyword_search(directives: list[dict], keyword: str) -> list[dict]:
 
 def _render_text(directives: list[dict]) -> str:
     if not directives:
-        return "═══ Available directives ═══\n\n(无)"
+        return "═══ Available directives ═══\n\n(none)"
 
     lines = ["═══ Available directives ═══\n"]
 
@@ -252,7 +251,7 @@ def _render_text(directives: list[dict]) -> str:
     by_pkg: dict[str, list[dict]] = {}
     pkg_order = []
     for d in directives:
-        pkg_name = d["_package"]["name_cn"] or d["_package"]["name"]
+        pkg_name = d["_package"]["name_zh"] or d["_package"]["name"]
         if pkg_name not in by_pkg:
             by_pkg[pkg_name] = []
             pkg_order.append(pkg_name)
@@ -263,18 +262,18 @@ def _render_text(directives: list[dict]) -> str:
         pkg = entries[0]["_package"]
         lines.append(f"{pkg_name} · {pkg['name']}")
         # Chinese description preferred
-        desc = pkg.get("description_cn") or pkg.get("description", "")
+        desc = pkg.get("description_zh") or pkg.get("description", "")
         if desc:
             lines.append(f"  {desc}")
         for d in entries:
             # Chinese usage shown first
-            usage_cn = d.get("usage_cn", d.get("usage", f"{d.get('domain_cn', d.get('domain', ''))};{d.get('action_cn', d.get('action', ''))}"))
-            lines.append(f"  {usage_cn}")
+            usage_zh = d.get("usage_zh", d.get("usage", f"{d.get('domain_zh', d.get('domain', ''))};{d.get('action_zh', d.get('action', ''))}"))
+            lines.append(f"  {usage_zh}")
             usage_en = d.get("usage")
-            if usage_en and usage_en != usage_cn:
+            if usage_en and usage_en != usage_zh:
                 lines.append(f"    {usage_en}")
             # Directive description
-            ddesc = d.get("description_cn") or d.get("description", "")
+            ddesc = d.get("description_zh") or d.get("description", "")
             if ddesc:
                 lines.append(f"    ─ {ddesc}")
         lines.append("")
@@ -285,8 +284,8 @@ def _render_text(directives: list[dict]) -> str:
         lines.append("A2 copilot (127.0.0.1:20260)")
         for d in a2_directives:
             op_id = d.get("id") or f"{d.get('domain', '')};{d.get('action', '')}"
-            usage = d.get("usage", d.get("usage_cn", op_id))
-            desc = d.get("description", d.get("description_cn", ""))
+            usage = d.get("usage", d.get("usage_zh", op_id))
+            desc = d.get("description", d.get("description_zh", ""))
             line = usage if usage else op_id
             if desc:
                 lines.append(f"  {line}:{desc}")
@@ -320,7 +319,7 @@ def _render_compact(directives: list[dict]) -> str:
     if a2_directives:
         for d in a2_directives:
             op_id = d.get("id") or f"{d.get('domain', '')};{d.get('action', '')}"
-            usage = d.get("usage", d.get("usage_cn", op_id))
+            usage = d.get("usage", d.get("usage_zh", op_id))
             lines.append(usage if usage else op_id)
     return "\n".join(lines)
 
@@ -352,7 +351,7 @@ def _render_delta(directives: list[dict]) -> str:
     ))
 
     if not added and not removed:
-        return "═══ delta ═══\n(未变化)"
+        return "═══ delta ═══\n(unchanged)"
 
     lines = ["═══ delta ═══"]
     for a in sorted(added):
@@ -388,7 +387,7 @@ def schema_query(params: list[str]) -> str:
     directives = _collect(all_directives)
 
     if not directives:
-        return "═══ Available directives ═══\n\n(无已注册指令)"
+        return "═══ Available directives ═══\n\n(no registered directives)"
 
 
     # ── 模式分发 ──
@@ -415,26 +414,26 @@ def schema_query(params: list[str]) -> str:
             return _render_text(filtered)
         cats = _list_categories(directives)
         if cats:
-            return "分类列表:\n" + "\n".join(f"  {c}" for c in cats)
-        return "分类列表:\n  (无)"
+            return "category list:\n" + "\n".join(f"  {c}" for c in cats)
+        return "category list:\n  (none)"
 
     if mode == "collection":
         collection_items = _load_collection_directives()
         if not collection_items:
             return (
-                "═══ Collection (未配置) ═══\n\n"
-                "未找到 config/collection_text_cli.json。\n"
-                "从 config/collection_text_cli.json.example 复制一份以配置精选指令集。"
+                "═══ Collection (not configured) ═══\n\n"
+                "config/collection_text_cli.json not found.\n"
+                "Copy config/collection_text_cli.json.example to configure the curated directive set."
             )
         filtered = _filter_by_collection(directives, collection_items)
-        return _render_text(filtered) if filtered else "═══ Collection ═══\n\n(无匹配的指令)"
+        return _render_text(filtered) if filtered else "═══ Collection ═══\n\n(no matching directives)"
 
     if mode == "path":
         filtered = _filter_composite(directives)
-        return _render_text(filtered) if filtered else "═══ Path directives ═══\n\n(无已注册路径)"
+        return _render_text(filtered) if filtered else "═══ Path directives ═══\n\n(no registered paths)"
 
     # ── 兜底：关键词搜索 ──
     results = _keyword_search(directives, mode)
     if results:
         return _render_text(results)
-    return f"未找到匹配 \"{mode}\" 的指令。使用 AI:text-cli;query,category 查看分类。"
+    return f"no directives matching \"{mode}\" directives found. Use AI:text-cli;query,category to view categories."

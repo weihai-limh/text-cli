@@ -6,12 +6,18 @@ text-cli-modules/key — 密钥管理业务模块
 弹性: db_path 外部注入，纯函数，零状态
 """
 
-from text_cli_modules.key.key_registry import register, revoke, list_keys, get, get_all_keys
+from text_cli_modules.key.key_registry import (
+    get,
+    get_all_keys,
+    list_keys,
+    register,
+    revoke,
+)
 
 __all__ = [
-    'register',
-    'revoke',
-    'list_keys',
     'get',
     'get_all_keys',
+    'list_keys',
+    'register',
+    'revoke',
 ]

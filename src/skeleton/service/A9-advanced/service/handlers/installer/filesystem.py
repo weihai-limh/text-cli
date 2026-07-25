@@ -37,14 +37,13 @@ def install_files(name: str, meta: dict, runtime: str = "python", force: bool = 
     schema_dst = SCHEMA_DIR / f"{safe}_schema.json"
 
     # Check existing (schema-based, handler lives in packages/ now)
-    if schema_dst.exists() and not force:
-        if runtime in ("python", "mcp"):
-            return False, f"包 \"{name}\" 已安装。使用 AI:text-cli;install,{name},--force 强制覆盖"
+    if schema_dst.exists() and not force and runtime in ("python", "mcp"):
+            return False, f"package \"{name}\" already installed. Use AI:text-cli;install,{name},--force to force overwrite"
 
     try:
         shutil.copy2(schema_src, schema_dst)
     except OSError as e:
-        return False, f"文件复制失败: {e}"
+        return False, f"file copy failed: {e}"
 
     # Copy handler only for Python packages
     lines = []
@@ -56,22 +55,22 @@ def install_files(name: str, meta: dict, runtime: str = "python", force: bool = 
         if (pkg_dir / "handler.py").is_file():
             shutil.copy2(str(pkg_dir / "handler.py"), str(pkg_dst / "handler.py"))
         shutil.copy2(schema_src, str(pkg_dst / "schema.json"))
-        lines.append(f"文件部署完成: packages/{name}/handler.py + packages/{name}/schema.json")
+        lines.append(f"file deployed: packages/{name}/handler.py + packages/{name}/schema.json")
 
     elif runtime == "mcp":
-        lines.append(f"MCP schema 注册完成: {name}_schema.json")
+        lines.append(f"MCP schema registered: {name}_schema.json")
 
     elif runtime == "node":
         handler_src = pathlib.Path(meta["handler_path"])
         handler_dst = HANDLERS_DIR / f"{safe}.js"
         if handler_dst.exists() and not force:
-            return False, f"包 \"{name}\" 已安装。使用 AI:text-cli;install,{name},--force 强制覆盖"
+            return False, f"package \"{name}\" already installed. Use AI:text-cli;install,{name},--force to force overwrite"
         try:
             shutil.copy2(handler_src, handler_dst)
             shutil.copy2(schema_src, schema_dst)
         except OSError as e:
-            return False, f"文件复制失败: {e}"
-        lines.append(f"文件部署完成: {name}.js + {name}_schema.json")
+            return False, f"file copy failed: {e}"
+        lines.append(f"file deployed: {name}.js + {name}_schema.json")
 
     elif runtime == "cmd":
         COPILOT_WHITELIST_DIR.mkdir(parents=True, exist_ok=True)
@@ -81,8 +80,8 @@ def install_files(name: str, meta: dict, runtime: str = "python", force: bool = 
             shutil.copy2(schema_src, schema_dst)
             shutil.copy2(wl_src, wl_dst)
         except OSError as e:
-            return False, f"文件复制失败: {e}"
-        lines.append(f"文件部署完成: {name}_schema.json + whitelists/{name}_whitelist.json")
+            return False, f"file copy failed: {e}"
+        lines.append(f"file deployed: {name}_schema.json + whitelists/{name}_whitelist.json")
 
     elif runtime == "path":
         # Path packages: deploy path/ and knowledge/ directories (zero-knowledge)
@@ -93,7 +92,7 @@ def install_files(name: str, meta: dict, runtime: str = "python", force: bool = 
         _deploy_aggregate_resources(pkg_dir, name, lines)
 
     else:
-        lines.append("文件部署完成")
+        lines.append("file deployed")
 
     # Deploy runtime modules (text_cli_modules/)
     if pkg_dir.is_dir():
@@ -227,8 +226,7 @@ def _deploy_path_resources(pkg_dir: pathlib.Path, name: str, lines: list[str]) -
         dst = _PROJECT / "service" / "paths" / name
         dst.mkdir(parents=True, exist_ok=True)
         for item in sorted(path_src.iterdir()):
-            if item.is_file():
-                if not (dst / item.name).exists():
+            if item.is_file() and not (dst / item.name).exists():
                     shutil.copy2(str(item), str(dst / item.name))
                     deployed.append(f"path/{item.name}")
 
@@ -244,7 +242,7 @@ def _deploy_path_resources(pkg_dir: pathlib.Path, name: str, lines: list[str]) -
                     shutil.copy2(str(item), str(dest))
                     deployed.append(f"knowledge/{rel}")
 
-    lines.append(f"文件部署完成: {name}_schema.json")
+    lines.append(f"file deployed: {name}_schema.json")
     if deployed:
         lines.append(f"  path resources: {', '.join(deployed)}")
 
@@ -267,7 +265,7 @@ def _deploy_aggregate_resources(pkg_dir: pathlib.Path, name: str, lines: list[st
             shutil.copy2(str(item), str(dst))
             deployed.append(item.name)
 
-    lines.append(f"aggregate 部署完成: {name}_schema.json")
+    lines.append(f"aggregate deployed: {name}_schema.json")
     if deployed:
         lines.append(f"  route tables: {', '.join(deployed)}")
 
@@ -282,13 +280,13 @@ def _check_binary(pkg_dir: pathlib.Path, meta: dict) -> tuple[bool, str]:
         return True, ""
 
     warnings = []
-    for bin_name, bin_info in binaries.items():
+    for bin_name in binaries:
         bin_path = pkg_dir / bin_name
         if not bin_path.is_file():
-            warnings.append(f"{bin_name}: 未找到")
+            warnings.append(f"{bin_name}: not found")
             continue
         if not (bin_path.stat().st_mode & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)):
-            warnings.append(f"{bin_name}: 不可执行")
+            warnings.append(f"{bin_name}: not executable")
 
     if warnings:
         return True, f"  ⚠ binary: {'; '.join(warnings)}"
@@ -325,9 +323,9 @@ def remove_files(name: str) -> tuple[bool, str]:
         removed.append(f"handlers/schema/{safe}_schema.json")
 
     if not removed:
-        return False, f"包 \"{name}\" 未安装"
+        return False, f"package \"{name}\" not installed"
 
-    return True, "已移除: " + ", ".join(removed)
+    return True, "removed: " + ", ".join(removed)
 
 
 # ═══ Table management (schema.tables) ═══
@@ -368,8 +366,8 @@ def _deploy_tables(schema: dict, name: str) -> tuple[bool, str]:
         if missing:
             conn.close()
             return False, (
-                f"  ⚠ 缺少 A6 骨架表: {', '.join(missing)}。"
-                f"请先部署 A6 基础设施（token_registry, token_call_logs）"
+                f"  ⚠ missing A6 skeleton tables: {', '.join(missing)}。"
+                f"deploy A6 infrastructure first (token_registry, token_call_logs)"
             )
 
         # ② 执行应用自建表
@@ -388,7 +386,7 @@ def _deploy_tables(schema: dict, name: str) -> tuple[bool, str]:
             parts.append(f"tables: {', '.join(created)}")
         return True, "  " + " | ".join(parts) if parts else ""
     except Exception as e:
-        return False, f"  ⚠ 建表失败 ({name}): {e}"
+        return False, f"  ⚠ table creation failed ({name}): {e}"
 
 
 def _drop_tables(schema_json_path: pathlib.Path, name: str) -> tuple[bool, str]:
@@ -420,4 +418,4 @@ def _drop_tables(schema_json_path: pathlib.Path, name: str) -> tuple[bool, str]:
         conn.close()
         return True, f"  tables dropped: {', '.join(t['name'] for t in tables)}"
     except Exception as e:
-        return False, f"  ⚠ 删表失败 ({name}): {e}"
+        return False, f"  ⚠ table drop failed ({name}): {e}"

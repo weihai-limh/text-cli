@@ -56,7 +56,7 @@ def _ensure_table():
     db.commit()
 
 
-def register(domain: str, action: str, params: dict = None) -> str:
+def register(domain: str, action: str, params: dict | None = None) -> str:
     _ensure_table()
     ts = int(time.time() * 1000)
     seq = _next_seq()
@@ -143,7 +143,7 @@ def list_tasks(limit: int = 20) -> list[dict]:
     return [dict(r) for r in rows]
 
 
-def track_task(task_id: str, poll_domain: str, poll_action: str, poll_params: list = None) -> str:
+def track_task(task_id: str, poll_domain: str, poll_action: str, poll_params: list | None = None) -> str:
     _ensure_table()
     ts = int(time.time() * 1000)
     poll_info = json.dumps({

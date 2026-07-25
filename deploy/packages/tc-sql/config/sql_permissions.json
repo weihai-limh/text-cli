@@ -1,0 +1,36 @@
+{
+  "anonymous": {
+    "service": {
+      "driver": "sqlite",
+      "path": "text_cli_modules/sqlite/service.db",
+      "tables": {
+        "key_registry": {"ops": ["schema"]},
+        "call_log": {"ops": ["query", "schema", "tables", "count"]}
+      }
+    },
+    "quota": {
+      "driver": "sqlite",
+      "path": "text_cli_modules/sqlite/quota.db",
+      "tables": {
+        "quota": {"ops": ["query", "schema", "tables", "count"]}
+      }
+    }
+  },
+  "authenticated": {
+    "service": {
+      "driver": "sqlite",
+      "path": "text_cli_modules/sqlite/service.db",
+      "tables": {
+        "key_registry": {"ops": ["schema"]},
+        "call_log": {"ops": ["query", "schema", "tables", "count"]}
+      }
+    },
+    "quota": {
+      "driver": "sqlite",
+      "path": "text_cli_modules/sqlite/quota.db",
+      "tables": {
+        "quota": {"ops": ["query", "schema", "tables", "count"]}
+      }
+    }
+  }
+}

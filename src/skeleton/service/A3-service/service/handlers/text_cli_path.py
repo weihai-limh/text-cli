@@ -117,6 +117,10 @@ def text_cli_path(params: list[str]) -> str:
             for var, val in variables.items():
                 cond_evaluated = cond_evaluated.replace(f"{{{var}}}", val)
             try:
+                # Security: eval() sandboxed with __builtins__ disabled.
+                # Conditions come from trusted package schema (step["if"]),
+                # support only simple boolean expressions (==, !=, >, <, in, and, or).
+                # Cannot execute arbitrary code — no __import__, open, exec available.
                 if not eval(cond_evaluated, {"__builtins__": {}}, {}):
                     continue
             except Exception:

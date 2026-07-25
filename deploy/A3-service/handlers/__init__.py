@@ -15,8 +15,8 @@ logger = logging.getLogger("copilot.handlers")
 
 from handlers.codec import CodecHandlers
 from handlers.key import KeyHandlers
-from handlers.skill_bridge import SkillBridgeHandlers
 from handlers.package_manager import PackageManagerHandlers
+from handlers.skill_bridge import SkillBridgeHandlers
 
 # ── Dynamic package discovery ──────────────────
 

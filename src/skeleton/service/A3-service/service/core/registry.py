@@ -16,7 +16,7 @@ During transition, ALL combinations work:
 """
 
 import logging
-from typing import Callable
+from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +44,12 @@ def directive(
     """
     def decorator(func: Callable):
         domain_lower = domain.lower()
+        action_lower = action.lower()
+
+        if domain_lower in _registry and action_lower in _registry[domain_lower]:
+            logger.warning("Directive re-registered: %s;%s (overwriting %s → %s)",
+                           domain, action,
+                           _registry[domain_lower][action_lower].__name__, func.__name__)
 
         if domain_lower not in _registry:
             _registry[domain_lower] = {}
@@ -94,17 +100,34 @@ def _resolve_action(canonical_domain: str, action: str) -> str | None:
 
 
 def dispatch(domain: str, action: str, params: list[str]) -> str:
-    """Dispatch a directive, resolving aliases before lookup."""
+    """Dispatch a directive, resolving aliases before lookup.
+    
+    Returns a JSON string with {rst_types, rst_data, rst_err}. If the directive
+    is not found, rst_err is set to 'ERR_NOT_FOUND'. Plain-text handler returns
+    are wrapped in the standard format.
+    """
+    import json as _json
     canonical_domain = _resolve_domain(domain)
     if canonical_domain is None:
-        return f"No matching directive: {domain};{action}"
+        return _json.dumps({"rst_types": "text", "rst_data": {"text": f"No matching directive: {domain};{action}"},
+                            "rst_err": "ERR_NOT_FOUND"}, ensure_ascii=False)
 
     canonical_action = _resolve_action(canonical_domain, action)
     if canonical_action is None:
-        return f"No matching directive: {domain};{action}"
+        return _json.dumps({"rst_types": "text", "rst_data": {"text": f"No matching directive: {domain};{action}"},
+                            "rst_err": "ERR_NOT_FOUND"}, ensure_ascii=False)
 
     handler = _registry[canonical_domain][canonical_action]
-    return handler(params)
+    result = handler(params)
+    if isinstance(result, str):
+        try:
+            parsed = _json.loads(result)
+            if isinstance(parsed, dict) and "rst_types" in parsed:
+                return result
+        except (_json.JSONDecodeError, TypeError):
+            pass
+    return _json.dumps({"rst_types": "text", "rst_data": {"text": result},
+                        "rst_err": ""}, ensure_ascii=False)
 
 
 def get_registered_directives() -> dict[str, list[str]]:
@@ -113,3 +136,20 @@ def get_registered_directives() -> dict[str, list[str]]:
         domain: list(actions.keys())
         for domain, actions in _registry.items()
     }
+
+
+def unregister(domain: str, action: str) -> bool:
+    """Remove a directive from the in-memory registry.
+    
+    Called during package uninstallation to prevent stale handler references.
+    Returns True if an entry was removed, False if not found.
+    """
+    domain_lower = domain.lower().strip()
+    action_lower = action.lower().strip()
+    if domain_lower in _registry and action_lower in _registry[domain_lower]:
+        del _registry[domain_lower][action_lower]
+        if not _registry[domain_lower]:
+            del _registry[domain_lower]
+        logger.info("Directive unregistered: %s;%s", domain, action)
+        return True
+    return False

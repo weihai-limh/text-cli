@@ -62,7 +62,9 @@ if degraded:
 try:
     import json as _json
     from pathlib import Path as _Path
+
     from core.registry import directive as _register
+
     from .js_bridge import make_js_handler
 
     _js_registered = 0
@@ -103,8 +105,8 @@ try:
                 )
                 _js_registered += 1
 
-            _dc = _d.get("domain_cn", "")
-            _ac = _d.get("action_cn", "")
+            _dc = _d.get("domain_zh", "")
+            _ac = _d.get("action_zh", "")
             if _dc and _ac:
                 _register(_dc, _ac)(
                     make_js_handler(_js_file, _dc, _ac)

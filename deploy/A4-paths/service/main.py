@@ -5,6 +5,8 @@ import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+logger = logging.getLogger(__name__)
+
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response
 
@@ -19,10 +21,10 @@ _modules_root = Path(__file__).resolve().parent / "text_cli_modules"
 if str(_modules_root.parent) not in sys.path:
     sys.path.append(str(_modules_root.parent))
 
-from core.parser import parse_directive, DirectiveParseError
 from core.auth import verify_service_token
+from core.parser import DirectiveParseError, parse_directive
 from core.registry import dispatch, get_registered_directives
-from core.response import ok, error
+from core.response import error, ok
 from handlers.proxy import proxy_dispatch
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "info").upper()
@@ -63,7 +65,7 @@ def _load_aggregates():
                 continue
             domain = agg["domain"]
             _aggregates[domain] = agg
-            logger.info("聚合已加载: %s (%d providers)", domain, len(agg.get("providers", {})))
+            logger.info("aggregates loaded: %s (%d providers)", domain, len(agg.get("providers", {})))
         except Exception as e:
             logger.warning("Failed to load aggregate %s: %s", f.name, e)
 
@@ -98,17 +100,17 @@ def _aggregate_dispatch(domain: str, action: str, params: list) -> str | None:
                 try:
                     rj = json.loads(result)
                     if rj.get("status") == "stop":
-                        logger.info("聚合降级: %s;%s 配额耗尽, 尝试下一个", p_domain, p_action)
+                        logger.info("aggregate degrade: %s;%s quota exhausted, trying next", p_domain, p_action)
                         continue
                     if rj.get("status") == "error":
-                        logger.info("聚合降级: %s;%s 返回错误, 尝试下一个", p_domain, p_action)
+                        logger.info("aggregate degrade: %s;%s returned error, trying next", p_domain, p_action)
                         continue
                 except (json.JSONDecodeError, TypeError):
                     pass
-                logger.info("聚合命中: %s → %s;%s", domain, p_domain, p_action)
+                logger.info("aggregate hit: %s → %s;%s", domain, p_domain, p_action)
                 return result
         except Exception as e:
-            logger.info("聚合降级: %s;%s 异常 %s, 尝试下一个", p_domain, p_action, e)
+            logger.info("aggregate degrade: %s;%s exception %s, trying next", p_domain, p_action, e)
             continue
 
     return None
@@ -119,7 +121,8 @@ def _internal_dispatch(domain: str, action: str, params: list) -> dict | None:
     """框架内 dispatch → JSON 结果解析 → dict 返回。"""
     try:
         result_str = dispatch(domain, action, params)
-    except Exception:
+    except Exception as e:
+        logger.debug("dispatch error for %s;%s: %s", domain, action, e)
         return None
     try:
         result = json.loads(result_str)
@@ -151,7 +154,7 @@ try:
     }
 
     try:
-        from config.handler_inits import HANDLER_INITS, DISPATCH_INJECTS
+        from config.handler_inits import DISPATCH_INJECTS, HANDLER_INITS
     except ImportError:
         HANDLER_INITS, DISPATCH_INJECTS = [], []
 
@@ -176,11 +179,11 @@ try:
         except Exception as e:
             logger.warning("Failed to inject dispatch for %s: %s", mod_path, e)
 
-    logger.info("SQLite 模块已初始化: %s", SQLITE_DB_FILE)
+    logger.info("SQLite module initialized: %s", SQLITE_DB_FILE)
 except ImportError:
-    logger.info("SQLite 模块未安装")
+    logger.info("SQLite module not installed")
 except Exception as e:
-    logger.warning("SQLite 初始化失败: %s", e)
+    logger.warning("SQLite initialization failed: %s", e)
 
 # ── 聚合指令加载（平台级，不依赖 SQLite）──
 _load_aggregates()
@@ -237,8 +240,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="text-cli 示例指令服务",
-    description="text-cli 标准指令服务模板，可被 Service_endpoint 集成",
+    title="text-cli sample directive service",
+    description="text-cli standard directive service template, integratable with Service_endpoint",
     version="0.1.0",
     lifespan=lifespan,
 )
@@ -260,7 +263,7 @@ async def image_cache_retrieve(key: str):
     if data is None:
         return JSONResponse(
             status_code=410,
-            content={"rst_types": "text", "rst_data": {"text": "缓存已过期或不存在"},
+            content={"rst_types": "text", "rst_data": {"text": "cache expired or not found"},
                       "rst_err": "cache_expired"},
         )
     return Response(content=data, media_type="text/plain; charset=utf-8")
@@ -282,12 +285,12 @@ async def health(request: Request):
             try:
                 s = __import__('json').loads(sf.read_text(encoding="utf-8"))
                 installed.append(s.get("id", sf.stem.replace("_schema", "")))
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Failed to parse schema %s: %s", sf.name, e)
 
         return {
             "status": "ok",
-            "body": "vm-4-2",
+            "body": os.getenv("TEXT_CLI_INSTANCE_ID", "text-cli"),
             "version": "1.0.0",
             "capabilities": {
                 "packages": [p for p in installed if p not in ("sample",)],
@@ -314,7 +317,7 @@ async def health(request: Request):
 
     return {
         "status": "ok",
-        "body": "vm-4-2",
+        "body": os.getenv("TEXT_CLI_INSTANCE_ID", "text-cli"),
         "version": "1.0.0",
         "public_skills": public_count,
     }
@@ -331,7 +334,7 @@ async def stct():
 @app.post("/text-cli/cli")
 async def handle_directive(request: Request):
     service_token = request.headers.get("Service-token")
-    identity_header = request.headers.get("X-Text-CLI-Identity")
+    _identity_header = request.headers.get("X-Text-CLI-Identity")
     import time
     _req_start = time.time()
     auth = verify_service_token(service_token)
@@ -342,25 +345,23 @@ async def handle_directive(request: Request):
         )
 
     # 注入 identity_code 到异步安全上下文（供 handler 读取）
-    # 兼容旧代码：同时保留 _ai_im_auth_name（threading 方式）
-    from core.identity_context import set_identity, _IDENTITY_CTX as _identity_ctx
+    from core.identity_context import _IDENTITY_CTX as _identity_ctx
     _identity_ctx.set(auth.identity_code)
-    import threading
-    threading.current_thread()._ai_im_auth_name = auth.client_name
 
     try:
         body = await request.json()
-    except Exception:
+    except (json.JSONDecodeError, TypeError) as e:
+        logger.debug("Invalid JSON in request body: %s", e)
         return JSONResponse(
             status_code=400,
-            content=error("请求体不是有效 JSON"),
+            content=error("request body is not valid JSON"),
         )
 
     prompt = body.get("prompt")
     if not prompt:
         return JSONResponse(
             status_code=400,
-            content=error("缺少 prompt 字段"),
+            content=error("missing prompt field"),
         )
 
     try:
@@ -384,7 +385,7 @@ async def handle_directive(request: Request):
         return response
 
     # 1. MCP 优先路由（显式偏好 mcp 时优先）
-    from core.mcp_dispatch import decide_backend, get_mcp_route, adapt_params
+    from core.mcp_dispatch import adapt_params, decide_backend, get_mcp_route
     try:
         from packages.mcp.handler import check_mcp_quota
     except ImportError:
@@ -412,20 +413,23 @@ async def handle_directive(request: Request):
                 )
                 if mcp_result["ok"]:
                     return ok(format_mcp_result(mcp_result))
+                elif mcp_result.get("degrade"):
+                    logger.info("MCP preferred but unavailable for %s;%s, falling through to local",
+                                parsed.domain, parsed.action)
                 else:
                     return JSONResponse(
                         status_code=502,
-                        content=error(f"MCP 调用失败: {mcp_result['error']}"),
+                        content=error(f"MCP call failed: {mcp_result['error']}"),
                     )
             except ImportError:
                 return JSONResponse(
                     status_code=500,
-                    content=error("MCP handler 不可用"),
+                    content=error("MCP handler unavailable"),
                 )
         else:
             return JSONResponse(
                 status_code=400,
-                content=error(f"该指令无 MCP 路由配置: {parsed.domain};{parsed.action}"),
+                content=error(f"directive has no MCP route configured: {parsed.domain};{parsed.action}"),
             )
 
     # 2. 本地 dispatch
@@ -477,9 +481,11 @@ async def handle_directive(request: Request):
                     for sub in STREAM_SUBSCRIBERS:
                         try:
                             await sub.on_end(im_session, im_target, str(text))
-                        except Exception:
+                        except Exception as e:
+                            logger.debug("Stream subscriber on_end failed: %s", e)
                             pass
-            except Exception:
+            except Exception as e:
+                logger.debug("IM proxy send failed: %s", e)
                 pass
         return JSONResponse(content=proxy_result)
 
@@ -510,26 +516,45 @@ async def skills_detail(skill_id: str):
         return JSONResponse(
             status_code=503,
             content={"status": "error", "error": "unavailable",
-                      "message": "技能端点尚未就绪"},
+                      "message": "skill endpoint not ready"},
         )
     detail = get_skill_detail(skill_id)
     if detail is None:
         return JSONResponse(
             status_code=404,
             content={"status": "error", "error": "not_found",
-                      "message": f"技能 '{skill_id}' 不存在或未对外暴露"},
+                      "message": f"skill '{skill_id}' not found or not exposed"},
         )
     return JSONResponse(content=detail)
 
 
 @app.post("/text-cli/skills/{skill_id}")
 async def skills_execute(skill_id: str, request: Request):
-    """执行一个技能（尚不支持）"""
-    return JSONResponse(
-        status_code=501,
-        content={"status": "error", "error": "not_implemented",
-                  "message": "技能执行端点尚未实现"},
-    )
+    """Execute a skill via the path engine."""
+    try:
+        from handlers.skill_endpoint import get_skill_detail
+    except ImportError:
+        return JSONResponse(
+            status_code=503,
+            content={"rst_types": "text", "rst_data": {"text": "skill endpoint not ready"},
+                      "rst_err": "ERR_EXECUTION"},
+        )
+
+    detail = get_skill_detail(skill_id)
+    if detail is None:
+        return JSONResponse(
+            status_code=404,
+            content={"rst_types": "text", "rst_data": {"text": f"skill '{skill_id}' not found"},
+                      "rst_err": "ERR_NOT_FOUND"},
+        )
+
+    body = await request.json() if request.headers.get("content-type") == "application/json" else {}
+    skill_input = body.get("input", {}) if isinstance(body, dict) else {}
+    from core.registry import dispatch as _dispatch
+    directive = detail.get("directive") or "text-cli;path"
+    params = [str(v) for v in skill_input.values()] if skill_input else []
+    result = _dispatch(directive, "", params)
+    return JSONResponse(content=json.loads(result) if isinstance(result, str) else result)
 
 
 @app.api_route("/text-cli-copilot/{rest:path}", methods=["GET", "POST"])
@@ -564,7 +589,7 @@ async def copilot_proxy(request: Request, rest: str):
         logger.error("copilot proxy error: %s -> %d", rest, e.response.status_code)
         return JSONResponse(
             status_code=e.response.status_code,
-            content={"rst_types": "text", "rst_data": {"text": f"[proxy] copilot 返回 {e.response.status_code}"},
+            content={"rst_types": "text", "rst_data": {"text": f"[proxy] copilot returned {e.response.status_code}"},
                       "rst_err": "proxy_error"},
         )
     except Exception as e:
@@ -600,7 +625,8 @@ def _write_call_log(request: Request, auth, parsed, req_start: float,
         status = 'ok' if success else 'error'
         duration_ms = int((time.time() - req_start) * 1000) if req_start else 0
         write_call_log(auth.identity_code, domain, action, status, duration_ms=duration_ms)
-    except Exception:
+    except Exception as e:
+        logger.debug("Audit log write skipped: %s", e)
         pass  # 日志写入失败不阻断业务
 
 

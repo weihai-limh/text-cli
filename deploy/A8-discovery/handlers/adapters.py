@@ -11,12 +11,12 @@ import json
 import re
 
 
-def passthrough(raw: str, config: dict = None) -> dict:
+def passthrough(raw: str, config: dict | None = None) -> dict:
     """Pass raw text through as-is, wrapped in standard response."""
     return {"status": "ok", "result": raw}
 
 
-def json_parse(raw: str, config: dict = None) -> dict:
+def json_parse(raw: str, config: dict | None = None) -> dict:
     """Parse raw as JSON, wrap in standard response."""
     try:
         data = json.loads(raw)
@@ -27,7 +27,7 @@ def json_parse(raw: str, config: dict = None) -> dict:
         return {"status": "error", "reason": f"JSON parse failed: {raw[:100]}"}
 
 
-def md2tcjson(raw: str, config: dict = None) -> dict:
+def md2tcjson(raw: str, config: dict | None = None) -> dict:
     """Convert structured Markdown to text-cli standard JSON.
 
     Parses patterns:
@@ -141,7 +141,7 @@ def md2tcjson(raw: str, config: dict = None) -> dict:
     return result
 
 
-def baidumap(raw: str, config: dict = None) -> dict:
+def baidumap(raw: str, config: dict | None = None) -> dict:
     """Normalize Baidu Maps Agent Plan API response.
 
     Baidu uses status: 0 for success. Normalizes to text-cli standard.

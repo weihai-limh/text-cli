@@ -41,8 +41,8 @@ ACCESS_TOKEN="${TEXT_CLI_ACCESS_TOKEN:-$ACCESS_TOKEN}"
 # ── 从 stdin 读取指令文本 ──────────────────────────────
 
 if [ -t 0 ]; then
-  echo "用法: echo 'AI:域;动作,参数' | $0" >&2
-  echo "  -e, --endpoint <URL>  指定端点地址（可选）" >&2
+  echo "usage: echo 'AI:domain;action,params' | $0" >&2
+  echo "  -e, --endpoint <URL>  specify endpoint (optional)" >&2
   exit 1
 fi
 
@@ -79,7 +79,7 @@ HTTP_CODE=$(echo "$RESPONSE" | tail -1)
 BODY=$(echo "$RESPONSE" | sed '$d')
 
 if [ "$HTTP_CODE" != "200" ]; then
-  echo "[ERR] 调用失败 (HTTP $HTTP_CODE)" >&2
+  echo "[ERR] call failed (HTTP $HTTP_CODE)" >&2
   echo "$BODY" | python3 -m json.tool 2>/dev/null || echo "$BODY"
   exit 1
 fi

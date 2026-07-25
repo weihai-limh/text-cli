@@ -2,7 +2,7 @@
   "id": "web",
   "type": "aggregate",
   "domain": "web",
-  "description_cn": "网络搜索：多提供方自动降级",
+  "description_zh": "网络搜索：多提供方自动降级",
   "default": ["tavily", "bd-cloud"],
   "providers": {
     "tavily": {

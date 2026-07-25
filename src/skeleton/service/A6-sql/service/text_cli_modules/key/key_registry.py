@@ -77,7 +77,7 @@ def register(db_path: dict, service: str, *values: str, key_type: str) -> dict:
     v1 = values[0]
     v2 = values[1] if len(values) >= 2 else None
 
-    sql = get_sql_by_datas('in', {
+    sql, _params = get_sql_by_datas('in', {
         'table_name': 'key_registry',
         'in_data': {
             'service': service,
@@ -87,7 +87,7 @@ def register(db_path: dict, service: str, *values: str, key_type: str) -> dict:
             'key_type': key_type,
         }
     })
-    post_sql_by_dbname(db_path, sql)
+    post_sql_by_dbname(db_path, sql, _params)
 
     _log(db_path, 'KEY_REGISTER', service,
          f'type={key_type} cred_count={cred_count}')
@@ -102,11 +102,11 @@ def revoke(db_path: dict, service: str) -> dict:
         return {'ok': False, 'error': 'key_not_found',
                 'detail': f'密钥 {service} 不存在'}
 
-    sql = get_sql_by_datas('del', {
+    sql, _params = get_sql_by_datas('del', {
         'table_name': 'key_registry',
         'where1': ['service', service]
     })
-    post_sql_by_dbname(db_path, sql)
+    post_sql_by_dbname(db_path, sql, _params)
 
     _log(db_path, 'KEY_REVOKE', service)
 
@@ -114,11 +114,11 @@ def revoke(db_path: dict, service: str) -> dict:
 
 
 def list_keys(db_path: dict) -> list:
-    sql = get_sql_by_datas('q', {
+    sql, _params = get_sql_by_datas('q', {
         'table_name': 'key_registry',
         'q_str': 'service,key_type,cred_count,quota_track,registered_at',
     })
-    result = post_sql_by_dbname(db_path, sql)
+    result = post_sql_by_dbname(db_path, sql, _params)
     if not result:
         return []
 
@@ -138,12 +138,12 @@ def list_keys(db_path: dict) -> list:
 
 def get_raw(db_path: dict, service: str) -> dict | None:
     """获取密钥的完整行数据 (value, value2, cred_count, quota_track)。"""
-    sql = get_sql_by_datas('q', {
+    sql, _params = get_sql_by_datas('q', {
         'table_name': 'key_registry',
         'q_str': 'value,value2,cred_count,quota_track',
         'where1': ['service', service]
     })
-    result = post_sql_by_dbname(db_path, sql)
+    result = post_sql_by_dbname(db_path, sql, _params)
     if not result:
         return None
 
@@ -206,11 +206,11 @@ def get(db_path: dict, service: str) -> str | list[str] | None:
 
 def get_all_keys(db_path: dict) -> dict[str, str]:
     """获取所有密钥 (用于 proxy 注入, 仅返回单凭据或主凭据)。"""
-    sql = get_sql_by_datas('q', {
+    sql, _params = get_sql_by_datas('q', {
         'table_name': 'key_registry',
         'q_str': 'service,value',
     })
-    result = post_sql_by_dbname(db_path, sql)
+    result = post_sql_by_dbname(db_path, sql, _params)
     if not result:
         return {}
 
@@ -240,7 +240,7 @@ def set_quota_track(db_path: dict, service: str, targets: list[str] | None) -> d
 
     # SQLite doesn't support None well in get_sql_by_datas; use raw SQL via post
     import sqlite3
-    db_file = list(db_path.values())[0] if isinstance(db_path, dict) else db_path
+    db_file = next(iter(db_path.values())) if isinstance(db_path, dict) else db_path
     conn = sqlite3.connect(db_file)
     conn.execute(
         "UPDATE key_registry SET quota_track = ? WHERE service = ?",
@@ -278,7 +278,7 @@ def _parse_quota_track(raw: str | None) -> list[str] | None:
 
 def _log(db_path: dict, action: str, service: str, detail: str = ''):
     try:
-        sql = get_sql_by_datas('in', {
+        sql, _params = get_sql_by_datas('in', {
             'table_name': 'call_log',
             'in_data': {
                 'action': action,
@@ -286,6 +286,7 @@ def _log(db_path: dict, action: str, service: str, detail: str = ''):
                 'detail': detail,
             }
         })
-        post_sql_by_dbname(db_path, sql)
-    except Exception:
+        post_sql_by_dbname(db_path, sql, _params)
+    except Exception as e:
+        logger.debug("key_registry init storage failed: %s", e)
         pass

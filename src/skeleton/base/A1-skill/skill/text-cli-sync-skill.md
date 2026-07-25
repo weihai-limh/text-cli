@@ -36,10 +36,10 @@ status: 概念设计 / 待后续实现
 5. 写入 `agent-text-cli-schema.json`
 6. 某个端点拉取失败时跳过，返回摘要标注失败列表
 
-**聚合算法**（SPEC v1.3 directives[] 格式）：
+**聚合算法**（SPEC v1.3.2 directives[] 格式）：
 
 ```
-输入：多个端点的 Schema（SPEC v1.3 directives[] 格式）
+输入：多个端点的 Schema（SPEC v1.3.2 directives[] 格式）
 
 端点 A:
   {"directives": [

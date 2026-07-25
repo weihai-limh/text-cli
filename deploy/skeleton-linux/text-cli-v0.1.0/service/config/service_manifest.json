@@ -1,8 +1,0 @@
-{
-  "comment": "对外暴露指令白名单。空数组 = 全部暴露（向后兼容）。有内容 = 只暴露列出的指令。",
-  "public_directives": [
-    "map;geocode",
-    "web;search",
-    "weather;query"
-  ]
-}

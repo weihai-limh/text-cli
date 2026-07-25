@@ -1,0 +1,92 @@
+{
+  "id": "web-utils",
+  "name": "web-utils",
+  "name_zh": "Web工具",
+  "type": "native",
+  "runtime": "node",
+  "category": "utils",
+  "version": "0.1.1",
+  "license": "MIT",
+  "locales": [
+    "zh",
+    "en"
+  ],
+  "trust": "internal",
+  "description": "Web utilities (IP query, XOR crypto)",
+  "description_zh": "Web工具（IP查询、XOR加密）",
+  "directives": [
+    {
+      "domain": "web-utils",
+      "domain_zh": "Web工具",
+      "action": "get_public_ip",
+      "action_zh": "获取公网IP",
+      "usage": "web-utils;get_public_ip",
+      "usage_zh": "web-utils;获取公网IP",
+      "description": "Return caller's public IP",
+      "description_zh": "返回调用方公网IP",
+      "params": [],
+      "params_desc": {},
+      "outputs": [
+        "ip"
+      ]
+    },
+    {
+      "domain": "web-utils",
+      "domain_zh": "Web工具",
+      "action": "xor_encrypt",
+      "action_zh": "XOR加密",
+      "usage": "web-utils;xor_encrypt,plaintext,key",
+      "usage_zh": "web-utils;XOR加密,明文,密钥",
+      "description": "XOR encrypt plaintext with key",
+      "description_zh": "XOR加密明文",
+      "params": [
+        {
+          "name": "plaintext",
+          "required": true,
+          "description": "Plain text"
+        },
+        {
+          "name": "key",
+          "required": true,
+          "description": "Encryption key"
+        }
+      ],
+      "params_desc": {
+        "plaintext": "Plain text to encrypt",
+        "key": "Encryption key (will be reused cyclically)"
+      },
+      "outputs": [
+        "result"
+      ]
+    },
+    {
+      "domain": "web-utils",
+      "domain_zh": "Web工具",
+      "action": "xor_decrypt",
+      "action_zh": "XOR解密",
+      "usage": "web-utils;xor_decrypt,ciphertext,key",
+      "usage_zh": "web-utils;XOR解密,密文,密钥",
+      "description": "XOR decrypt ciphertext with key",
+      "description_zh": "XOR解密密文",
+      "params": [
+        {
+          "name": "ciphertext",
+          "required": true,
+          "description": "Cipher text (hex)"
+        },
+        {
+          "name": "key",
+          "required": true,
+          "description": "Encryption key"
+        }
+      ],
+      "params_desc": {
+        "ciphertext": "Cipher text in hex format",
+        "key": "Encryption key (will be reused cyclically)"
+      },
+      "outputs": [
+        "result"
+      ]
+    }
+  ]
+}
