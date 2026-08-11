@@ -1,14 +1,15 @@
 """
 Proxy forwarding handler — forwards matched directives to downstream services (e.g. copilot).
-v1.1: async HTTP via httpx.AsyncClient, per-peer credential injection, federation mesh.
+v1.2: async HTTP via httpx.AsyncClient, credential injection via external injector, federation mesh.
+
+Credential injection is handled by MeshCredentialInjector (A6 layer). A3 proxy.py is a pure
+forwarding pipe — it does NOT import or depend on SQLite, peer_credentials, or credential logic.
 """
 
 import asyncio
 import json
 import logging
 import os
-import sqlite3
-import threading
 from pathlib import Path
 
 import httpx
@@ -34,49 +35,26 @@ MAX_HOP_DEPTH = 5
 DEFAULT_TIMEOUT = 30  # seconds
 MAX_RETRIES = 2       # exponential backoff: 2^attempt seconds
 
-# ── Peer credentials ──────────────────────
-_peer_db_file: str | None = None
-_peer_local = threading.local()
+# Mesh multi-hop config cache — lazy-loaded once per process lifetime
+_mesh_config_cache: tuple | None = None
 
 
-def _get_peer_db() -> sqlite3.Connection | None:
-    """Thread-local SQLite connection for peer_credentials."""
-    if not _peer_db_file:
-        return None
-    if not hasattr(_peer_local, "conn") or _peer_local.conn is None:
-        _peer_local.conn = sqlite3.connect(_peer_db_file)
-        _peer_local.conn.row_factory = sqlite3.Row
-    return _peer_local.conn
-
-
-def init_peer_credentials(sqlite_db_file: str):
-    """Create peer_credentials table and set DB file path (called via handler_inits)."""
-    global _peer_db_file
-    _peer_db_file = sqlite_db_file
-    db = _get_peer_db()
-    if db is None:
-        return
-    db.execute("""
-        CREATE TABLE IF NOT EXISTS peer_credentials (
-            peer TEXT PRIMARY KEY,
-            service_token TEXT,
-            created_at TEXT DEFAULT (datetime('now')),
-            updated_at TEXT DEFAULT (datetime('now'))
+def _get_mesh_config() -> tuple:
+    """Lazy load mesh multi-hop config with graceful degradation."""
+    global _mesh_config_cache
+    if _mesh_config_cache is not None:
+        return _mesh_config_cache
+    try:
+        from core.config import load_config
+        config = load_config()
+        mesh = config.get("mesh", {})
+        _mesh_config_cache = (
+            mesh.get("multi_hop_enabled", False),
+            mesh.get("multi_hop_max_depth", 3),
         )
-    """)
-    db.commit()
-    logger.info("peer_credentials table initialised")
-
-
-def get_peer_credentials(peer: str) -> dict | None:
-    """Query credentials for a specific peer from the peer_credentials table."""
-    db = _get_peer_db()
-    if db is None:
-        return None
-    row = db.execute("SELECT * FROM peer_credentials WHERE peer=?", (peer,)).fetchone()
-    if row:
-        return dict(row)
-    return None
+    except Exception:
+        _mesh_config_cache = (False, 3)
+    return _mesh_config_cache
 
 
 def _resolve_config(path: str) -> str:
@@ -87,15 +65,6 @@ def _resolve_config(path: str) -> str:
         logger.info("Using example config: %s", example_path)
         return example_path
     return path
-
-# Try loading SQLite for credential injection
-try:
-    from text_cli_modules.key.key_registry import get_all_keys
-    SQLITE_AVAILABLE = True
-except ImportError:
-    SQLITE_AVAILABLE = False
-    def get_all_keys(*args, **kwargs):
-        return {}
 
 
 def _load_proxy_routes() -> dict[str, dict]:
@@ -123,8 +92,13 @@ def get_proxy_routes() -> dict:
 
 
 async def proxy_dispatch(domain: str, action: str, params: list[str],
-                         raw_prompt: str = "", db_path: dict | None = None) -> dict | None:
-    """Check proxy routes, forward on match (with credential injection). Returns None if no match."""
+                         raw_prompt: str = "", credential_injector=None) -> dict | None:
+    """Check proxy routes, forward on match. Returns None if no match.
+
+    credential_injector: optional MeshCredentialInjector instance (A6 layer).
+        When provided, injector.inject(body, peer) is called before forwarding.
+        A3 standalone deployments pass None (pure forwarding, no credentials).
+    """
     routes = get_proxy_routes()
     lookup = f"{domain};{action}"
 
@@ -142,52 +116,58 @@ async def proxy_dispatch(domain: str, action: str, params: list[str],
     # Build request body
     body_data = {"prompt": raw_prompt}
 
-    # Credential injection: per-peer credentials from peer_credentials table
+    # Credential injection — delegated to external injector (A6 layer)
     peer = route.get("peer")
-    if peer and db_path:
-        creds = get_peer_credentials(peer)
-        if creds:
-            body_data["_injected_credentials"] = {peer: creds}
-            logger.info("proxy injected credentials for peer %s into %s", peer, lookup)
-        else:
-            logger.warning("No credentials found for peer %s", peer)
-    elif peer and not db_path:
-        logger.warning("SQLite not installed, federation mesh unavailable")
-    elif not peer and SQLITE_AVAILABLE and db_path:
-        # Fallback: no peer specified, inject all keys (legacy behavior)
-        all_keys = get_all_keys(db_path)
-        if all_keys:
-            body_data["_injected_credentials"] = all_keys
-            logger.info("proxy injected %d credentials into %s (no peer, legacy)", len(all_keys), lookup)
+    if credential_injector is not None:
+        try:
+            body_data = credential_injector.inject(body_data, peer)
+        except Exception as e:
+            logger.error("mesh credential injector failed for peer %s: %s", peer, e)
+            return {"rst_types": "text",
+                    "rst_data": {"status": "error",
+                                 "reason": f"mesh_credential_unavailable: {e}"},
+                    "rst_err": "ERR_ROUTING"}
 
     timeout = httpx.Timeout(30.0)
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
+            headers = {}
+            if token:
+                headers['Authorization'] = f'Bearer {token}'
             resp = await client.post(
                 target_url,
                 json=body_data,
-                headers={
-                    'Authorization': f'Bearer {token}',
-                },
+                headers=headers,
             )
             result = resp.json()
             if sensitive:
-                result["rst_data"] = {"text": "[redacted]"}
+                result["rst_data"] = {"status": "redacted", "reason": "[redacted]"}
                 logger.info("proxy %s -> %s OK (sensitive, masked)", lookup, target_url)
             else:
                 logger.info("proxy %s -> %s OK", lookup, target_url)
+
+            # Multi-hop follow — if enabled and result signals a redirect
+            multi_hop_enabled, _ = _get_mesh_config()
+            next_peer = result.get("_mesh_redirect") if multi_hop_enabled else None
+            if next_peer:
+                next_domain, _, next_action = next_peer.partition(";")
+                return await proxy_dispatch_multi_hop(
+                    next_domain, next_action, params,
+                    raw_prompt=raw_prompt, credential_injector=credential_injector,
+                    visited={peer} if peer else set(), depth=1)
+
             return result
     except httpx.HTTPStatusError as e:
         logger.error("proxy %s -> %s HTTP %d", lookup, target_url, e.response.status_code)
-        return {"rst_types": "text", "rst_data": {"text": f"[proxy_error] downstream returned {e.response.status_code}"},
+        return {"rst_types": "text", "rst_data": {"status": "error", "reason": f"[proxy_error] downstream returned {e.response.status_code}"},
                 "rst_err": "proxy_error"}
     except httpx.TimeoutException as e:
         logger.error("proxy %s -> %s timeout: %s", lookup, target_url, e)
-        return {"rst_types": "text", "rst_data": {"text": f"[proxy_error] timeout: {e}"},
+        return {"rst_types": "text", "rst_data": {"status": "error", "reason": f"[proxy_error] timeout: {e}"},
                 "rst_err": "proxy_error"}
     except Exception as e:
         logger.error("proxy %s -> %s failed: %s", lookup, target_url, e)
-        return {"rst_types": "text", "rst_data": {"text": f"[proxy_error] {e}"},
+        return {"rst_types": "text", "rst_data": {"status": "error", "reason": f"[proxy_error] {e}"},
                 "rst_err": "proxy_error"}
 
 
@@ -216,10 +196,13 @@ async def proxy_with_retry(target_url: str, body_data: dict, token: str,
     for attempt in range(retries + 1):
         try:
             async with httpx.AsyncClient(timeout=httpx.Timeout(timeout)) as client:
+                headers = {}
+                if token:
+                    headers['Authorization'] = f'Bearer {token}'
                 resp = await client.post(
                     target_url,
                     json=body_data,
-                    headers={'Authorization': f'Bearer {token}'},
+                    headers=headers,
                 )
                 resp.raise_for_status()
                 return resp.json()
@@ -236,7 +219,7 @@ async def proxy_with_retry(target_url: str, body_data: dict, token: str,
 
 
 async def proxy_dispatch_multi_hop(domain: str, action: str, params: list[str],
-                                   raw_prompt: str = "", db_path: dict | None = None,
+                                   raw_prompt: str = "", credential_injector=None,
                                    visited: set = None, depth: int = 0) -> dict | None:
     """Multi-hop mesh proxy: forward through peer chain with loop detection.
 
@@ -247,7 +230,7 @@ async def proxy_dispatch_multi_hop(domain: str, action: str, params: list[str],
     Args:
         domain, action, params: Parsed directive components.
         raw_prompt: Original AI: prompt for forwarding.
-        db_path: SQLite config dict for credential lookup.
+        credential_injector: optional MeshCredentialInjector instance (A6 layer).
         visited: Accumulated peer set for loop detection (caller leaves None).
         depth: Current hop depth (caller leaves 0).
 
@@ -260,7 +243,9 @@ async def proxy_dispatch_multi_hop(domain: str, action: str, params: list[str],
     """
     if visited is None:
         visited = set()
-    if depth > MAX_HOP_DEPTH:
+    _, depth_cfg = _get_mesh_config()
+    effective_max = min(depth_cfg, MAX_HOP_DEPTH)
+    if depth > effective_max:
         raise MeshDepthError(
             f"Max hop depth {MAX_HOP_DEPTH} exceeded at {domain};{action}")
 
@@ -285,21 +270,23 @@ async def proxy_dispatch_multi_hop(domain: str, action: str, params: list[str],
 
     body_data = {"prompt": raw_prompt}
 
-    # Per-peer credential injection
-    if peer and db_path:
-        creds = get_peer_credentials(peer)
-        if creds:
-            body_data["_injected_credentials"] = {peer: creds}
-        else:
-            logger.warning("No credentials for peer %s in multi-hop chain", peer)
-    elif not db_path:
-        logger.warning("SQLite not installed, federation mesh unavailable")
+    # Credential injection — delegated to external injector (A6 layer)
+    if credential_injector is not None:
+        try:
+            body_data = credential_injector.inject(body_data, peer)
+        except Exception as e:
+            logger.error("mesh credential injector failed for peer %s (hop %d): %s",
+                         peer, depth, e)
+            return {"rst_types": "text",
+                    "rst_data": {"status": "error",
+                                 "reason": f"mesh_credential_unavailable: {e}"},
+                    "rst_err": "ERR_ROUTING"}
 
     # Forward with retry
     try:
         result = await proxy_with_retry(target_url, body_data, token)
         if sensitive:
-            result.setdefault("rst_data", {})["text"] = "[redacted]"
+            result["rst_data"] = {"status": "redacted", "reason": "[redacted]"}
             logger.info("mesh %d-hop %s -> %s OK (sensitive)", depth, lookup, target_url)
         else:
             logger.info("mesh %d-hop %s -> %s OK", depth, lookup, target_url)
@@ -310,7 +297,7 @@ async def proxy_dispatch_multi_hop(domain: str, action: str, params: list[str],
             next_domain, _, next_action = next_peer.partition(";")
             return await proxy_dispatch_multi_hop(
                 next_domain, next_action, params,
-                raw_prompt=raw_prompt, db_path=db_path,
+                raw_prompt=raw_prompt, credential_injector=credential_injector,
                 visited=visited, depth=depth + 1)
 
         return result
@@ -318,15 +305,15 @@ async def proxy_dispatch_multi_hop(domain: str, action: str, params: list[str],
         raise
     except httpx.TimeoutException as e:
         logger.error("mesh %d-hop %s -> %s timeout", depth, lookup, target_url)
-        return {"rst_types": "text", "rst_data": {"text": f"[mesh_timeout] {e}"},
+        return {"rst_types": "text", "rst_data": {"status": "error", "reason": f"[mesh_timeout] {e}"},
                 "rst_err": "ERR_ROUTING"}
     except httpx.HTTPStatusError as e:
         logger.error("mesh %d-hop %s -> %s HTTP %d", depth, lookup, target_url,
                      e.response.status_code)
         return {"rst_types": "text",
-                "rst_data": {"text": f"[mesh_error] downstream returned {e.response.status_code}"},
+                "rst_data": {"status": "error", "reason": f"[mesh_error] downstream returned {e.response.status_code}"},
                 "rst_err": "ERR_ROUTING"}
     except Exception as e:
         logger.error("mesh %d-hop %s -> %s failed: %s", depth, lookup, target_url, e)
-        return {"rst_types": "text", "rst_data": {"text": f"[mesh_error] {e}"},
+        return {"rst_types": "text", "rst_data": {"status": "error", "reason": f"[mesh_error] {e}"},
                 "rst_err": "ERR_ROUTING"}

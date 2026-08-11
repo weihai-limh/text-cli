@@ -23,7 +23,7 @@ def _get_source_dirs() -> list[pathlib.Path]:
     return []
 
 
-def _find_package_dir(name: str, source_dirs: list[pathlib.Path] = None):
+def _find_package_dir(name: str, source_dirs: list[pathlib.Path] | None = None):
     """Locate a package directory by name across source dirs. Recursively searches subdirectories, matching by directory name or schema id."""
     if source_dirs is None:
         source_dirs = _get_source_dirs()
@@ -40,7 +40,6 @@ def _find_package_dir(name: str, source_dirs: list[pathlib.Path] = None):
             except Exception as e:
                 logger.debug("Failed to parse schema candidate %s: %s", candidate, e)
                 pass
-    return None
 
 
 def _check_mcporter_server(server_name: str) -> tuple[bool, str]:
@@ -57,14 +56,14 @@ def _check_mcporter_server(server_name: str) -> tuple[bool, str]:
         )
         if result.returncode == 0 and "function" in result.stdout:
             return True, "ok"
-        return True, f"mcporter: server '{server_name}' not configured — MCP dispatch may fail"
+        return False, f"mcporter: server '{server_name}' not configured — MCP dispatch may fail"
     except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
         if isinstance(e, FileNotFoundError):
-            return True, "mcporter CLI not available — MCP dispatch may fail"
-        return True, f"mcporter check skipped ({e}) — MCP dispatch may fail"
+            return False, "mcporter CLI not available — MCP dispatch may fail"
+        return False, f"mcporter check skipped ({e}) — MCP dispatch may fail"
 
 
-def validate_package(name: str, source_dirs: list[pathlib.Path] = None) -> tuple[bool, str, dict | None]:
+def validate_package(name: str, source_dirs: list[pathlib.Path] | None = None) -> tuple[bool, str, dict | None]:
     """Validate a package for installation.
 
     Returns (ok, message, schema_dict_or_none).
@@ -93,6 +92,13 @@ def validate_package(name: str, source_dirs: list[pathlib.Path] = None) -> tuple
     if runtime not in ACCEPTED_RUNTIMES:
         return False, f"Unsupported runtime \"{runtime}\"（Accepted: python/node/mcp/cmd）", None
 
+    # 4a. Check entry_runtimes (SPEC v1.3: multi-runtime environment declaration)
+    entry_runtimes = schema.get("entry_runtimes", [])
+    if entry_runtimes:
+        invalid = [r for r in entry_runtimes if r not in ACCEPTED_RUNTIMES]
+        if invalid:
+            return False, f"entry_runtimes contains unsupported runtime(s): {', '.join(invalid)} (Accepted: python/node/mcp/cmd)", None
+
     # 5. Check system domain protection
     pkg_id = schema.get("id", "")
     if pkg_id in SYSTEM_DOMAINS:
@@ -111,6 +117,7 @@ def validate_package(name: str, source_dirs: list[pathlib.Path] = None) -> tuple
         "handler_path": None,
         "req_path": None,
         "service_descriptor": None,
+        "entry_runtimes": entry_runtimes,
     }
 
     if runtime == "python":

@@ -1,0 +1,14 @@
+[32m[PASS][0m config.js exists and is valid
+--- 1. Gateway routing ---
+[32m[PASS][0m GET /health returns ok
+[32m[PASS][0m GET /skills returns object
+[32m[PASS][0m POST envelope has rst_types
+[32m[PASS][0m POST envelope has rst_data
+[32m[PASS][0m POST rst_err empty
+[32m[PASS][0m PUT uses protocol error code (ERR_ROUTING)
+[32m[PASS][0m missing prompt returns INVALID_PARAMS
+[32m[PASS][0m unknown path returns ERR_NOT_FOUND
+
+========================================
+  PASS: 9  FAIL: 0
+========================================

@@ -158,10 +158,7 @@ jobs:
         run: |
           for f in \
             docs/ecosystem/collaboration_zh.md \
-            docs/ecosystem/production-tcc_zh.md \
             .agents/p_text-cli.md \
-            p-tokens.md \
-            TCC_ledger.md \
           ; do
             if [ ! -f "$f" ]; then
               echo "::error::Missing required file: $f"
@@ -273,6 +270,20 @@ jobs:
 
       - name: Check src/skeleton/ → deploy/ consistency
         run: python scripts/build-all.py --check
+
+  protocol-check:
+    name: Protocol Invariant Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Check protocol invariants
+        run: python scripts/check-protocol.py --check
 
   tcc-recalculate:
     name: TCC Mint Recalculate

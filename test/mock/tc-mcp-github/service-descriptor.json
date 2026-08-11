@@ -1,0 +1,12 @@
+{
+  "mcp_server": "github",
+  "tools": [
+    {"name": "search_repos", "tool": "search_repositories"},
+    {"name": "get_file",     "tool": "get_file_contents"},
+    {"name": "list_commits", "tool": "list_commits"},
+    {"name": "search_issues","tool": "search_issues"},
+    {"name": "list_issues",  "tool": "list_issues"},
+    {"name": "create_issue", "tool": "create_issue"},
+    {"name": "create_pr",    "tool": "create_pull_request"}
+  ]
+}

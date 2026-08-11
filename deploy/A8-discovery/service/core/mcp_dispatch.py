@@ -1,8 +1,10 @@
 """
-MCP 路由分发 — text-cli-service 的多后端路由决策
+MCP routing dispatch — text-cli-service multi-backend routing decision.
 
-路由表从 text_cli_schema.json 动态派生（与 copilot 的 _build_mcp_registry 同构）。
-无硬编码——加新 MCP tool 只需改 schema，重启即生效。
+Routing table is dynamically derived from text_cli_schema.json
+(isomorphic with copilot's _build_mcp_registry).
+No hard-coding — adding a new MCP tool only requires a schema change,
+restart to take effect.
 """
 
 import json
@@ -17,15 +19,15 @@ _SERVICE_ROOT = Path(__file__).resolve().parent.parent
 _SCHEMA_PATH = _SERVICE_ROOT / "config" / "text_cli_schema.json"
 _SCHEMA_DIR = _SERVICE_ROOT / "handlers" / "schema"
 
-# ── schema 派生的运行时结构 ──
-# 与 copilot _alias_map + _mcp_registry 完全同构
+# ── schema-derived runtime structures ──
+# Isomorphic with copilot _alias_map + _mcp_registry
 
-_alias_to_canonical: dict[str, str] = {}   # "腾讯地图;地址解析" → "tencentmap;geocode"
+_alias_to_canonical: dict[str, str] = {}   # "tencentmap;geocode" → "tencentmap;geocode"
 _routing_by_canonical: dict[str, dict] = {} # "tencentmap;geocode" → {server, tool, ...}
 
 
 def _strip_prefix(directive: str) -> str:
-    """去掉 AI:/指令: 前缀，返回纯 domain;action"""
+    """Strip AI:/指令: prefix, return bare domain;action"""
     for prefix in ("AI:", "指令:"):
         if directive.startswith(prefix):
             return directive[len(prefix):].strip()
@@ -34,13 +36,12 @@ def _strip_prefix(directive: str) -> str:
 
 def init_from_schema(schema: dict):
     """
-    从 schema 构建 alias 映射和路由表。
+    Build alias map and routing table from schema.
 
-    每次 _load_schema() 后调用，确保 schema 是路由的唯一数据源。
-
-    与 copilot CopilotCore._build_mcp_registry 同构：
-    - alias → canonical 从 directive/directive_zh 派生
-    - routing 从 routing.backends 派生
+    Called after every _load_schema() to ensure schema is the sole data source
+    for routing. Isomorphic with copilot CopilotCore._build_mcp_registry:
+    - alias → canonical derived from directive/directive_zh
+    - routing derived from routing.backends
     """
     _alias_to_canonical.clear()
     _routing_by_canonical.clear()
@@ -65,7 +66,7 @@ def init_from_schema(schema: dict):
         if zh_key:
             _alias_to_canonical[zh_key] = canonical
 
-        # routing: 取第一个 mcp backend
+        # routing: take first mcp backend
         backends = routing.get("backends", [])
         for backend in backends:
             if backend.get("type") == "mcp":
@@ -87,7 +88,7 @@ def init_from_schema(schema: dict):
 
 
 def load_preferences() -> dict:
-    """加载路由偏好配置。文件不存在则返回全 local。"""
+    """Load routing preferences config. Returns all-local if file missing."""
     try:
         with open(PREF_PATH, 'r', encoding='utf-8') as f:
             return json.load(f)
@@ -97,9 +98,9 @@ def load_preferences() -> dict:
 
 def get_mcp_route(domain: str, action: str) -> dict | None:
     """
-    获取指令的 MCP 路由配置。
+    Get MCP routing config for a directive.
 
-    流程：alias → canonical → routing lookup
+    Flow: alias → canonical → routing lookup
     """
     lookup = f"{domain};{action}"
     canonical = _alias_to_canonical.get(lookup, lookup)
@@ -108,7 +109,7 @@ def get_mcp_route(domain: str, action: str) -> dict | None:
 
 def decide_backend(domain: str, action: str) -> str:
     """
-    决定使用哪个后端执行指令。
+    Decide which backend to use for execution.
 
     Returns: "local" | "mcp"
     """
@@ -116,22 +117,22 @@ def decide_backend(domain: str, action: str) -> str:
     lookup = f"{domain};{action}"
     canonical = _alias_to_canonical.get(lookup, lookup)
 
-    # 1. 显式偏好优先（查原始 key 和 canonical key）
+    # 1. explicit preference first (check both raw and canonical keys)
     for key in (lookup, canonical):
         if key in prefs.get("preferences", {}):
             return prefs["preferences"][key]
 
-    # 2. 默认
+    # 2. default
     return prefs.get("default", "local")
 
 
 def adapt_params(params: list, routing: dict) -> dict:
     """
-    将 text-cli 位置参数适配为 MCP tool arguments。
+    Adapt text-cli positional params to MCP tool arguments.
 
-    与 copilot _adapt_params_mcp 同构：
-    - passthrough: 位置参数按 param_names 顺序映射
-    - json_parse: 第一个参数解析为 JSON
+    Isomorphic with copilot _adapt_params_mcp:
+    - passthrough: positional params mapped by param_names order
+    - json_parse: first param parsed as JSON
     """
     adapter = routing.get("adapter", "passthrough")
 
@@ -148,7 +149,7 @@ def adapt_params(params: list, routing: dict) -> dict:
             import json as _json
             return _json.loads(params[0])
         except (json.JSONDecodeError, ValueError):
-            # JSON 中的逗号可能被解析器拆开，尝试拼接还原
+            # commas may have been split by parser, try reassembly
             try:
                 return _json.loads(",".join(params))
             except (json.JSONDecodeError, ValueError):
@@ -185,7 +186,7 @@ def refresh_routes():
                 continue
 
             # Load service-descriptor for mcporter routing info
-            sd_path = _SCHEMA_DIR.parent.parent / "packages" / sf.stem.replace("_schema", "") / "service-descriptor.json"
+            sd_path = _SCHEMA_DIR.parent.parent / "packages" / sf.stem.replace("_schema", "").replace("_", "-") / "service-descriptor.json"
             sd = {}
             if sd_path.exists():
                 try:

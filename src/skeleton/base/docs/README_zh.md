@@ -9,127 +9,248 @@ base 分组下的骨架层**不绑定任何运行时**——它们是所有上�
 | 层 | 名称 | 内容 | 备注 |
 |:---:|------|------|------|
 | A0 | protocol | 协议规范 + 零依赖调用示例（shell/python/js/ps1） | 不参与骨架累积链，直通模式 |
-| A1 | skill | Agent Skill 封装层——编译（cli.py）+ 消费（skill.py）+ NoCode + Skill 定义 | 不参与骨架累积链，直通模式 |
+| A1 | skill | Agent Skill 调度层——编译（cli.py）+ 消费（skill.py）+ 多端点降级 | 依赖组装（先铺 A0，再铺 A1） |
 
 ## A0 与 A1 的关系
 
-A0 是"怎么调"，A1 是"怎么造 + 怎么让 AI 调"。
+A0 是"怎么调"（单端点 SDK），A1 是"怎么调多个端点 + 怎么造"（多端点调度 + 指令编译）。
 
 ---
 
-## A0 — 协议级调用示例
+## A0 — 协议消费 SDK / CLI
 
-零依赖——`shell/call.sh` + `shell/call.ps1` + `python/call.py` + `js/call.js` 四种实现，任何人拿到就能用。
+零依赖——一份脚本就能调 text-cli 服务。四语言实现分为两层：Python/JS 面向 AI Agent（SDK 层），Shell/PowerShell 面向人（CLI 层）。
 
-### 三种调用方式
+### API 速览（Python）
 
-| 方式 | 文件 | 平台 | 用法 |
-|------|------|------|------|
-| Shell | `A0-protocol/shell/call.sh` | Linux/macOS | `echo "AI:weather;query,北京" \| ./call.sh` |
-| PowerShell | `A0-protocol/shell/call.ps1` | Windows | `.\call.ps1 "AI:weather;query,北京"` |
-| Python | `A0-protocol/python/call.py` | 跨平台 | `from call import call_directive` → `call_directive("AI:...")` |
-| JavaScript | `A0-protocol/js/call.js` | 跨平台 | `const {callDirective} = require('./call'); await callDirective("AI:...")` |
+```python
+from call import call, discover, poll, wait
 
-### 配置
+# Call directive — always returns immediately
+result = call("AI:tc-math;eval,2+3*4")
+# → DirectiveResult(ok=True, data={"result":14})
 
-统一从同目录 `conf.json` 读取：
+# Discover capabilities — one HTTP call, cached, zero-cost filtering
+directives = discover(search="weather")
+# → [{"domain":"weather","action":"query","usage":"weather;query,<city>,<date>",...}]
+
+# Async poll — single query
+status = poll("abc123")
+# → DirectiveResult(is_async=True, data={"state":"running","progress":"50%"})
+
+# Async wait — exponential backoff + progress callback
+final = wait("abc123", on_status=lambda s: print(s.get("state")))
+# → DirectiveResult(ok=True, data={"path":"/media/out.mp4"})
+```
+
+JavaScript API is identical: `call()` / `discover()` / `poll()` / `wait()`, returning `DirectiveResult`.
+
+Per-call token overrides supported: `call("AI:...", endpoint="...", access_token="...", service_token="...")`.
+
+### CLI Quick Start (Shell)
+
+```bash
+echo "AI:tc-math;eval,2+3*4" | ./call.sh
+./call.sh --task abc123
+```
+
+PowerShell: `./call.ps1 "AI:..."` / `./call.ps1 -Task abc123`.
+
+### Four Implementations
+
+| Tier | Language | File | Zero-deps | API |
+|:---:|------|------|:---:|------|
+| SDK | Python | `A0-protocol/python/call.py` | urllib | call, discover, poll, wait, call_batch |
+| SDK | JavaScript | `A0-protocol/js/call.js` | fetch | call, discover, poll, wait, callBatch |
+| CLI | Shell | `A0-protocol/shell/call.sh` | curl+python3 | call, --task |
+| CLI | PowerShell | `A0-protocol/shell/call.ps1` | Invoke-WebRequest | call, -Task |
+
+### Configuration
+
+Default endpoint `http://127.0.0.1:28050/text-cli/cli`:
 
 ```json
 {
-  "endpoint": "http://127.0.0.1/text-cli/cli",
+  "endpoint": "http://127.0.0.1:28050/text-cli/cli",
   "service_token": "",
   "access_token": ""
 }
 ```
 
-优先级：环境变量（`TEXT_CLI_ENDPOINT` / `TEXT_CLI_SERVICE_TOKEN` / `TEXT_CLI_ACCESS_TOKEN`） > `conf.json` > 内置默认。
+Priority: env vars (`TEXT_CLI_ENDPOINT` / `TEXT_CLI_SERVICE_TOKEN` / `TEXT_CLI_ACCESS_TOKEN`) > `conf.json` > defaults.
 
 ### 响应解析
 
-所有实现统一解析 SPEC v1.3.2 响应：`rst_types == "text"` → 提取 `rst_data.text`。
+四种实现统一解析协议信封：`rst_data` 直接使用（不再经 `.text` 嵌套），读取 `rst_err` 判断成功/失败，检测 `status=="pending"` + `task_id` 标记异步任务。
+
+### 目录结构
+
+```
+A0-protocol/
+├── python/
+│   ├── call.py                    ← Python SDK：DirectiveResult + discover + poll + wait
+│   └── conf.json                  ← 默认端点配置
+├── js/
+│   ├── call.js                    ← JavaScript SDK
+│   └── conf.json
+└── shell/
+    ├── call.sh                    ← Bash CLI
+    ├── call.ps1                   ← PowerShell CLI
+    └── conf.json
+```
 
 ---
 
-## A1 — Agent Skill 封装层
+## A1 — Agent Skill 调度层
 
-A1 提供三条路径：编译（造指令）、消费（调指令）、NoCode（写文档造指令）。
+A1 是 A0 之上的多端点调度层，面向多个 Service 和 Endpoint。每个 A1 消费者定义自己的可信端点集。A1 不提供运行时——所有 HTTP 调用经由 A0 SDK。
+
+```
+A1 = Skill + 端点注册表 + 聚合清单 + 消费侧降级 + 多 Token 路由
+```
+
+两条路径：
+- **消费**：Skill.run() → 查聚合清单 → 择最高 rank 端点（含 token 解析） → A0.call() → 失败降级下一 rank
+- **生产**：@register → generate_schema() → 安装为指令包
+
+### 端点与降级
+
+A1 维护两份端点文件——token 只存一处，聚合清单不重复 token：
+
+| 文件 | 角色 | 维护者 |
+|------|------|------|
+| `agent-endpoints.json` | **单一真相源**：URL + token + rank + trust | 人 |
+| `agent-text-cli-schema.json` | 聚合能力清单：directive → [source by rank]，不含 token | `aggregation.py` sync |
+
+**agent-endpoints.json**：
+```json
+{
+  "endpoints": {
+    "home-service": {
+      "url": "http://192.168.1.2:28050/text-cli/cli",
+      "service_token": "${HOME_SERVICE_TOKEN}",
+      "auth": "single",
+      "rank": 1,
+      "trust": "internal"
+    },
+    "cloud-endpoint": {
+      "url": "https://tide.agentbot.space/text-cli/cli",
+      "access_token": "${TIDE_ACCESS_TOKEN}",
+      "service_token": "sk-abc123",
+      "auth": "dual",
+      "rank": 2,
+      "trust": "community"
+    }
+  }
+}
+```
+
+Token 支持 `${ENV_VAR}`（环境变量引用）或裸字符串。`auth: "single"` 直连 Service（仅 Service Token）；`auth: "dual"` 通过 Endpoint（Access + Service Token）。
+
+**降级逻辑**：Skill.run() 内部沿 rank 降序尝试端点——成功即返回，失败（ERR_NOT_FOUND / ERR_ROUTING / HTTP 不可达）自动切下一源。参数错误和鉴权失败不降级。
+
+### 目录结构
 
 ```
 A1-skill/
+├── SKILL.md                       ← OpenClaw Skill 入口——快速开始
 ├── python/
-│   ├── cli.py              ← 编译路径：@register → SPEC v1.3.2 schema.json
-│   ├── skill.py            ← 消费路径：Skill 基类 + @skill 装饰器
-│   ├── handlers/           ← 示例处理器
-│   └── skills/             ← 预置技能库（weather、translator）
-├── nocode/
-│   ├── README.md
-│   └── zh/                 ← 中文 NoCode
-│       ├── markdown_converter.py
-│       └── 盆栽急救手册.md
-├── skill/                  ← Agent Skill 定义模板
+│   ├── call.py                    ← A0 SDK（构建时从 A0-protocol 复制）
+│   ├── call.js                    ← A0 SDK JS
+│   ├── conf.json                  ← A0 默认配置
+│   ├── skill.py                   ← Skill 基类 + @skill + 降级链
+│   ├── aggregation.py             ← 端点管理 + sync_endpoints
+│   ├── cli.py                     ← @register + generate_schema
+│   └── handlers/sample.py         ← 编译路径示例
+├── prompts/                       ← Agent System Prompt 模板
+│   ├── SKILL.md
+│   ├── text-cli-core_zh.md
+│   ├── text-cli-sync-skill.md
+│   └── agent-text-cli-schema.example.json
+├── config/
+│   ├── agent-endpoints.json       ← 端点注册表（手动维护）
+│   └── agent-text-cli-schema.json ← 聚合清单（sync 生成）
 └── README_zh.md
 ```
 
 ### 编译路径（cli.py）
 
-Agent 开发者用 `@register` 装饰器将既有函数包装为 text-cli 指令，自动生成 SPEC v1.3.2 兼容的 `schema.json`：
+Agent 开发者用 `@register` 装饰器将既有函数包装为指令，自动生成 SPEC 兼容的 `schema.json`：
 
 ```python
-from cli import register, serve
+from cli import register, generate_schema
 
-@register(domain="天气", action="查询", category="工具", trust="community")
-def weather(params):
-    return f"{params[0]}: 晴, 20°C"
+@register(domain="weather", action="query", category="tool", trust="community")
+def weather_query(params):
+    return {"status": "ok", "result": f"{params[0]}: Sunny, 20C"}
 
-serve(package_id="my-weather")
+schema = generate_schema("my-weather")
+# → {"id":"my-weather","type":"native","runtime":"python","directives":[...]}
 ```
 
-生成的 Schema 含 `id`/`type`/`runtime`/`category`/`trust`/`version`/`directives[]`，可直接 `AI:text-cli;install,my-weather` 安装。
+cli.py 仅负责指令注册和 Schema 生成——不提供 HTTP 运行时。
 
 ### 消费路径（skill.py）
 
-AI Agent 用 `@skill` 装饰器将指令封装为可复用的语义技能：
+Agent 用 `@skill` 装饰器封装指令为可复用技能。Skill 通过 A0 SDK 完成所有调用：
 
 ```python
 from skill import Skill, skill
 
-@skill("天气查询", domain="天气", action="查询")
+@skill("weather", domain="weather", action="query")
 class WeatherSkill(Skill):
-    def format_result(self, raw):
-        return f"[OK] {raw}"
+    def format_result(self, data):
+        return f"[OK] {data['result']}"
 
-    def on_error(self, params, error):
-        return f"暂时无法查询{params[0]}的天气"
+    def on_error(self, params, err_code):
+        return f"Cannot query {params[0]} weather ({err_code})"
 
-result = WeatherSkill.run("北京", "明天")
+result = WeatherSkill.run("Beijing", "tomorrow")
 ```
 
-Skill 默认通过 `urllib` 直调 text-cli endpoint（零跨层依赖），解析 SPEC v1.3.2 响应格式。可通过 `call_fn` 参数注入自定义调用函数。
+Skill.run() 内部流程：
+1. 查 `agent-text-cli-schema.json` 获取所有可用源（按 rank 排序）
+2. 回查 `agent-endpoints.json` 取 token
+3. 通过 A0 `call(endpoint, access_token, service_token)` 发指令
+4. 成功 → `DirectiveResult.data` → `format_result()`
+5. 失败 → 消费侧降级：自动尝试下一 rank 端点
+6. 全部耗尽 → `on_error()` 回调
 
-### NoCode 路径（nocode/）
+### sync 工具（aggregation.py）
 
-非开发者写结构化 Markdown → `markdown_converter.py` 自动解析 → 注册为指令。`盆栽急救手册.md` 是一个花店老板的六篇笔记：
+```python
+from aggregation import sync_endpoints, register_endpoint
 
-```bash
-cd nocode/zh
-python markdown_converter.py 盆栽急救手册.md
+register_endpoint("add endpoint https://my-api.example.com/text-cli/cli, token MY_TOKEN")
+sync_endpoints()  # 轮询所有端点 → 聚合 → 写入 agent-text-cli-schema.json
 ```
 
-启动后 `AI:家庭园艺;盆栽急救,绿萝,叶片发黄` 返回养护建议。
+sync 是冷路径——不在 Agent 推理循环内。定期或按需执行。
 
-### Agent Skill 定义（skill/）
+### Agent Skill 定义（prompts/）
 
 | 文件 | 内容 |
 |------|------|
-| `SKILL.md` | 元指令调度 + 精品目录 + 多模态渲染 |
-| `text-cli-core_zh.md` | System Prompt 模板 v2.0——含 tool 定义 |
-| `text-cli-sync-skill.md` | 同步 Skill（概念设计） |
-| `agent-text-cli-schema.example.json` | 聚合 Schema 示例（SPEC v1.3.2 |
+| `SKILL.md` | Agent 调度 System Prompt——A0 SDK + A1 降级 |
+| `text-cli-core_zh.md` | 核心调度 v2.0——A0 call() + DirectiveResult |
+| `text-cli-sync-skill.md` | 同步 Skill 概念设计 |
+| `agent-text-cli-schema.example.json` | 聚合 Schema 示例 |
 
-## 构建
+### 做为 OpenClaw Skill 安装
 
-A0 和 A1 不参与骨架累积链。通过 `build-all.py` 直通模式从 `src/skeleton/base/` 同步到 `deploy/`。
+A1-skill 可作为 OpenClaw Skill 安装。根目录的 `SKILL.md` 是入口：
+
+```bash
+# Git 安装
+git clone https://github.com/weihai-limh/text-cli.git
+cp -r text-cli/deploy/A1-skill ~/.openclaw/skills/text-cli
+
+# ClawHub（发布后）
+clawhub install text-cli
+```
+
+OpenClaw 加载 `SKILL.md` → Agent 学会使用 `call()` / `discover()` / `Skill.run()`。
 
 ---
 
-_2026-07-16_
+_2026-07-31_

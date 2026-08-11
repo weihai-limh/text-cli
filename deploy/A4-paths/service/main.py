@@ -1,11 +1,14 @@
+import asyncio
 import json
 import logging
 import os
 import sys
+import threading
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response
@@ -26,6 +29,22 @@ from core.parser import DirectiveParseError, parse_directive
 from core.registry import dispatch, get_registered_directives
 from core.response import error, ok
 from handlers.proxy import proxy_dispatch
+
+# Mesh credential injector — populated by handler_inits when SQLite available (None for A3-only)
+CREDENTIAL_INJECTOR = None
+try:
+    from handlers.mesh_credentials import CREDENTIAL_INJECTOR as _CI
+    if _CI is not None:
+        CREDENTIAL_INJECTOR = _CI
+except ImportError:
+    pass
+
+# task_manager functions — populated by SQLite try block below (None for A3-only)
+task_manager_register = None
+task_manager_update = None
+task_manager_complete = None
+task_manager_fail = None
+task_manager_get = None
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "info").upper()
 logging.basicConfig(level=getattr(logging, LOG_LEVEL, logging.INFO))
@@ -65,8 +84,11 @@ def _load_aggregates():
                 continue
             domain = agg["domain"]
             _aggregates[domain] = agg
+            # Register for ancestor chain key matching (pro early check)
+            from core.registry import register_aggregate_domain
+            register_aggregate_domain(domain)
             logger.info("aggregates loaded: %s (%d providers)", domain, len(agg.get("providers", {})))
-        except Exception as e:
+        except (json.JSONDecodeError, OSError) as e:
             logger.warning("Failed to load aggregate %s: %s", f.name, e)
 
 
@@ -95,18 +117,22 @@ def _aggregate_dispatch(domain: str, action: str, params: list) -> str | None:
         p_domain, p_action = parts
         try:
             result = dispatch(p_domain, p_action, list(params))
-            if result and "未找到匹配的指令" not in result and "No matching directive" not in result:
-                # 检查是否配额耗尽或其他软错误
+            if result:
                 try:
                     rj = json.loads(result)
-                    if rj.get("status") == "stop":
-                        logger.info("aggregate degrade: %s;%s quota exhausted, trying next", p_domain, p_action)
-                        continue
-                    if rj.get("status") == "error":
-                        logger.info("aggregate degrade: %s;%s returned error, trying next", p_domain, p_action)
-                        continue
                 except (json.JSONDecodeError, TypeError):
-                    pass
+                    logger.info("aggregate hit (non-JSON): %s → %s;%s", domain, p_domain, p_action)
+                    return result
+                # 检查 rst_err 或 status 判定是否继续降级
+                if rj.get("rst_err"):
+                    logger.info("aggregate degrade: %s;%s rst_err=%s, trying next", p_domain, p_action, rj["rst_err"])
+                    continue
+                if rj.get("status") == "stop":
+                    logger.info("aggregate degrade: %s;%s quota exhausted, trying next", p_domain, p_action)
+                    continue
+                if rj.get("status") == "error":
+                    logger.info("aggregate degrade: %s;%s returned error, trying next", p_domain, p_action)
+                    continue
                 logger.info("aggregate hit: %s → %s;%s", domain, p_domain, p_action)
                 return result
         except Exception as e:
@@ -117,18 +143,27 @@ def _aggregate_dispatch(domain: str, action: str, params: list) -> str | None:
 
 # ── 内部 dispatch (供 key_registry 和 mcp_handler 配额检查调用) ──
 
-def _internal_dispatch(domain: str, action: str, params: list) -> dict | None:
-    """框架内 dispatch → JSON 结果解析 → dict 返回。"""
+def _internal_dispatch(domain: str, action: str, params: list) -> dict:
+    """框架内 dispatch → JSON 结果解析 → dict 返回。
+
+    调用方（key_registry / mcp_handler）期望 dict 类型。异常和解析失败时
+    返回带 rst_err 的错误字典，不返回 None。
+    """
     try:
         result_str = dispatch(domain, action, params)
     except Exception as e:
         logger.debug("dispatch error for %s;%s: %s", domain, action, e)
-        return None
+        return {"rst_types": "text", "rst_data": {"status": "error", "reason": "dispatch error"},
+                "rst_err": "ERR_EXECUTION"}
     try:
         result = json.loads(result_str)
-        return result if isinstance(result, dict) else None
+        if isinstance(result, dict):
+            return result
+        return {"rst_types": "text", "rst_data": {"status": "error", "reason": result_str},
+                "rst_err": ""}
     except (json.JSONDecodeError, TypeError):
-        return None
+        return {"rst_types": "text", "rst_data": {"status": "error", "reason": result_str},
+                "rst_err": "ERR_EXECUTION"}
 
 
 # SQLite 模块检测
@@ -144,6 +179,16 @@ try:
     db_dir.mkdir(parents=True, exist_ok=True)
     init_db(SQLITE_DB_FILE)
     SQLITE_DB_PATH = {'config': SQLITE_DB_FILE}
+
+    # 加载 task_manager（A6 功能；A3 单独部署时此段不执行）
+    try:
+        from handlers.task_manager import complete as task_manager_complete
+        from handlers.task_manager import fail as task_manager_fail
+        from handlers.task_manager import get as task_manager_get
+        from handlers.task_manager import register as task_manager_register
+        from handlers.task_manager import update as task_manager_update
+    except ImportError:
+        pass
 
     # 通知各 handler SQLite 路径
     _ARG_MAP = {
@@ -188,6 +233,16 @@ except Exception as e:
 # ── 聚合指令加载（平台级，不依赖 SQLite）──
 _load_aggregates()
 
+# ── MCP 路由恢复（重启后重建路由表）──
+try:
+    from core.mcp_dispatch import refresh_routes
+    refresh_routes()
+    logger.info("MCP routing table restored on startup")
+except ImportError:
+    pass
+except Exception as e:
+    logger.warning("Failed to restore MCP routes on startup: %s", e)
+
 _schema: dict[str, dict] = {}
 _copilot_token: str = ""
 
@@ -203,8 +258,11 @@ def _load_schema():
         _schema = json.load(f)
     logger.info("Loaded %d directives from %s", len(_schema), SCHEMA_PATH)
     # 从 schema 派生 MCP 路由表（与 copilot _build_mcp_registry 同构）
-    from core.mcp_dispatch import init_from_schema
-    init_from_schema(_schema)
+    try:
+        from core.mcp_dispatch import init_from_schema
+        init_from_schema(_schema)
+    except ImportError:
+        pass
 
 
 def _load_copilot_token():
@@ -235,6 +293,20 @@ async def lifespan(app: FastAPI):
         logger.info("stream_subscriber_registry not available, skipping")
     registered = get_registered_directives()
     logger.info("Registered handlers: %s", registered)
+
+    # ── A7 outbound MCP 桥（守护钩子）──
+    _mcp_svc_dir = Path(__file__).resolve().parent.parent / "MCPservice"
+    if str(_mcp_svc_dir) not in sys.path:
+        sys.path.insert(0, str(_mcp_svc_dir))
+    try:
+        import server as mcp_outbound_server
+        mcp_outbound_server.start_outbound()
+        logger.info("A7 outbound MCP bridge started")
+    except ImportError:
+        logger.info("A7 outbound not installed, skipping")
+    except Exception as e:
+        logger.warning("Failed to start A7 outbound: %s", e)
+
     yield
     logger.info("Shutting down.")
 
@@ -263,8 +335,8 @@ async def image_cache_retrieve(key: str):
     if data is None:
         return JSONResponse(
             status_code=410,
-            content={"rst_types": "text", "rst_data": {"text": "cache expired or not found"},
-                      "rst_err": "cache_expired"},
+            content={"rst_types": "text", "rst_data": {"status": "error", "reason": "cache expired or not found"},
+                      "rst_err": "ERR_NOT_FOUND"},
         )
     return Response(content=data, media_type="text/plain; charset=utf-8")
 
@@ -292,6 +364,7 @@ async def health(request: Request):
             "status": "ok",
             "body": os.getenv("TEXT_CLI_INSTANCE_ID", "text-cli"),
             "version": "1.0.0",
+            "spec_version": "1.3.2",
             "capabilities": {
                 "packages": [p for p in installed if p not in ("sample",)],
                 "domains": sorted(directives.keys()),
@@ -308,18 +381,20 @@ async def health(request: Request):
     try:
         from handlers.skill_endpoint import list_skills
         skills = list_skills()
-        public_count = sum(
-            1 for v in skills.values()
+        public_skills = [
+            skill_id for skill_id, v in skills.items()
             if isinstance(v, dict) and v.get("visibility") == "public"
-        )
-    except (ImportError, Exception):
-        public_count = 0
+        ]
+    except Exception as e:
+        logger.debug("Failed to list skills for public: %s", e)
+        public_skills = []
 
     return {
         "status": "ok",
         "body": os.getenv("TEXT_CLI_INSTANCE_ID", "text-cli"),
         "version": "1.0.0",
-        "public_skills": public_count,
+        "spec_version": "1.3.2",
+        "public_skills": public_skills,
     }
 
 
@@ -373,9 +448,23 @@ async def handle_directive(request: Request):
         )
 
     logger.info(
-        "收到指令: %s;%s, 参数: %s",
+        "Directive received: %s;%s, params: %s",
         parsed.domain, parsed.action, parsed.params,
     )
+
+    # --async 检测：异步任务模式（需 task_manager，A3 单独部署时不可用）
+    if parsed.params and parsed.params[-1] == "--async":
+        parsed.params.pop()
+        if task_manager_register is None:
+            return JSONResponse(
+                content=error("async mode requires SQLite backend (not available in A3 standalone)"),
+                status_code=501,
+            )
+        task_id = task_manager_register(parsed.domain, parsed.action, parsed.params)
+        asyncio.create_task(_async_dispatch(parsed, prompt, task_id, auth, request, _req_start))
+        response = ok(json.dumps({"status": "pending", "task_id": task_id}, ensure_ascii=False))
+        _write_call_log(request, auth, parsed, _req_start, True)
+        return response
 
     # 0. 聚合指令优先（降级链多提供方调度）
     agg_result = _aggregate_dispatch(parsed.domain, parsed.action, parsed.params)
@@ -385,12 +474,14 @@ async def handle_directive(request: Request):
         return response
 
     # 1. MCP 优先路由（显式偏好 mcp 时优先）
-    from core.mcp_dispatch import adapt_params, decide_backend, get_mcp_route
     try:
+        from core.mcp_dispatch import adapt_params, decide_backend, get_mcp_route
         from packages.mcp.handler import check_mcp_quota
     except ImportError:
         check_mcp_quota = None
-    backend = decide_backend(parsed.domain, parsed.action)
+        decide_backend = lambda d, a: None
+        get_mcp_route = None
+    backend = decide_backend(parsed.domain, parsed.action) if decide_backend else None
 
     if backend == "mcp":
         mcp_route = get_mcp_route(parsed.domain, parsed.action)
@@ -405,7 +496,7 @@ async def handle_directive(request: Request):
                     content=ok(json.dumps({"status": "quota_exceeded", **quota_block}, ensure_ascii=False)),
                 )
             try:
-                from packages.mcp.handler import call_mcp_tool, format_mcp_result
+                from handlers.mcp_handler import call_mcp_tool, format_mcp_result
                 args = adapt_params(parsed.params, mcp_route)
                 mcp_result = call_mcp_tool(
                     mcp_route["server"], mcp_route["tool"],
@@ -434,13 +525,23 @@ async def handle_directive(request: Request):
 
     # 2. 本地 dispatch
     result = dispatch(parsed.domain, parsed.action, parsed.params)
-    local_handled = bool(result) and '未找到匹配的指令' not in result and 'No matching directive' not in result
+    local_handled = False
+    if result:
+        try:
+            rj = json.loads(result)
+            local_handled = not rj.get("rst_err")
+        except (json.JSONDecodeError, TypeError):
+            local_handled = isinstance(result, str) and not str(result).startswith("No matching directive")
 
     if local_handled:
-        return ok(result)
+        # dispatch() returns a JSON string already wrapped in the protocol envelope
+        return JSONResponse(content=json.loads(result))
 
     # 3. 本地未匹配 → 尝试 MCP（作为后备路由）
-    mcp_route = get_mcp_route(parsed.domain, parsed.action)
+    if get_mcp_route is not None:
+        mcp_route = get_mcp_route(parsed.domain, parsed.action)
+    else:
+        mcp_route = None
     if mcp_route:
         # Quota check before MCP fallback call
         quota_block = check_mcp_quota(
@@ -451,6 +552,8 @@ async def handle_directive(request: Request):
                 status_code=429,
                 content=ok(json.dumps({"status": "quota_exceeded", **quota_block}, ensure_ascii=False)),
             )
+        # Fallback: user-installed MCP handler package (optional — silently skipped if not installed).
+        # Primary MCP dispatch is via handlers.mcp_handler (imported above at line ~436).
         try:
             from packages.mcp.handler import call_mcp_tool, format_mcp_result
             args = adapt_params(parsed.params, mcp_route)
@@ -464,15 +567,15 @@ async def handle_directive(request: Request):
             pass
 
     # 4. 本地和 MCP 都没匹配 → 尝试代理转发
-    proxy_result = proxy_dispatch(parsed.domain, parsed.action,
-                                  parsed.params, raw_prompt=prompt,
-                                  db_path=SQLITE_DB_PATH)
+    proxy_result = await proxy_dispatch(parsed.domain, parsed.action,
+                                        parsed.params, raw_prompt=prompt,
+                                        credential_injector=CREDENTIAL_INJECTOR)
     if proxy_result is not None:
         # 旁路通知 stream subscriber
         from core.stream_subscriber_registry import STREAM_SUBSCRIBERS
         if STREAM_SUBSCRIBERS:
             try:
-                text = proxy_result.get("rst_data", {}).get("text", "")
+                text = proxy_result.get("rst_data", {}).get("reason", "")
                 if isinstance(text, dict):
                     text = json.dumps(text, ensure_ascii=False)
                 im_target = body.get("_im_to_user", "")
@@ -490,7 +593,20 @@ async def handle_directive(request: Request):
         return JSONResponse(content=proxy_result)
 
     # 5. 都没有 → 返回本地结果
-    response = ok(result)
+    # dispatch() returns a JSON string already wrapped; if result is empty/None, fall back to ERR_NOT_FOUND
+    if result:
+        try:
+            response = JSONResponse(content=json.loads(result))
+        except (json.JSONDecodeError, TypeError):
+            response = JSONResponse(
+                status_code=500,
+                content=error(f"Internal dispatch error for {parsed.domain};{parsed.action}", "ERR_EXECUTION"),
+            )
+    else:
+        response = JSONResponse(
+            status_code=404,
+            content=error(f"No matching directive: {parsed.domain};{parsed.action}", "ERR_NOT_FOUND"),
+        )
     _write_call_log(request, auth, parsed, _req_start, True)
     return response
 
@@ -522,21 +638,21 @@ async def skills_detail(skill_id: str):
     if detail is None:
         return JSONResponse(
             status_code=404,
-            content={"status": "error", "error": "not_found",
-                      "message": f"skill '{skill_id}' not found or not exposed"},
+            content={"rst_types": "text", "rst_data": {"status": "error", "reason": f"skill '{skill_id}' not found or not exposed"},
+                      "rst_err": "ERR_NOT_FOUND"},
         )
     return JSONResponse(content=detail)
 
 
 @app.post("/text-cli/skills/{skill_id}")
 async def skills_execute(skill_id: str, request: Request):
-    """Execute a skill via the path engine."""
+    """Execute a skill by dispatching to the path engine."""
     try:
         from handlers.skill_endpoint import get_skill_detail
     except ImportError:
         return JSONResponse(
             status_code=503,
-            content={"rst_types": "text", "rst_data": {"text": "skill endpoint not ready"},
+            content={"rst_types": "text", "rst_data": {"status": "error", "reason": "skill endpoint not ready"},
                       "rst_err": "ERR_EXECUTION"},
         )
 
@@ -544,17 +660,30 @@ async def skills_execute(skill_id: str, request: Request):
     if detail is None:
         return JSONResponse(
             status_code=404,
-            content={"rst_types": "text", "rst_data": {"text": f"skill '{skill_id}' not found"},
+            content={"rst_types": "text", "rst_data": {"status": "error", "reason": f"skill '{skill_id}' not found"},
                       "rst_err": "ERR_NOT_FOUND"},
         )
 
-    body = await request.json() if request.headers.get("content-type") == "application/json" else {}
-    skill_input = body.get("input", {}) if isinstance(body, dict) else {}
-    from core.registry import dispatch as _dispatch
-    directive = detail.get("directive") or "text-cli;path"
-    params = [str(v) for v in skill_input.values()] if skill_input else []
-    result = _dispatch(directive, "", params)
-    return JSONResponse(content=json.loads(result) if isinstance(result, str) else result)
+    # Extract input from request body
+    try:
+        body = await request.json()
+        skill_input = body.get("input", {})
+    except (json.JSONDecodeError, TypeError):
+        skill_input = {}
+
+    # Fallback: dispatch as directive
+    directive = detail.get("directive")
+    if directive:
+        from core.registry import dispatch as _dispatch
+        params = [str(v) for v in skill_input.values()] if skill_input else []
+        result = _dispatch(directive, "", params)
+        return ok(result)
+
+    return JSONResponse(
+        status_code=422,
+        content={"rst_types": "text", "rst_data": {"status": "error", "reason": f"skill '{skill_id}' has no executable entry"},
+                  "rst_err": "ERR_NOT_FOUND"},
+    )
 
 
 @app.api_route("/text-cli-copilot/{rest:path}", methods=["GET", "POST"])
@@ -589,16 +718,81 @@ async def copilot_proxy(request: Request, rest: str):
         logger.error("copilot proxy error: %s -> %d", rest, e.response.status_code)
         return JSONResponse(
             status_code=e.response.status_code,
-            content={"rst_types": "text", "rst_data": {"text": f"[proxy] copilot returned {e.response.status_code}"},
-                      "rst_err": "proxy_error"},
+            content={"rst_types": "text", "rst_data": {"status": "error", "reason": f"[routing_error] copilot returned {e.response.status_code}"},
+                      "rst_err": "ERR_ROUTING"},
         )
     except Exception as e:
         logger.error("copilot proxy failed: %s", e)
         return JSONResponse(
             status_code=502,
-            content={"rst_types": "text", "rst_data": {"text": f"[proxy] {e}"},
-                      "rst_err": "proxy_error"},
+            content={"rst_types": "text", "rst_data": {"status": "error", "reason": f"[routing_error] {e}"},
+                      "rst_err": "ERR_ROUTING"},
         )
+
+
+# ── 异步任务后台执行 ──────────────────────
+
+async def _async_dispatch(parsed, prompt: str, task_id: str, auth, request: Request, req_start: float):
+    """后台执行异步任务：运行完整 dispatch 链，更新 task_manager 状态。"""
+    if task_manager_update is None:
+        return  # A3 standalone — task_manager not available
+    import json as _json
+    try:
+        task_manager_update(task_id, "running")
+
+        # 0. 聚合指令
+        agg_result = _aggregate_dispatch(parsed.domain, parsed.action, parsed.params)
+        if agg_result is not None:
+            try:
+                result_data = _json.loads(agg_result)
+            except (_json.JSONDecodeError, TypeError):
+                result_data = {"text": agg_result}
+            task_manager_complete(task_id, result_data)
+            return
+
+        # 1-2. 本地 dispatch
+        from core.registry import dispatch as _local_dispatch
+        result = _local_dispatch(parsed.domain, parsed.action, parsed.params)
+        if result:
+            try:
+                rj = _json.loads(result)
+                if not rj.get("rst_err"):
+                    task_manager_complete(task_id, rj)
+                    return
+            except (_json.JSONDecodeError, TypeError):
+                task_manager_complete(task_id, {"text": result})
+                return
+
+        # 3. 尝试 proxy
+        proxy_result = await proxy_dispatch(parsed.domain, parsed.action,
+                                            parsed.params, raw_prompt=prompt,
+                                            credential_injector=CREDENTIAL_INJECTOR)
+        if proxy_result is not None:
+            task_manager_complete(task_id, proxy_result)
+            return
+
+        # 4. 返回本地结果
+        try:
+            result_data = _json.loads(result) if result else {"text": "no result"}
+        except (_json.JSONDecodeError, TypeError):
+            result_data = {"text": str(result)}
+        task_manager_complete(task_id, result_data)
+
+    except Exception as e:
+        task_manager_fail(task_id, str(e))
+
+
+@app.get("/text-cli/tasks/{task_id}")
+async def get_task(task_id: str):
+    """查询异步任务状态与结果。"""
+    task = task_manager_get(task_id)
+    if task is None:
+        return JSONResponse(
+            status_code=404,
+            content={"rst_types": "text", "rst_data": {"status": "error", "reason": f"task not found: {task_id}"},
+                      "rst_err": "ERR_NOT_FOUND"},
+        )
+    return JSONResponse(content={"status": "ok", "task": task})
 
 
 # ── Webhook 路由 ──

@@ -6,7 +6,7 @@ Pure functions, zero external dependencies, db_path injected externally.
 import sqlite3
 
 # ── Whitelists for SQL generation ──
-VALID_TABLES = frozenset({"key_registry", "call_log", "token_registry", "token_call_logs"})
+VALID_TABLES = frozenset({"key_registry", "call_log", "token_registry", "token_call_logs", "peer_credentials"})
 VALID_FIELDS = frozenset({
     "service", "value", "value2", "key_type", "registered_at",
     "cred_count", "quota_track", "token", "enabled", "quota_limit",
@@ -156,6 +156,14 @@ def init_db(db_path: str) -> None:
             error_msg TEXT,
             duration_ms INTEGER,
             created_at TEXT DEFAULT (datetime('now'))
+        )
+    """)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS peer_credentials (
+            peer TEXT PRIMARY KEY,
+            service_token TEXT,
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now'))
         )
     """)
     conn.commit()

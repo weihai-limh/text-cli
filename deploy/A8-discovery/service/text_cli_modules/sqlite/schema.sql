@@ -39,3 +39,11 @@ CREATE TABLE IF NOT EXISTS token_call_logs (
     duration_ms INTEGER,
     created_at TEXT DEFAULT (datetime('now'))
 );
+
+-- peer_credentials: 联邦 Mesh 对等节点凭证
+CREATE TABLE IF NOT EXISTS peer_credentials (
+    peer TEXT PRIMARY KEY,
+    service_token TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+);

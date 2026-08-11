@@ -1,0 +1,16 @@
+{
+  "id": "map-limit",
+  "name": "Map Limit Test",
+  "type": "pipeline",
+  "version": "0.1.0",
+  "mode": "toolchain",
+  "description": "150-element map exceeds default map_max_iter=100, triggers LOOP_LIMIT.",
+  "steps": [
+    {
+      "mode": "map", "items": "input", "output_as": "results",
+      "steps": [
+        {"id": "greet", "instruction": "hello;world,{item}", "output_as": "greeting"}
+      ]
+    }
+  ]
+}

@@ -56,11 +56,11 @@ def _check_mcporter_server(server_name: str) -> tuple[bool, str]:
         )
         if result.returncode == 0 and "function" in result.stdout:
             return True, "ok"
-        return True, f"mcporter: server '{server_name}' not configured — MCP dispatch may fail"
+        return False, f"mcporter: server '{server_name}' not configured — MCP dispatch may fail"
     except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
         if isinstance(e, FileNotFoundError):
-            return True, "mcporter CLI not available — MCP dispatch may fail"
-        return True, f"mcporter check skipped ({e}) — MCP dispatch may fail"
+            return False, "mcporter CLI not available — MCP dispatch may fail"
+        return False, f"mcporter check skipped ({e}) — MCP dispatch may fail"
 
 
 def validate_package(name: str, source_dirs: list[pathlib.Path] | None = None) -> tuple[bool, str, dict | None]:
@@ -152,7 +152,7 @@ def validate_package(name: str, source_dirs: list[pathlib.Path] | None = None) -
         meta["service_descriptor"] = sd
         meta["handler_path"] = None  # MCP has no local handler
 
-    elif runtime == "node":
+    elif runtime == "js":
         entry = schema.get("entry", "handler.js")
         handler_path = pkg_dir / entry
         if not handler_path.is_file():

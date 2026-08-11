@@ -1,0 +1,13 @@
+{
+  "id": "hello-chain",
+  "name": "Hello Chain",
+  "type": "pipeline",
+  "version": "0.1.0",
+  "mode": "toolchain",
+  "description": "Minimal 2-step path testing variable interpolation between steps.",
+  "input_schema": {"type": "object", "properties": {}},
+  "steps": [
+    {"id": "greet", "instruction": "hello;world,chain-start", "output_as": "step1"},
+    {"id": "echo", "instruction": "hello;world,prefix-{step1.result}", "output_as": "step2"}
+  ]
+}

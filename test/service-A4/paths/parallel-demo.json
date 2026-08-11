@@ -1,0 +1,21 @@
+{
+  "id": "parallel-demo",
+  "name": "Parallel Demo",
+  "type": "pipeline",
+  "version": "0.1.0",
+  "mode": "toolchain",
+  "description": "Two hello;world calls in parallel group with strategy:all.",
+  "input_schema": {"type": "object", "properties": {}},
+  "steps": [
+    {
+      "id": "group",
+      "mode": "parallel",
+      "strategy": "all",
+      "output_as": "group",
+      "steps": [
+        {"id": "a", "instruction": "hello;world,para-alpha", "output_as": "sum"},
+        {"id": "b", "instruction": "hello;world,para-beta", "output_as": "prod"}
+      ]
+    }
+  ]
+}

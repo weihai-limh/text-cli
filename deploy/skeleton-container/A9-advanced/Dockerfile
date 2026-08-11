@@ -16,9 +16,9 @@ RUN pip install --no-cache-dir -r /tmp/service-requirements.txt \
 COPY service/   /app/service/
 COPY copilot/   /app/copilot/
 COPY MCPservice/ /app/mcp/
-# A8-discovery 聚合路由表：service 在 /app/A8-discovery/aggregate 读取（依据 main.py:53-54）
-# 已固化于此，build.py 的同类补丁将变为 no-op（幂等），不再依赖文本替换。
-COPY A8-discovery/ /app/A8-discovery/
+# 聚合路由表：aggregate/ 已在 service/ 内（由 build.py 放入），
+# 随 service/ COPY 自动进入 /app/service/aggregate/
+# service 通过 AGGREGATE_DIR=./aggregate（entrypoint.sh 设置）读取
 
 # 环境变量
 ENV PYTHONPATH=/app/service:/app/copilot:/app/mcp

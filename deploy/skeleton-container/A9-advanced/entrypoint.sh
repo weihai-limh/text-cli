@@ -79,6 +79,9 @@ fi
 # ------------------------------------------------------------------
 echo "[2/3] starting service (0.0.0.0:${PORT})..."
 export PORT
+# 聚合路由表在 /app/service/aggregate/（由容器构建时放入 service/ 子目录，
+# 随 service/ COPY 自动进入容器）
+export AGGREGATE_DIR="${AGGREGATE_DIR:-./aggregate}"
 
 # 等待 copilot 就绪（如果启用）
 if [ "$COPILOT_ENABLED" = "true" ] && [ -n "$COPILOT_PID" ]; then

@@ -32,7 +32,7 @@ LOG_LEVEL = os.getenv("LOG_LEVEL", "info").upper()
 logging.basicConfig(level=getattr(logging, LOG_LEVEL, logging.INFO))
 logger = logging.getLogger(__name__)
 
-ENDPOINT_BASE_URL = os.getenv("ENDPOINT_BASE_URL", "")
+ENDPOINT_BASE_URL = os.getenv("ENDPOINT_BASE_URL", "http://localhost:29050")
 ACCESS_TOKEN_REQUIRED = os.getenv("ACCESS_TOKEN_REQUIRED", "true").lower() == "true"
 ENABLE_PUBLIC_CLI = os.getenv("ENABLE_PUBLIC_CLI", "false").lower() == "true"
 ADMIN_API_KEY = os.getenv("ADMIN_API_KEY", "")
@@ -73,7 +73,7 @@ async def security_middleware(request: Request, call_next):
     if is_ip_blocked(client_ip):
         return JSONResponse(
             status_code=403,
-            content={"rst_types": "text", "rst_data": {"text": "IP_BLOCKED"}},
+            content={"rst_types": "text", "rst_data": {"status": "error", "reason": "IP_BLOCKED"}},
         )
 
     if request.url.path == "/text-cli/cli" and request.method == "POST":
@@ -83,12 +83,12 @@ async def security_middleware(request: Request, call_next):
             if is_st_prefix_blocked(prefix):
                 return JSONResponse(
                     status_code=403,
-                    content={"rst_types": "text", "rst_data": {"text": "TOKEN_PREFIX_BLOCKED"}},
+                    content={"rst_types": "text", "rst_data": {"status": "error", "reason": "TOKEN_PREFIX_BLOCKED"}},
                 )
             if not is_st_prefix_registered(prefix):
                 return JSONResponse(
                     status_code=403,
-                    content={"rst_types": "text", "rst_data": {"text": "TOKEN_PREFIX_UNKNOWN"}},
+                    content={"rst_types": "text", "rst_data": {"status": "error", "reason": "TOKEN_PREFIX_UNKNOWN"}},
                 )
 
     path = request.url.path
@@ -96,7 +96,7 @@ async def security_middleware(request: Request, call_next):
     if path == "/text-cli/cli" and not check_rate_limit(is_get=(method == "GET")):
             return JSONResponse(
                 status_code=429,
-                content={"rst_types": "text", "rst_data": {"text": "RATE_LIMIT_EXCEEDED"}},
+                content={"rst_types": "text", "rst_data": {"status": "error", "reason": "RATE_LIMIT_EXCEEDED"}},
             )
 
     response = await call_next(request)
@@ -118,7 +118,7 @@ async def handle_text_cli(request: Request):
         if not token_record:
             return JSONResponse(
                 status_code=401,
-                content={"rst_types": "text", "rst_data": {"text": "ACCESS_DENIED"}},
+                content={"rst_types": "text", "rst_data": {"status": "error", "reason": "ACCESS_DENIED"}},
             )
     else:
         token_record = None
@@ -128,14 +128,14 @@ async def handle_text_cli(request: Request):
     except Exception:
         return JSONResponse(
             status_code=400,
-            content={"rst_types": "text", "rst_data": {"text": "INVALID_JSON"}},
+            content={"rst_types": "text", "rst_data": {"status": "error", "reason": "INVALID_JSON"}},
         )
 
     prompt = body.get("prompt")
     if not prompt:
         return JSONResponse(
             status_code=400,
-            content={"rst_types": "text", "rst_data": {"text": "INVALID_DIRECTIVE_FORMAT: prompt is required"}},
+            content={"rst_types": "text", "rst_data": {"status": "error", "reason": "INVALID_DIRECTIVE_FORMAT: prompt is required"}},
         )
 
     try:
@@ -143,14 +143,14 @@ async def handle_text_cli(request: Request):
     except DirectiveParseError as e:
         return JSONResponse(
             status_code=400,
-            content={"rst_types": "text", "rst_data": {"text": f"{e.code}: {e.message}"}},
+            content={"rst_types": "text", "rst_data": {"status": "error", "reason": f"{e.code}: {e.message}"}},
         )
 
     backend_url = find_backend_url(parsed.directive_key)
     if not backend_url:
         return JSONResponse(
             status_code=400,
-            content={"rst_types": "text", "rst_data": {"text": f"DIRECTIVE_NOT_FOUND: {parsed.directive_key}"}},
+            content={"rst_types": "text", "rst_data": {"status": "error", "reason": f"DIRECTIVE_NOT_FOUND: {parsed.directive_key}"}},
         )
 
     access_token = None
@@ -176,7 +176,7 @@ async def handle_text_cli(request: Request):
 
     return JSONResponse(
         status_code=result.status_code,
-        content=resp_body if isinstance(resp_body, (dict, list)) else {"rst_types": "text", "rst_data": {"text": resp_body}},
+        content=resp_body if isinstance(resp_body, (dict, list)) else {"rst_types": "text", "rst_data": {"status": "error", "reason": resp_body}},
     )
 
 
@@ -197,21 +197,21 @@ async def handle_public_cli(request: Request):
     if not ENABLE_PUBLIC_CLI:
         return JSONResponse(
             status_code=404,
-            content={"rst_types": "text", "rst_data": {"text": "PUBLIC_CLI_DISABLED"}},
+            content={"rst_types": "text", "rst_data": {"status": "error", "reason": "PUBLIC_CLI_DISABLED"}},
         )
 
     skill_id = request.query_params.get("skill_id")
     if not skill_id:
         return JSONResponse(
             status_code=400,
-            content={"rst_types": "text", "rst_data": {"text": "INVALID_PARAMS: skill_id is required"}},
+            content={"rst_types": "text", "rst_data": {"status": "error", "reason": "INVALID_PARAMS: skill_id is required"}},
         )
 
     backend_base = get_backend_base_url()
     if not backend_base:
         return JSONResponse(
             status_code=502,
-            content={"rst_types": "text", "rst_data": {"text": "BACKEND_UNAVAILABLE"}},
+            content={"rst_types": "text", "rst_data": {"status": "error", "reason": "BACKEND_UNAVAILABLE"}},
         )
 
     body = {k: v for k, v in request.query_params.items() if k != "skill_id"}
@@ -226,5 +226,5 @@ async def handle_public_cli(request: Request):
 
     return JSONResponse(
         status_code=status_code,
-        content=resp_body if isinstance(resp_body, (dict, list)) else {"rst_types": "text", "rst_data": {"text": resp_body}},
+        content=resp_body if isinstance(resp_body, (dict, list)) else {"rst_types": "text", "rst_data": {"status": "error", "reason": resp_body}},
     )

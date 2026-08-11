@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 from core.registry import directive
 
 from .installer.audit import log_install
-from .installer.dependencies import install_deps
+from .installer.dependencies import install_deps, install_npm_deps
 from .installer.filesystem import install_files
 from .installer.validate import validate_package
 from .package_manifest import register as manifest_register
@@ -43,6 +43,8 @@ def _find_init_fn(handler_path: str) -> tuple[str | None, str | None]:
     """
     _ARG_KEY_MAP = {"project_root": "project_root", "db_path": "db",
                      "db_file": "quota", "db_dict": "db_dict"}
+    if not handler_path:
+        return None, None
     try:
         with open(handler_path, "r", encoding="utf-8") as f:
             tree = ast.parse(f.read())
@@ -63,12 +65,95 @@ def _find_init_fn(handler_path: str) -> tuple[str | None, str | None]:
     return None, None
 
 
+def _invalidate_package(name: str):
+    """Invalidate an installed package: unregister directives + purge from sys.modules.
+
+    Called before re-import on update, and after file removal on uninstall.
+    """
+    import sys
+    from core.registry import unregister as _registry_unregister
+
+    # 1. Unregister directives from _registry
+    safe = name.replace("-", "_")
+    schema_path = Path(__file__).resolve().parent / "schema" / f"{safe}_schema.json"
+    if schema_path.is_file():
+        try:
+            import json as _json
+            schema_data = _json.loads(schema_path.read_text(encoding="utf-8"))
+            for d in schema_data.get("directives", []):
+                _registry_unregister(d.get("domain", name), d.get("action", ""))
+        except Exception as e:
+            logger.debug("Failed to unregister directives for '%s': %s", name, e)
+    else:
+        logger.debug("Schema file not found for '%s', skipping directive unregister", name)
+
+    # 2. Purge module references from sys.modules (recursive for submodules)
+    pkg_prefix = f"packages.{name}."
+    for mod_name in list(sys.modules.keys()):
+        if mod_name == f"packages.{name}" or mod_name.startswith(pkg_prefix):
+            del sys.modules[mod_name]
+            logger.debug("Purged module from sys.modules: %s", mod_name)
+
+
+def _load_and_wire(name: str, safe: str, init_fn_name: str, arg_key: str | None):
+    """Import a package handler fresh and wire init + dispatch. No reload.
+
+    For new installs: module is not yet in sys.modules, direct import_module.
+    For updates: caller should call _invalidate_package() first, then this function.
+    Mirrors the startup init logic in main.py (HANDLER_INITS + DISPATCH_INJECTS).
+    """
+    import importlib
+    import os
+
+    mod_path = f"packages.{name}.handler"
+    try:
+        mod = importlib.import_module(mod_path)
+    except Exception as e:
+        logger.warning("Import failed for %s: %s (will need restart)", mod_path, e)
+        return
+
+    # Resolve init argument (mirrors main.py _ARG_MAP)
+    from pathlib import Path
+    project_root = Path(os.environ.get("TEXT_CLI_HOME",
+                                       str(Path.home() / "text-cli")))
+    sqlite_dir = project_root / "service" / "text_cli_modules" / "sqlite"
+    sqlite_db = str(sqlite_dir / "token_registry.db")
+    _arg_values = {
+        "db": sqlite_db,
+        "quota": str(sqlite_dir / "quota.db"),
+        "db_dict": {"config": sqlite_db},
+        "project_root": str(project_root),
+    }
+
+    # Call init function
+    try:
+        init_fn = getattr(mod, init_fn_name, None)
+        if init_fn and callable(init_fn):
+            if arg_key and arg_key in _arg_values:
+                init_fn(_arg_values[arg_key])
+            else:
+                init_fn()
+    except Exception as e:
+        logger.warning("Load-and-wire init failed for %s.%s: %s", mod_path, init_fn_name, e)
+
+    # Re-inject dispatch callbacks for key / task-manager handlers
+    try:
+        from main import _internal_dispatch
+        for setter_name in ("_set_dispatch", "_set_task_dispatch"):
+            setter = getattr(mod, setter_name, None)
+            if setter and callable(setter):
+                setter(_internal_dispatch)
+    except Exception as e:
+        logger.debug("Load-and-wire dispatch inject skipped for %s: %s", mod_path, e)
+
+    logger.info("Loaded handler: %s (no restart needed)", mod_path)
+
+
 @directive("text-cli", "install", domain_alias="文本指令", action_aliases={"install": "安装"})
-def text_cli_install(params: list[str]) -> str:
+def text_cli_install(params: list[str]) -> dict:
     """Install an instruction package by name."""
     if not params:
-        return "usage: AI:text-cli;install,<package>\n\n" \
-               "Use AI:text-cli;query,category to view available categories."
+        return {"status": "error", "reason": "usage: AI:text-cli;install,<package>\n\nUse AI:text-cli;query,category to view available categories."}
 
     name = params[0].strip()
     force = len(params) > 1 and params[1].strip() == "--force"
@@ -77,7 +162,7 @@ def text_cli_install(params: list[str]) -> str:
     ok, msg, meta = validate_package(name)
     if not ok:
         log_install(name, {}, False, msg)
-        return msg if msg.startswith("installation failed") else f"installation failed: {msg}"
+        return {"status": "error", "reason": msg}
 
     schema = meta["schema"]
 
@@ -86,17 +171,24 @@ def text_cli_install(params: list[str]) -> str:
     ok, msg = install_files(name, meta, runtime=runtime, force=force)
     if not ok:
         log_install(name, meta, False, msg)
-        return msg if msg.startswith("installation failed") else f"installation failed: {msg}"
+        return {"status": "error", "reason": msg}
 
     # 3. Check required secrets
     secrets_warnings = _check_secrets(schema, skip_check="--skip-secrets-check" in params)
 
-    # 4. Install dependencies (Python only)
-    if runtime == "python":
-        requires = schema.get("requires", {})
+    # 4. Install dependencies
+    requires = schema.get("requires", {})
+    entry_runtimes = meta.get("entry_runtimes", [])
+    if runtime == "python" or "python" in entry_runtimes:
         ok_deps, dep_msg = install_deps(meta.get("req_path"), name, requires=requires)
+    elif runtime == "js" or "js" in entry_runtimes:
+        npm_dir = meta.get("npm_dir")
+        if npm_dir:
+            ok_deps, dep_msg = install_npm_deps(npm_dir)
+        else:
+            ok_deps, dep_msg = True, "no package.json, skip npm"
     else:
-        ok_deps, dep_msg = True, "no pip dependencies"
+        ok_deps, dep_msg = True, "no dependencies"
 
     # 4. Format result
     directives = schema.get("directives", [])
@@ -121,24 +213,39 @@ def text_cli_install(params: list[str]) -> str:
 
     if not ok_deps:
         lines.append("")
-        lines.append(f"  ⚠ pip dependency install failed: {dep_msg}")
+        lines.append(f"  [WARN] dependency install failed: {dep_msg}")
         lines.append("    directive deployed, but may fail to execute due to missing dependencies.")
-        lines.append(f"    manual install: {meta.get('req_path', 'N/A')}")
 
-    result = "\n".join(lines)
+    # Build result dict
+    result_data = {
+        "status": "ok",
+        "package": name,
+        "name_zh": schema.get("name_zh", ""),
+        "runtime": runtime,
+        "directives": directives,
+        "mcp_server": mcp_server,
+    }
+    if not ok_deps:
+        result_data["dep_warning"] = dep_msg
 
     if msg and "\n" in msg:
         extra = "\n".join(msg.split("\n")[1:])
         if extra.strip():
-            result += f"\n{extra}"
+            result_data["note"] = extra
 
-    # Append secrets warnings
     if secrets_warnings:
-        result += "\n\n" + secrets_warnings
+        result_data["secrets_warnings"] = secrets_warnings
 
     log_install(name, meta, True, "installed")
 
-    # Write manifest for export tracking
+    # Refresh MCP routing if this is an MCP package
+    if schema.get("runtime") == "mcp":
+        try:
+            from core.mcp_dispatch import refresh_routes
+            refresh_routes()
+        except Exception as e:
+            logger.debug("Failed to refresh MCP routes after install: %s", e)
+            pass
     try:
         safe = _safe_name(name)
         pkg_source = str(meta["path"])
@@ -157,14 +264,22 @@ def text_cli_install(params: list[str]) -> str:
         if init_fn is None:
             init_fn = f"init_{safe}_handler"
         _append_handler_init(f"packages.{name}.handler", init_fn, arg_key)
+
+        # Hot-load: make handler available immediately without restart.
+        # New install: direct import_module (no reload needed).
+        # Update (--force): invalidate old registrations first, then fresh import.
+        if runtime == "python":
+            if force:
+                _invalidate_package(name)
+            _load_and_wire(name, safe, init_fn, arg_key)
     except Exception as e:
         logger.debug("Manifest/init optional for '%s': %s", name, e)
         pass  # manifest/init optional, don't block install
 
-    return result
+    return result_data
 
 
-def _append_handler_init(mod_path: str, fn_name: str, arg_key: str = None):
+def _append_handler_init(mod_path: str, fn_name: str, arg_key: str | None = None):
     """Append an entry to handler_inits.py for auto-load on restart."""
     import re
     try:

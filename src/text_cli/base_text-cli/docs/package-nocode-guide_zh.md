@@ -1,257 +1,298 @@
-# 文档型（nocode）指令包开发指南
+# 零代码（nocode）开发指南
 
-> 零代码。把领域经验写成 Markdown，变成可调用的 text-cli 指令。
-> 制作方法见 [package-dev-guide_zh.md](package-dev-guide_zh.md)；schema 规范见 [package-publish-guide_zh.md](package-publish-guide_zh.md)。
-
-> 💡 如果你的 Markdown 结构清晰，可以先用 `converter/readme_to_pkg.py` 生成起手骨架，再参考本指南补全。
+> 不用写代码。把你的经验写成 Markdown，变成人和 AI 都能调用的 text-cli 指令服务。
 
 ---
 
-## 0. 两种方式
+## 一、两种方式
 
-| | 方式一：单文件 + 模板脚本 | 方式二：知识库 + 路径引擎 |
+你的 Markdown 经验文档可以通过两种方式变成指令服务：
+
+| | 方式一：单文件 | 方式二：运行时 |
 |---|---|---|
-| 人的输入 | 一份 Markdown | knowledge/ 多文件 + index + path JSON |
-| 匹配方式 | 关键词/字符串 | AI 语义推理 |
-| 依赖 | 零（纯 Python 标准库） | `tc-markdown` + `ai_inference` |
-| 适合场景 | 症状明确、关键词能覆盖 | 症状模糊、需要推理 |
-| 入门 | 五分钟跑通 | 需要运行时支持 |
+| 你要做的 | 写一份 Markdown（不改代码即可启动） | knowledge/ 多文件 + index + path JSON |
+| 匹配方式 | 关键词字符串检索 | AI 语义推理 |
+| 依赖 | 零（纯 Python 标准库） | `tc-markdown` + `ai-inference` |
+| 启动 | `python converter_template.py <md文件>` | `text-cli;install` |
+| 适合 | 症状明确、关键词能覆盖 | 症状模糊、需要推理 |
 
-两种方式**递进**：方式一跑通后，同一份知识拆分就是方式二的 `knowledge/` 输入。
+两种方式不是二选一——**方式一是零门槛起点，方式二是你拥有 text-cli 运行时之后，同一份知识可以嵌入的更完整的体系**。方式一的 Markdown 拆开就是方式二的 `knowledge/` 输入。
+
+下文先带你体验方式一，再介绍方式二。
 
 ---
 
-## 1. 方式一：单文件 + 模板脚本
+## 二、方式一：无运行时模式
 
-### 1.1 Markdown 格式
+> 零依赖。一份 Markdown + 一个模板脚本 = 一个 HTTP 指令服务。
 
-```markdown
-# 标题
+### 2.1 现在就试试
 
-## 指令定义
-- 领域: <domain>
-- 动作: <action>
-- 触发词: <关键词,逗号分隔>
-- 参数: <参数名,逗号分隔>
-
-## 经验内容
-### <分类A>
-#### <子类A1>
-- 原因/表现/症状: ...
-- 急救/处理: ...
-- 预防: ...
-
-#### <子类A2>
-...
-
-### <分类B>
-...
-```
-
-**示例**（盆栽急救手册）：
-
-```markdown
-# 盆栽常见问题急救手册
-
-## 指令定义
-- 领域: 家庭园艺
-- 动作: 盆栽急救
-- 触发词: 盆栽, 叶子黄, 烂根, 浇水, 绿萝, 多肉
-- 参数: 植物名, 症状
-
-## 经验内容
-### 绿萝
-#### 叶片发黄
-- 原因：浇水过多或光照不足。
-- 急救：立即停止浇水，移到散射光处，剪掉黄叶。
-- 预防：春秋每周浇水1次，避免阳光直射。
-
-#### 烂根
-- 表现：根部变黑、变软，有异味。
-- 急救：脱盆，剪去腐烂根系，换新土重栽。
-- 预防：选用透气花盆，浇水见干见湿。
-```
-
-### 1.2 模板脚本
-
-使用 `converter_template.py`（模板位置：`template/base_nocode/converter_template.py`）——一个可复用的骨架，将符合上述格式的 Markdown 转化为 text-cli 指令服务。已有填好的示例可直接体验：`template/base_nocode/zh/markdown_converter.py`（搭配 `盆栽急救手册.md`）。
-
-**你需要改的部分（三处）**：
-
-| 位置 | 改什么 |
-|------|--------|
-| `@register(...)` | domain、action、category、trust |
-| `parse_experience_md()` 的解析正则 | 匹配你的 `###` / `####` 层级 |
-| `handler()` 的检索逻辑 | 匹配你的参数结构 |
-
-其余部分（文档解析、服务启动、返回格式）不需要改。
-
-> 如果不想手改代码，可以让 AI 辅助——把 Markdown 文档和模板脚本一起交给 AI，描述你要的领域和参数，AI 帮你完成上述三处修改。
-
-### 1.3 运行与验证
+盆栽急救是花店老板十年的经验笔记。你不需要懂代码——进去跑一下：
 
 ```bash
-# 用骨架模板（需先修改三处）：
-python template/base_nocode/converter_template.py 我的经验.md
+cd ../template/base_nocode/zh
+python markdown_converter_zh.py 盆栽急救手册_zh.md
+```
 
-# 或直接体验就绪示例：
-cd template/base_nocode/zh
-python markdown_converter.py 盆栽急救手册.md
+启动后：
 
-# 验证
+```bash
 curl -X POST http://localhost:8000/text-cli/cli \
   -H "Content-Type: application/json" \
   -d '{"prompt": "AI:家庭园艺;盆栽急救,绿萝,叶片发黄"}'
 ```
 
+响应：
+
+```json
+{
+  "rst_types": "text",
+  "rst_data": {
+    "status": "ok",
+    "category": "绿萝",
+    "sub": "叶片发黄",
+    "content": "- 原因: 浇水过多或光照不足...\n- 处理: ...\n- 鉴别: ...\n- 教训: ..."
+  },
+  "rst_err": ""
+}
+```
+
+返回绿萝叶片发黄的原因、处理方案、鉴别诊断和预防建议。一份 Markdown，一个能用的服务。人和 AI 通过同一个端点消费。
+
+
+### 2.2 把你的经验变成服务
+
+写一份 Markdown（参考 `../template/base_nocode/template.md` 或 `../template/base_nocode/template_zh.md`）：
+
+```markdown
+## 指令定义
+- 领域: 汽车维修
+- 动作: 诊断
+- 触发词: 发动机, 刹车, 异响
+- 参数: 部位, 症状
+- 来源: 王师傅口述,二十年汽修经验     # 可选 — 知识出处
+- 核实: 李工,2025-08-01                 # 可选 — 核实人与日期
+- 过期: 2026-12-31                       # 可选 — 过期日期
+- 状态: stable                           # 可选 — draft | stable | deprecated
+
+## 经验内容
+### 发动机
+#### 无法启动
+- 原因: 电瓶亏电或起动机故障。
+- 处理: 搭电或更换电瓶。检查起动机继电器。
+- 预防: 每 3-5 年更换电瓶。
+- 鉴别: ...                              # 可选 — 如何与相似问题区分
+- 教训: ...                              # 可选 — 血泪教训
+```
+
+> `来源`/`核实`/`过期`/`状态` 为可选字段——这些信息属于知识生产工作流，可能在数据传递中被清洗。代码有则透传（出现在 schema 中），无则不影响服务运行。`鉴别`/`教训` 为内容约定字段，写在条目中即可，解析器不做特殊处理。
+
+不改代码，直接启动：
+
+```bash
+python ../template/base_nocode/converter_template.py 汽车维修手册.md
+```
+
+脚本自动从 Markdown 的 `## 指令定义` 中提取领域和动作。如果需要覆盖 Markdown 中的值，改顶部变量：
+
+```python
+Domain = "汽车维修"       # 显式设置则覆盖 Markdown 中的值
+Action = "诊断"
+Host = "0.0.0.0"          # 绑定地址
+Port = 8000               # 监听端口
+```
+
+`Host` 和 `Port` 也可通过命令行参数覆盖：
+
+```bash
+python ../template/base_nocode/converter_template.py 汽车维修手册.md --port 9000
+```
+
+服务启动。`AI:汽车维修;诊断,发动机,无法启动` → 返回你的经验。
+
+### 2.3 端点
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/text-cli/cli` | POST | 执行指令（`AI:域;动作,参数`） |
+| `/text-cli/cli` | POST | 指令发现（`AI:text-cli;query,json`） |
+| `/text-cli/schema` | GET | 指令 schema（含可信度信息） |
+| `/text-cli/health` | GET | 健康检查 |
+
+查询示例：
+
+```bash
+# 精确匹配
+curl -X POST http://localhost:8000/text-cli/cli \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "AI:汽车维修;诊断,发动机,无法启动"}'
+
+# 列出该分类下所有子类
+curl -X POST http://localhost:8000/text-cli/cli \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "AI:汽车维修;诊断,发动机"}'
+
+# 列出所有分类
+curl -X POST http://localhost:8000/text-cli/cli \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "AI:汽车维修;诊断"}'
+
+# 查看 schema（含来源/核实/过期/状态等可信度信息）
+curl http://localhost:8000/text-cli/schema
+
+# 指令发现（与 schema 端点返回相同内容）
+curl -X POST http://localhost:8000/text-cli/cli \
+  -H "Content-Type: application/json" \
+  -d '{"prompt": "AI:text-cli;query,json"}'
+```
+
+精确匹配响应：
+
+```json
+{
+  "rst_data": {
+    "status": "ok",
+    "category": "发动机",
+    "sub": "无法启动",
+    "content": "- 原因: ...\n- 处理: ...\n- 鉴别: ...\n- 教训: ..."
+  }
+}
+```
+
+降级匹配（症状未精确命中）：
+
+```json
+{
+  "rst_data": {
+    "status": "ok",
+    "category": "发动机",
+    "sub": null,
+    "items": [
+      {"sub": "无法启动", "content": "..."},
+      {"sub": "异响", "content": "..."}
+    ]
+  }
+}
+```
+
+### 2.4 自定义检索逻辑
+
+默认的 `分类 → 子分类` 两级检索匹配大部分场景。如果需要不同的参数结构，改 `[Custom 3/3]` 区的 `handler()` 函数。handler 返回 dict（直接作为 `rst_data`）：
+
+```
+无参数    → {"status": "ok", "entry_count": N, "categories": [...]}
+一个参数  → {"status": "ok", "category": "...", "subs": [...]}
+两个参数  → {"status": "ok", "category": "...", "sub": "...", "content": "..."}
+          找不到则降级 → {"status": "ok", "category": "...", "sub": null, "items": [...]}
+```
+
+改完重启生效。参考 `zh/markdown_converter_zh.py` 看一个自包含的完整实例。
+
+### 2.5 多语言支持
+
+模板脚本语言无关——字段名通过 `FIELD_LABELS` 配置驱动。默认支持中文和英文。需要其他语言时，在 `FIELD_LABELS` 中添加一个语言子树即可：
+
+```python
+FIELD_LABELS = {
+    "en": { "domain": "Domain", "action": "Action", ... },
+    "zh": { "domain": "领域", "action": "动作", ... },
+    # "ja": { "domain": "領域", "action": "動作", ... },  ← 取消注释并填入
+}
+```
+
+完整语言参考库见 `../template/base_nocode/field_labels.json`（含中/英/法/阿/西/俄/日/韩/繁中）。加语言 = 加一行配置，解析逻辑零改动。
+
+### 2.6 加 token 鉴权
+
+如果需要限制谁能访问，改顶部两个变量：
+
+```python
+AuthEnabled = True
+ServiceToken = "my-secret"
+```
+
+调用方须在请求头带 `Service-token: my-secret`。token 不匹配返回 `ACCESS_DENIED`。
+
 ---
 
-## 2. 方式二：知识库 + 路径引擎
+## 三、方式二：运行时模式
 
-> 依赖 `tc-markdown` 和 `ai_inference` 需已安装。
+> 前提：你已部署 text-cli 运行时，且 `tc-markdown` 和 `ai-inference` 两个指令包已安装。
 
-### 2.1 文件结构
+方式二不是多写代码——你的 Markdown 经验知识不变。它多出的是运行时赋予的能力：AI 语义推理、指令发现、路径编排、聚合降级。方式一的同一份知识拆成多文件，加一份路径定义和包声明，就变成了运行时可感知的指令包。
+
+### 3.1 核心区别
+
+方式一是一个独立的 HTTP 服务。方式二是运行时可调度的一级能力——可被 `text-cli;query` 发现、可参与路径编排、可被聚合降级。
+
+同一份知识，不同的部署形态：
+
+```
+方式一                          方式二
+盆栽急救手册_zh.md  ──拆开──→  knowledge/
+  （一份大文档）                   ├── 绿萝-叶片发黄.md
+                                  ├── 绿萝-烂根.md
+                                  ├── 蚜虫.md
+                                  └── ...
+                              + knowledge-index.md  ← AI 用这个匹配
+                              + path/diagnose.json   ← 编排步骤
+                              + schema.json          ← 包声明
+```
+
+### 3.2 从方式一升级
+
+已有方式一的 Markdown？五步升级：
+
+1. **拆文档**：每个 `### 分类` → `knowledge/<分类>.md`
+2. **写 index**：提取每篇的症状关键词 → `knowledge-index.md`
+3. **写 schema**：`type: "nocode"`, `runtime: "path"`
+4. **写 path**：四步流水线 JSON（见 3.4）
+5. **安装**：
+```
+AI:text-cli;install,tc-markdown
+AI:text-cli;install,ai-inference
+AI:text-cli;install,<package-id>
+```
+
+
+> 模板和完整示例：`../template/runtime_nocode/nocode-template/` + `../template/runtime_nocode/nocode-example-zh/`
+
+### 3.3 文件结构
 
 ```
 <package-id>/
-├── schema.json              ← type: "nocode", runtime: "path"
-├── path/
-│   └── <name>.json          ← 路径定义（编排步骤）
-├── knowledge/
-│   ├── <问题A>.md           ← 经验文档
-│   └── <问题B>.md
-├── knowledge-index.md       ← 症状 → 文件名映射
+├── schema.json
+├── path/diagnose.json
+├── knowledge/              ← 从方式一拆出来的经验文档
+│   ├── 蚜虫.md
+│   └── 根腐.md
+├── knowledge-index.md      ← 症状 → 文件名
 └── README.md
 ```
 
-### 2.2 schema.json
+### 3.4 路径定义
+
+路径引擎用 `tc-markdown;read` 读文件、`ai;infer` 做推理——路径本身只做编排和插值：
 
 ```json
 {
-  "id": "flower-care",
-  "type": "nocode",
-  "name": "Flower Care",
-  "name_zh": "花卉养护",
-  "runtime": "path",
-  "version": "1.0.0",
-  "category": "知识库",
-  "locales": ["zh"],
-  "trust": "community",
-  "description": "Plant disease diagnosis using expert experience.",
-  "description_zh": "基于专家经验的植物病害诊断。",
-  "requires": {
-    "tc_packages": ["tc-markdown", "ai_inference"]
-  },
-  "directives": [
-    {
-      "domain": "flower-care",
-      "domain_zh": "花卉养护",
-      "action": "diagnose",
-      "action_zh": "��断",
-      "usage": "flower-care;diagnose,<症状描述>",
-      "usage_zh": "花卉养护;诊断,<症状描述>",
-      "description": "Diagnose plant problems from symptom description.",
-      "description_zh": "根据症状描述诊断植物问题。",
-      "params": ["symptoms"],
-      "params_desc": { "symptoms": "用自然语言描述症状" }
-    }
-  ]
-}
-```
-
-### 2.3 knowledge-index.md
-
-症状到文件名的映射表，AI 用它做语义匹配：
-
-```markdown
-根腐病.md ← 根变黑变软、有异味、茎基部腐烂
-蚜虫.md   ← 嫩芽上有小虫子、叶子卷曲、有黏糊糊液体
-黄叶病.md ← 新叶发黄但叶脉仍绿、老叶正常
-NOMATCH   ← 以上都不像
-```
-
-格式：`<文件名.md> ← <症状关键词>`。末行 `NOMATCH` 是兜底。
-
-### 2.4 knowledge/ 经验文档
-
-```markdown
-# 蚜虫
-
-## 症状
-- 嫩芽上聚着芝麻大小的虫子（绿/黑/黄）
-- 被咬的嫩叶卷曲变形
-- 叶面有黏糊糊的透明液体
-
-## 处理方案
-1. 数量少：棉签蘸酒精一个个擦掉
-2. 数量多：洗衣粉水喷叶面（一小撮洗衣粉兑一升水，傍晚喷）
-3. 隔天检查，如果还有活的重喷一次
-
-## 预防
-- 保持通风
-- 控制氮肥用量
-- 发现蚂蚁及时处理（蚂蚁会搬运蚜虫）
-```
-
-### 2.5 path/ 路径定义
-
-四步流水线：索引 → AI 匹配 → 读取 → AI 诊断 → 兜底。
-
-```json
-{
+  "type": "pipeline",
+  "default_source": "http://localhost:28050/text-cli/cli",
+  "requires": ["tc-markdown;read", "ai;infer"],
   "steps": [
-    {
-      "id": "index",
-      "instruction": "tc-markdown;read",
-      "params": ["knowledge-index.md"]
-    },
-    {
-      "id": "lookup",
-      "instruction": "ai;infer",
-      "params": [
-        "根据索引匹配用户症状最像的病，输出一行纯JSON只含文件名。\n索引：\n{step.index.content}\n\n症状：{input.symptoms}\n\n输出示例：{\"file\":\"蚜虫.md\"} 不匹配：{\"file\":\"NOMATCH\"}"
-      ]
-    },
-    {
-      "id": "read",
-      "instruction": "tc-markdown;read",
-      "params": ["knowledge/{step.lookup.file}"]
-    },
-    {
-      "id": "diagnose",
-      "instruction": "ai;infer",
-      "params": [
-        "严格基于以下经验诊断，不编造。\n1.诊断 2.处理方案 3.预防建议\n\n经验：\n{step.read.content}\n\n症状：{input.symptoms}"
-      ]
-    },
-    {
-      "id": "fallback",
-      "instruction": "ai;infer",
-      "params": [
-        "症状不在知识库范围内。基于通用知识给出建议。\n症状：{input.symptoms}"
-      ],
-      "if": "{step.lookup.file} == 'NOMATCH'"
-    }
+    {"id": "index",    "instruction": "tc-markdown;read,knowledge-index.md"},
+    {"id": "lookup",   "instruction": "ai;infer,根据索引匹配症状...", "output_as": "lookup"},
+    {"id": "read",     "instruction": "tc-markdown;read,knowledge/{lookup.file}"},
+    {"id": "diagnose", "instruction": "ai;infer,基于经验诊断...",   "output_as": "diagnose"},
+    {"id": "fallback", "instruction": "ai;infer,通用建议...", "if": "{lookup.file} == 'NOMATCH'"}
   ]
 }
 ```
 
-- `{input.symptoms}` — 用户输入
-- `{step.index.content}` — 上一步 tc-markdown;read 的返回
-- `{step.lookup.file}` — AI 返回 JSON 中的字段
-- `"if"` — 条件执行：NOMATCH 时触发兜底
+完整定义见 `../template/runtime_nocode/nocode-example-zh/path/diagnose.json`。
 
-### 2.6 管道闭包原则
-
-路径只做编排和插值。文件 IO、推理——全部通过指令完成：
-
-| 不自己做的事 | 用什么指令 |
-|-------------|-----------|
-| 读文件 | `tc-markdown;read` |
-| 语义匹配 | `ai;infer` |
-| 诊断推理 | `ai;infer` |
-
-### 2.7 安装与验证
+### 3.5 安装与验证
 
 ```bash
 curl -X POST http://localhost:28050/text-cli/cli \
@@ -260,19 +301,9 @@ curl -X POST http://localhost:28050/text-cli/cli \
 
 curl -X POST http://localhost:28050/text-cli/cli \
   -H "Content-Type: application/json" \
-  -d '{"prompt": "AI:flower-care;diagnose,月季叶子卷曲有黏糊糊的液体"}'
+  -d '{"prompt": "AI:flower-care;diagnose,叶子卷曲有黏糊糊的液体"}'
 ```
 
 ---
 
-## 3. 从方式一到方式二
-
-**什么时候升级**：症状描述模糊、关键词匹配不准、知识条目增多后难以手工检索。
-
-**升级步骤**：
-
-1. **拆文档**：方式一 Markdown 中每个 `### 分类` → 一个 `knowledge/<分类>.md`
-2. **写 index**：提取每篇的症状关键词 → `knowledge-index.md`
-3. **写 schema**：`type: "nocode"`, `runtime: "path"`，声明 `tc-markdown` + `ai_inference` 依赖
-4. **写 path**：索引 → 匹配 → 读取 → 诊断 → 兜底 的 JSON 步骤链
-5. **安装**：`text-cli;install` 替代脚本启动
+> 更多细节：`../template/base_nocode/docs/README_zh.md`（方式一模板说明书）。

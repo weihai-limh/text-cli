@@ -1,0 +1,39 @@
+{
+  "id": "hello-world-fail",
+  "type": "native",
+  "version": "0.1.1",
+  "license": "MIT",
+  "name": "hello-world-fail",
+  "name_zh": "你好世界-可失败",
+  "runtime": "python",
+  "category": "test",
+  "locales": [
+    "en",
+    "zh"
+  ],
+  "trust": "community",
+  "description": "hello-world variant that raises on param 'fail' — used for degradation chain tests.",
+  "description_zh": "hello-world 变体——参数为 fail 时抛异常，用于降级递补链测试。",
+  "directives": [
+    {
+      "domain": "test-fail",
+      "domain_zh": "测试失败",
+      "action": "test",
+      "action_zh": "测试",
+      "usage": "test-fail;test,<name>",
+      "usage_zh": "测试失败;测试,<名称>",
+      "description": "Returns greeting. Returns error status when name is 'fail' for degradation testing.",
+      "description_zh": "返回问候。当 name 为 'fail' 时返回 error 状态，供降级递补测试使用。",
+      "params": [
+        "name"
+      ],
+      "params_desc": {
+        "name": "Name to greet; use 'fail' to make the handler return an error envelope (status: error, reason: ...)"
+      },
+      "outputs": [
+        "text"
+      ],
+      "estimated_time": "10ms"
+    }
+  ]
+}

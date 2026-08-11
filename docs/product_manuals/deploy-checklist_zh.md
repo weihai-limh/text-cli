@@ -1,34 +1,41 @@
 # text-cli v{VERSION} 部署核对清单
 
-## 上线前
+## 初次配置
+
+启动脚本会自动完成以下初始化，你也可以手动操作。
+
+- [ ] 复制 `copilot/auxiliary_config.example.json` → `auxiliary_config.json`，按需编辑（字段含义见使用手册附录）
+- [ ] 设置 `TEXT_CLI_PACKAGE_SOURCE_DIRS` 环境变量（指向指令包目录，install/co-install 时搜索包用）
+- [ ] （A5 endpoint）编辑 `A3_BACKENDS` 列表，填入后端 service 地址
+- [ ] （A5 endpoint）可选：配置 `ADMIN_API_KEY` 启用管理 API
+
+## 所有分发包通用
 
 - [ ] Python 3.10+ 已安装（`python --version`）
 - [ ] pip 可用（`pip --version`）
-- [ ] 端口 20260、28050 未被其他进程占用
-- [ ] `copilot/auxiliary_config.json` 已配置
-- [ ] 防火墙规则允许 28050（如需局域网访问）
+- [ ] 启动脚本运行无报错（Windows: 双击 start.bat / Linux: ./start.sh）
+- [ ] 防火墙允许所需端口
 
-## 启动后
+## A2 copilot
 
-- [ ] `start.bat` 输出 "[OK] text-cli v{VERSION} 部署成功！"
-- [ ] `curl http://localhost:20260/text-cli/health` → 200
-- [ ] `curl http://localhost:28050/text-cli/health` → 200
-- [ ] `curl http://localhost:28050/text-cli/schema` → 返回指令列表
-- [ ] 执行一条测试指令——`curl -X POST http://localhost:28050/text-cli/cli -H "Content-Type: application/json" -d "{\"directive\": \"AI:基础应用;天气查询,北京\"}"`
+- [ ] curl http://127.0.0.1:20260/text-cli/health → 200
 
-## 资源基线
+## A3+ service（service/ 文件夹存在时）
 
-| 项目 | 数值 |
-|------|:---:|
-| copilot 内存 | ~50 MB |
-| service 内存 | ~80 MB |
-| 磁盘占用 | ~15 MB（不含 pip 依赖） |
-| Python 依赖 | httpx, fastapi, uvicorn, pydantic |
+- [ ] 端口 28050 未被占用
+- [ ] curl http://localhost:28050/text-cli/health → 200
+- [ ] curl -X POST http://localhost:28050/text-cli/cli -H "Content-Type: application/json" -d '{"prompt":"AI:text-cli;query"}' → 返回指令列表
 
-## 停止
+## A5 endpoint（start-endpoint 启动脚本存在时）
 
-关闭两个命令行窗口，或：
+- [ ] 端口 29050 未被占用
+- [ ] curl http://localhost:29050/health → 200
 
-```bash
-taskkill /F /IM python.exe
+## 停止服务
+
 ```
+Windows: taskkill /F /IM python.exe
+Linux:   pkill -f "python.*main.py"
+```
+
+也可以直接关闭启动脚本对应的终端窗口。

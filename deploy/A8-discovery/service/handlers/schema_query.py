@@ -55,6 +55,40 @@ SCHEMA_DIR = pathlib.Path(__file__).resolve().parent / "schema"
 RESERVED = frozenset({"all", "json", "compact", "python", "js", "mcp",
                        "category", "delta", "collection", "path"})
 
+# ── Supported locale codes for query tail parameter ──
+# Matched against SPEC locales field. Append here to enable new languages.
+_SUPPORTED_LOCALES = frozenset({"zh", "en"})
+
+
+def _l(d: dict, field: str, lang: str) -> str:
+    """Resolve localized field from dict d.
+
+    auto → canonical field (name/description/usage) — SPEC minimum guarantee.
+    zh   → field_zh ?? field   — fallback to canonical when locale absent.
+    en   → field_en ?? field
+    Fallback is safe because SPEC requires canonical fields to be present
+    in every schema. Locale suffixes (_zh/_en) are optional overlays.
+    """
+    if lang == "auto":
+        return d.get(field, "")
+    key = f"{field}_{lang}"
+    return d.get(key) or d.get(field, "")
+
+
+def _resolve_language(params: list[str], config: dict | None = None) -> str:
+    """Resolve output language for query rendering.
+
+    Priority:
+      1. Caller tail parameter (if last param is in _SUPPORTED_LOCALES) → pop and use
+      2. Server config instructions_language (zh | en | auto)
+      3. auto (canonical fields only)
+    """
+    if params and params[-1].strip() in _SUPPORTED_LOCALES:
+        return params.pop().strip()
+    if config:
+        return config.get("server", {}).get("instructions_language", "auto")
+    return "auto"
+
 # ── 加载 ──
 
 def _load_schemas() -> list[dict]:
@@ -241,17 +275,17 @@ def _keyword_search(directives: list[dict], keyword: str) -> list[dict]:
 
 # ── 渲染 ──
 
-def _render_text(directives: list[dict]) -> str:
+def _render_text(directives: list[dict], lang: str = "auto") -> str:
     if not directives:
         return "═══ Available directives ═══\n\n(none)"
 
     lines = ["═══ Available directives ═══\n"]
 
-    # Group by package (Chinese name shown first)
+    # Group by package
     by_pkg: dict[str, list[dict]] = {}
     pkg_order = []
     for d in directives:
-        pkg_name = d["_package"]["name_zh"] or d["_package"]["name"]
+        pkg_name = _l(d["_package"], "name", lang)
         if pkg_name not in by_pkg:
             by_pkg[pkg_name] = []
             pkg_order.append(pkg_name)
@@ -260,37 +294,31 @@ def _render_text(directives: list[dict]) -> str:
     for pkg_name in pkg_order:
         entries = by_pkg[pkg_name]
         pkg = entries[0]["_package"]
-        lines.append(f"{pkg_name} · {pkg['name']}")
-        # Chinese description preferred
-        desc = pkg.get("description_zh") or pkg.get("description", "")
+        pkg_id = pkg.get("name", "")
+        lines.append(f"{pkg_name} · {pkg_id}" if pkg_id and pkg_id != pkg_name else pkg_name)
+        desc = _l(pkg, "description", lang)
         if desc:
             lines.append(f"  {desc}")
         for d in entries:
-            # Chinese usage shown first
-            usage_zh = d.get("usage_zh", d.get("usage", f"{d.get('domain_zh', d.get('domain', ''))};{d.get('action_zh', d.get('action', ''))}"))
-            lines.append(f"  {usage_zh}")
-            usage_en = d.get("usage")
-            if usage_en and usage_en != usage_zh:
-                lines.append(f"    {usage_en}")
-            # Directive description
-            ddesc = d.get("description_zh") or d.get("description", "")
+            usage = _l(d, "usage", lang)
+            lines.append(f"  {usage}")
+            ddesc = _l(d, "description", lang)
             if ddesc:
                 lines.append(f"    ─ {ddesc}")
         lines.append("")
 
-    # 追加 A2 proxy 可达指令
+    # Append A2 proxy reachable directives
     a2_directives = _fetch_a2_directives()
     if a2_directives:
         lines.append("A2 copilot (127.0.0.1:20260)")
         for d in a2_directives:
             op_id = d.get("id") or f"{d.get('domain', '')};{d.get('action', '')}"
-            usage = d.get("usage", d.get("usage_zh", op_id))
-            desc = d.get("description", d.get("description_zh", ""))
-            line = usage if usage else op_id
-            if desc:
-                lines.append(f"  {line}:{desc}")
+            usage = _l(d, "usage", lang) or op_id
+            ddesc = _l(d, "description", lang)
+            if ddesc:
+                lines.append(f"  {usage}:{ddesc}")
             else:
-                lines.append(f"  {line}")
+                lines.append(f"  {usage}")
         lines.append("")
 
     return "\n".join(lines)
@@ -377,7 +405,17 @@ def schema_query(params: list[str]) -> str:
         category,<分类名>       → 按分类过滤
         delta                   → 变化报告
         <其他关键词>             → 关键词搜索
+
+    尾参可选语言覆盖: ,zh | ,en (e.g. AI:text-cli;query,compact,zh)
     """
+    # ── Resolve language (caller tail param override → server config default) ──
+    try:
+        from core.config import load_config
+        _cfg = load_config()
+    except Exception:
+        _cfg = None
+    lang = _resolve_language(params, _cfg)
+
     mode = params[0].strip() if params else "all"
     if not mode:
         mode = "all"
@@ -393,7 +431,7 @@ def schema_query(params: list[str]) -> str:
     # ── 模式分发 ──
 
     if mode == "all":
-        return _render_text(directives)
+        return _render_text(directives, lang)
 
     if mode == "json":
         return _render_json(directives)
@@ -403,7 +441,7 @@ def schema_query(params: list[str]) -> str:
 
     if mode in ("python", "js", "mcp"):
         filtered = _filter_runtime(directives, mode)
-        return _render_text(filtered)
+        return _render_text(filtered, lang)
 
     if mode == "delta":
         return _render_delta(directives)
@@ -411,7 +449,7 @@ def schema_query(params: list[str]) -> str:
     if mode == "category":
         if len(params) > 1 and params[1].strip():
             filtered = _filter_category(directives, params[1].strip())
-            return _render_text(filtered)
+            return _render_text(filtered, lang)
         cats = _list_categories(directives)
         if cats:
             return "category list:\n" + "\n".join(f"  {c}" for c in cats)
@@ -426,14 +464,14 @@ def schema_query(params: list[str]) -> str:
                 "Copy config/collection_text_cli.json.example to configure the curated directive set."
             )
         filtered = _filter_by_collection(directives, collection_items)
-        return _render_text(filtered) if filtered else "═══ Collection ═══\n\n(no matching directives)"
+        return _render_text(filtered, lang) if filtered else "═══ Collection ═══\n\n(no matching directives)"
 
     if mode == "path":
         filtered = _filter_composite(directives)
-        return _render_text(filtered) if filtered else "═══ Path directives ═══\n\n(no registered paths)"
+        return _render_text(filtered, lang) if filtered else "═══ Path directives ═══\n\n(no registered paths)"
 
     # ── 兜底：关键词搜索 ──
     results = _keyword_search(directives, mode)
     if results:
-        return _render_text(results)
+        return _render_text(results, lang)
     return f"no directives matching \"{mode}\" directives found. Use AI:text-cli;query,category to view categories."

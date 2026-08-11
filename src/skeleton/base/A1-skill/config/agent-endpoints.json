@@ -1,0 +1,10 @@
+{
+  "endpoints": {
+    "local-service": {
+      "url": "http://127.0.0.1:28050/text-cli/cli",
+      "auth": "none",
+      "rank": 1,
+      "trust": "internal"
+    }
+  }
+}

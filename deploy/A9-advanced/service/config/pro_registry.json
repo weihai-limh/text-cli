@@ -1,0 +1,11 @@
+{
+  "calc": {
+    "type": "aggregate",
+    "domain": "tc-math",
+    "action": "eval"
+  },
+  "pythag": {
+    "type": "path",
+    "path": "pythagorean"
+  }
+}

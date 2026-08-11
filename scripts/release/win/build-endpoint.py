@@ -1,13 +1,25 @@
 """
 text-cli endpoint skeleton-win release builder.
 
-Usage:
-    python .dev/release-script/win/build-endpoint.py              # use VERSION file
-    python .dev/release-script/win/build-endpoint.py --version 0.2.0
+A5 endpoint is a through-layer gateway. Unlike the main build script which
+supports multiple accumulation layers (A2-A9), the endpoint has platform
+variants (python FastAPI, js Cloudflare Workers).
 
-Assembles deploy/skeleton-win/text-cli-endpoint-v{VERSION}/ from:
-  - deploy/A5-endpoint/python/      (endpoint gateway source)
-  - .dev/release-script/docs/       (distribution docs)
+Two-run semantics:
+  - First run: if output dir already exists, attempt to remove it and exit.
+    Re-run after the removal succeeds.
+  - Second run: output dir is clean, full build proceeds.
+
+Usage:
+    python scripts/release/win/build-endpoint.py                        # default: python
+    python scripts/release/win/build-endpoint.py --variant python
+    python scripts/release/win/build-endpoint.py --version 0.2.0
+
+Assembles deploy/skeleton-win/text-cli-endpoint-{VARIANT}-v{VER}/ from:
+  - deploy/A5-endpoint/{variant}/    (endpoint gateway source)
+  - docs/product_manuals/            (distribution docs)
+
+Output directory uses underscore-separated version (e.g. text-cli-endpoint-python-v0_2_0).
 """
 
 import argparse
@@ -16,52 +28,75 @@ import re
 import shutil
 import sys
 
+# ---------------------------------------------------------------------------
+# variant → deploy subdirectory mapping
+# ---------------------------------------------------------------------------
+VARIANT_MAP = {
+    "python": "deploy/A5-endpoint/python",
+    # "js": "deploy/A5-endpoint/js",   # TODO: implement JS (Cloudflare Workers) variant
+}
+
 
 class WinEndpointBuilder:
-    def __init__(self, version: str):
+    def __init__(self, version: str, variant: str):
         self.version = version
+        self.version_dir = version.replace(".", "_")
+        self.variant = variant
         self.project_root = pathlib.Path(__file__).resolve().parent.parent.parent.parent
-        self.release_dir = self.project_root / ".dev" / "release-script"
-        self.docs_src = self.release_dir / "docs"
+        self.docs_src = self.project_root / "docs" / "product_manuals"
+        self.deploy_src = self.project_root / VARIANT_MAP[variant]
         self.output_parent = self.project_root / "deploy" / "skeleton-win"
-        self.output_dir = self.output_parent / f"text-cli-endpoint-v{self.version}"
-        self.source = self.project_root / "deploy" / "A5-endpoint" / "python"
+        self.output_name = f"text-cli-endpoint-{variant}-v{self.version_dir}"
+        self.output_dir = self.output_parent / self.output_name
 
+    # ------------------------------------------------------------------
+    # public entry
+    # ------------------------------------------------------------------
     def run(self):
         self._check_prerequisites()
         self._clean_old()
-        self._copy_source()
+        self._copy_runtime()
         self._copy_docs()
+        self._copy_protocol()
         self._generate_start_bat()
+        self._generate_end_endpoint_bat()
         self._clean_descriptors()
         self._package_zip()
         self._report()
 
     # ------------------------------------------------------------------
+    # steps
+    # ------------------------------------------------------------------
     def _check_prerequisites(self):
-        if not self.source.is_dir():
-            sys.exit(f"[ERR] endpoint source not found: {self.source}")
+        """Verify source directories exist."""
+        if not self.deploy_src.is_dir():
+            sys.exit(f"[ERR] endpoint source not found: {self.deploy_src}")
         if not self.docs_src.is_dir():
             sys.exit(f"[ERR] docs template not found: {self.docs_src}")
 
     def _clean_old(self):
+        """First-run guard: if a previous build exists at the same variant/version,
+        attempt to remove it and exit so the user can re-run cleanly."""
         if self.output_dir.exists():
-            shutil.rmtree(self.output_dir)
+            try:
+                shutil.rmtree(self.output_dir)
+                print(f"[OK] removed previous build: {self.output_dir.name}")
+                print(f"[INFO] output dir cleaned — re-run to generate the build.")
+                sys.exit(0)
+            except Exception as e:
+                print(f"[ERR] cannot remove previous build: {e}")
+                print(f"[INFO] please manually delete: {self.output_dir}")
+                sys.exit(1)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-    def _copy_source(self):
-        # Copy A5 python source, excluding __pycache__
-        for item in self.source.iterdir():
-            if item.name == "__pycache__":
-                continue
-            dst = self.output_dir / item.name
-            if item.is_dir():
-                shutil.copytree(item, dst, ignore=shutil.ignore_patterns("__pycache__"))
-            else:
-                shutil.copy2(item, dst)
-        print(f"[OK] source  -> {self.output_dir.name}")
+    def _copy_runtime(self):
+        """Copy the full self-contained endpoint source as runtime root."""
+        shutil.copytree(self.deploy_src, self.output_dir, dirs_exist_ok=True)
+        count = sum(1 for _ in self.output_dir.rglob("*") if _.is_file())
+        print(f"[OK] {self.variant} endpoint -> {self.output_dir.name} ({count} files)")
 
     def _copy_docs(self):
+        """Copy distribution docs and replace {VERSION} placeholders."""
         dst = self.output_dir / "docs"
         shutil.copytree(self.docs_src, dst)
         for doc in dst.iterdir():
@@ -70,76 +105,75 @@ class WinEndpointBuilder:
                 text = text.replace("{VERSION}", self.version)
                 doc.write_text(text, encoding="utf-8")
         count = len(list(dst.iterdir()))
-        print(f"[OK] docs    -> {dst.name} ({count} files, VERSION={self.version})")
+        print(f"[OK] docs -> {dst.name} ({count} files, VERSION={self.version})")
+
+    def _copy_protocol(self):
+        """Bundle deploy/A0-protocol/ as sibling protocol/ directory.
+
+        The protocol SDK is a pure client-side toolkit — zero dependencies,
+        no runtime to start. It ships alongside the endpoint as an independent
+        sibling directory.
+        """
+        proto_src = self.project_root / "deploy" / "A0-protocol"
+        if not proto_src.is_dir():
+            print(f"[WARN] protocol source not found: {proto_src}")
+            return
+        proto_dst = self.output_parent / "protocol"
+        shutil.copytree(proto_src, proto_dst, dirs_exist_ok=True)
+        count = sum(1 for _ in proto_dst.rglob("*") if _.is_file())
+        print(f"[OK] protocol -> {proto_dst.name} ({count} files)")
 
     def _generate_start_bat(self):
-        content = f"""@echo off
-chcp 65001 >nul
-title text-cli-endpoint v{self.version}
+        """Generate variant-appropriate start-endpoint.bat.
 
-echo ========================================
-echo   text-cli endpoint v{self.version} - Windows
-echo ========================================
-echo.
+        python: uvicorn on 0.0.0.0:29050
+        js:     not yet implemented (Cloudflare Workers via wrangler).
+        """
+        if self.variant == "python":
+            content = _python_start_bat(self.version)
+        elif self.variant == "js":
+            # TODO: generate JS start script (e.g. `wrangler dev` or `node index.js`)
+            sys.exit("[ERR] JS variant not yet implemented")
+        else:
+            sys.exit(f"[ERR] unknown variant: {self.variant}")
 
-:: env
-if "%TEXT_CLI_ENDPOINT_HOME%"=="" set "TEXT_CLI_ENDPOINT_HOME=%~dp0"
-echo [OK] HOME = %TEXT_CLI_ENDPOINT_HOME%
-
-:: python check
-python --version >nul 2>&1
-if %errorlevel% neq 0 (
-    echo [ERR] Python not installed or not in PATH
-    pause
-    exit /b 1
-)
-
-:: pip deps (one-time)
-if not exist "%TEXT_CLI_ENDPOINT_HOME%.deps_ok" (
-    echo [INFO] installing Python deps...
-    pip install -r "%TEXT_CLI_ENDPOINT_HOME%requirements.txt" --quiet
-    if %errorlevel% neq 0 (
-        echo [ERR] pip install failed
-        pause
-        exit /b 1
-    )
-    echo. > "%TEXT_CLI_ENDPOINT_HOME%.deps_ok"
-    echo [OK] deps ready
-)
-
-:: start endpoint (0.0.0.0:29050)
-echo.
-echo [INFO] starting endpoint (http://0.0.0.0:29050)...
-cd /d "%TEXT_CLI_ENDPOINT_HOME%"
-python -m uvicorn main:app --host 0.0.0.0 --port 29050
-"""
         (self.output_dir / "start-endpoint.bat").write_text(content, encoding="utf-8")
-        print(f"[OK] start-endpoint.bat generated (v{self.version})")
+        print(f"[OK] start-endpoint.bat generated ({self.variant}, v{self.version})")
+
+    def _generate_end_endpoint_bat(self):
+        """Generate end-endpoint.bat for graceful endpoint shutdown."""
+        (self.output_dir / "end-endpoint.bat").write_text(END_ENDPOINT_BAT, encoding="utf-8")
+        print("[OK] end-endpoint.bat generated")
 
     def _clean_descriptors(self):
-        removals = [
-            self.output_dir / ".gitignore",
-        ]
-        for f in removals:
-            if f.exists():
-                f.unlink()
-        # Remove __pycache__ from subdirectories
-        for pyc in self.output_dir.rglob("__pycache__"):
-            if pyc.is_dir():
-                shutil.rmtree(pyc)
-        print("[OK] deployment descriptors cleaned")
+        """Remove variant-specific runtime artifacts not meant for distribution."""
+        if self.variant == "python":
+            for pyc in self.output_dir.rglob("__pycache__"):
+                if pyc.is_dir():
+                    shutil.rmtree(pyc, ignore_errors=True)
+        elif self.variant == "js":
+            # TODO: JS variant cleanup (e.g. remove dev-only configs)
+            pass
+        print("[OK] runtime artifacts cleaned")
 
     def _package_zip(self):
+        """Compress artifact to .zip via PowerShell Compress-Archive."""
         import hashlib
         import subprocess
 
-        zip_path = self.output_parent / f"text-cli-endpoint-v{self.version}.zip"
+        zip_path = self.output_parent / f"{self.output_name}.zip"
         if zip_path.exists():
             zip_path.unlink()
 
+        paths_to_zip = [str(self.output_dir)]
+        proto_dir = self.output_parent / "protocol"
+        if proto_dir.is_dir():
+            paths_to_zip.append(str(proto_dir))
+
+        paths_arg = ",".join(f"'{p}'" for p in paths_to_zip)
         cmd = [
             "powershell", "-NoProfile", "-Command",
-            f"Compress-Archive -Path '{self.output_dir}' -DestinationPath '{zip_path}'"
+            f"Compress-Archive -Path {paths_arg} -DestinationPath '{zip_path}'"
         ]
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
@@ -149,13 +183,13 @@ python -m uvicorn main:app --host 0.0.0.0 --port 29050
             return
 
         sha = hashlib.sha256(zip_path.read_bytes()).hexdigest()
-        sha_path = zip_path.parent / f"text-cli-endpoint-v{self.version}.sha256"
+        sha_path = zip_path.parent / f"{self.output_name}.sha256"
         sha_path.write_text(sha, encoding="utf-8")
 
         self._zip_path = zip_path
         self._zip_sha256 = sha
         size_mb = zip_path.stat().st_size / (1024 * 1024)
-        print(f"[OK] zip     -> {zip_path.name} ({size_mb:.1f} MB)")
+        print(f"[OK] zip -> {zip_path.name} ({size_mb:.1f} MB)")
 
     def _report(self):
         total = sum(1 for _ in self.output_dir.rglob("*") if _.is_file())
@@ -166,6 +200,7 @@ python -m uvicorn main:app --host 0.0.0.0 --port 29050
         print("=" * 50)
         print(f"  text-cli endpoint skeleton-win built")
         print("=" * 50)
+        print(f"  variant : {self.variant}")
         print(f"  version : v{self.version}")
         print(f"  output  : {self.output_dir}")
         print(f"  files   : {total}")
@@ -177,7 +212,88 @@ python -m uvicorn main:app --host 0.0.0.0 --port 29050
         print("=" * 50)
 
 
-# ------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# start-endpoint.bat template — python variant
+# ---------------------------------------------------------------------------
+def _python_start_bat(version: str) -> str:
+    return f"""@echo off
+chcp 65001 >nul
+title text-cli-endpoint v{version}
+
+echo ========================================
+echo   text-cli endpoint v{version} - Windows
+echo ========================================
+echo.
+
+:: env
+if "%A3_BACKENDS%"=="" (
+    echo [WARN] A3_BACKENDS not set — endpoint will have no backend services
+    echo        Set this to your Service URL (e.g. http://localhost:28050),
+    echo        or create backends.yaml for multi-backend setups ^(recommended^).
+    echo        See docs/README_zh.md for configuration details.
+) else (
+    echo [OK] A3_BACKENDS = %A3_BACKENDS%
+)
+if "%ACCESS_TOKEN_REQUIRED%"=="" set "ACCESS_TOKEN_REQUIRED=true"
+echo [INFO] ACCESS_TOKEN_REQUIRED = %ACCESS_TOKEN_REQUIRED%
+if "%ENDPOINT_BASE_URL%"=="" set "ENDPOINT_BASE_URL=http://localhost:29050"
+echo [OK] ENDPOINT_BASE_URL = %ENDPOINT_BASE_URL%
+if "%TEXT_CLI_ENDPOINT_HOME%"=="" set "TEXT_CLI_ENDPOINT_HOME=%~dp0"
+echo [OK] HOME = %TEXT_CLI_ENDPOINT_HOME%
+
+:: python check
+python --version >nul 2>&1
+if %errorlevel% neq 0 (
+    echo [ERR] Python not installed or not in PATH
+    pause
+    exit /b 1
+)
+
+:: venv deps (isolated from global pip)
+set "VENV_PYTHON=%TEXT_CLI_ENDPOINT_HOME%.venv\\Scripts\\python.exe"
+if exist "%VENV_PYTHON%" (
+    "%VENV_PYTHON%" -c "import fastapi,uvicorn,httpx,pydantic" >nul 2>&1
+    if not errorlevel 1 (
+        echo [OK] deps ready (venv)
+        goto :deps_done
+    )
+)
+echo [INFO] installing Python deps to .venv...
+if not exist "%TEXT_CLI_ENDPOINT_HOME%.venv" (
+    python -m venv "%TEXT_CLI_ENDPOINT_HOME%.venv"
+)
+"%VENV_PYTHON%" -m pip install -r "%TEXT_CLI_ENDPOINT_HOME%requirements.txt" --quiet
+if %errorlevel% neq 0 (
+    echo [ERR] pip install failed
+    pause
+    exit /b 1
+)
+echo [OK] deps ready
+:deps_done
+
+:: start endpoint (0.0.0.0:29050)
+echo.
+echo [INFO] starting endpoint (http://0.0.0.0:29050)...
+cd /d "%TEXT_CLI_ENDPOINT_HOME%"
+"%VENV_PYTHON%" -m uvicorn main:app --host 0.0.0.0 --port 29050
+"""
+
+END_ENDPOINT_BAT = r"""@echo off
+echo Stopping text-cli endpoint...
+
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr :29050 ^| findstr LISTENING') do (
+    taskkill /PID %%a /F >nul 2>&1
+    if not errorlevel 1 echo   endpoint PID %%a stopped
+)
+
+echo Done - endpoint :29050 stopped.
+pause
+"""
+
+
+# ---------------------------------------------------------------------------
+# entry point
+# ---------------------------------------------------------------------------
 def read_version() -> str:
     version_file = (
         pathlib.Path(__file__).resolve().parent.parent.parent.parent / "VERSION"
@@ -193,6 +309,11 @@ def read_version() -> str:
 def main():
     parser = argparse.ArgumentParser(description="text-cli endpoint skeleton-win release builder")
     parser.add_argument(
+        "--variant", type=str, default="python",
+        choices=list(VARIANT_MAP.keys()),
+        help="endpoint platform variant (default: python)",
+    )
+    parser.add_argument(
         "--version", type=str, default=None,
         help="override version from VERSION file",
     )
@@ -202,7 +323,7 @@ def main():
     if not re.match(r"^\d+\.\d+\.\d+$", version):
         sys.exit(f"[ERR] invalid version: {version!r}")
 
-    builder = WinEndpointBuilder(version)
+    builder = WinEndpointBuilder(version, args.variant)
     builder.run()
 
 

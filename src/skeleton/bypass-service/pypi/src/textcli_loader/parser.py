@@ -31,7 +31,7 @@ class ParsedDirective:
 
 
 class DirectiveParseError(Exception):
-    def __init__(self, message: str, code: str = "INVALID_DIRECTIVE_FORMAT"):
+    def __init__(self, message: str, code: str = "INVALID_PARAMS"):
         self.message = message
         self.code = code
         super().__init__(message)

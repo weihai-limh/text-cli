@@ -1,7 +1,0 @@
-{
-  "description": "Configure allowed file paths for image directives.",
-  "description_cn": "配置图片指令允许访问的文件路径。",
-  "allowed_paths": [
-    ""
-  ]
-}

@@ -21,13 +21,14 @@ def _load_static_fallback():
 async def load_schema(endpoint_base_url: str | None = None):
     global _external_schema
 
-    backends_raw = os.getenv("A3_BACKENDS", "")
-    if backends_raw:
+    from core.backend_registry import _load_backends
+    backends = _load_backends()
+    if backends:
         from core.backend_registry import build_external_schema, refresh_backends
         await refresh_backends()
         _external_schema = build_external_schema(endpoint_base_url)
         logger.info("Schema loaded from %d backends, %d skills available",
-                     len(backends_raw.split(",")), len(_external_schema))
+                     len(backends), len(_external_schema))
     else:
         static = _load_static_fallback()
         _external_schema = copy.deepcopy(static)

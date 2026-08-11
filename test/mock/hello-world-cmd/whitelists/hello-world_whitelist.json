@@ -1,0 +1,13 @@
+{
+  "tool": "hello",
+  "commands": [
+    {
+      "action": "world",
+      "action_zh": "世界",
+      "args": ["echo", "Hello"],
+      "args_pattern": ".*",
+      "timeout": 5,
+      "description": "Hello world terminal command"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "id": "tc-math",
+  "type": "native",
+  "name": "TC Math",
+  "name_zh": "数学计算",
+  "runtime": "js",
+  "version": "0.1.0",
+  "locales": ["zh", "en"],
+  "trust": "internal",
+  "category": "math",
+  "description": "Math expression evaluation.",
+  "description_zh": "数学表达式求值。",
+  "directives": [
+    {
+      "domain": "tc-math",
+      "domain_zh": "计算",
+      "action": "eval",
+      "action_zh": "求值",
+      "usage": "tc-math;eval,<expression>",
+      "usage_zh": "计算;求值,<表达式>",
+      "description": "Evaluate a math expression and return the result.",
+      "description_zh": "计算数学表达式并返回结果。",
+      "params": ["expression"],
+      "outputs": ["result"]
+    }
+  ]
+}

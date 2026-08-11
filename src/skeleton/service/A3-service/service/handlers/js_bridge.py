@@ -39,7 +39,7 @@ def make_js_handler(js_file: str, domain: str, action: str):
         action: directive action for logging
     """
 
-    def handler(params: list[str]) -> str:
+    def handler(params: list[str]) -> dict:
         js_path = HANDLERS_DIR / js_file
 
         input_data = json.dumps({
@@ -50,7 +50,7 @@ def make_js_handler(js_file: str, domain: str, action: str):
 
         try:
             result = subprocess.run(
-                ["node", str(js_path, check=False)],
+                ["node", str(js_path)],
                 input=input_data,
                 capture_output=True,
                 text=True,
@@ -58,13 +58,13 @@ def make_js_handler(js_file: str, domain: str, action: str):
             )
             if result.returncode != 0:
                 err = result.stderr.strip() or f"exit={result.returncode}"
-                return f"JS handler error ({js_file}): {err}"
-            return result.stdout.strip()
+                return {"status": "error", "reason": f"JS handler error ({js_file}): {err}"}
+            return {"status": "ok", "result": result.stdout.strip()}
         except subprocess.TimeoutExpired:
-            return f"JS handler timeout ({js_file}): exceeded {JS_TIMEOUT}s"
+            return {"status": "error", "reason": f"JS handler timeout ({js_file}): exceeded {JS_TIMEOUT}s"}
         except FileNotFoundError:
-            return "JS runtime not available: node not installed"
+            return {"status": "error", "reason": "JS runtime not available: node not installed"}
         except OSError as e:
-            return f"JS handler OS error ({js_file}): {e}"
+            return {"status": "error", "reason": f"JS handler OS error ({js_file}): {e}"}
 
     return handler

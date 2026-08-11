@@ -1,9 +1,0 @@
-{
-  "name": "web-utils",
-  "version": "0.1.1",
-  "description": "Web utilities (IP query, XOR crypto)",
-  "main": "index.js",
-  "dependencies": {
-    "wx-server-sdk": "~2.6.3"
-  }
-}

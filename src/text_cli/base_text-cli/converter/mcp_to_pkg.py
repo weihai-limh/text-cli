@@ -110,13 +110,17 @@ def _generate_schema(domain: str, tools: list[dict], server: str) -> str:
         params = _build_params(input_schema)
         params_desc = _build_params_desc(input_schema)
 
+        # Required params are shown as <...>; optional params as [...]
+        required = set(input_schema.get("required", []))
+        usage_parts = [f"<{p}>" if p in required else f"[{p}]" for p in params]
+
         directives.append({
             "domain": domain,
             "domain_zh": server,
             "action": action,
             "action_zh": name,
-            "usage": f"{domain};{action},{','.join(params)}" if params else f"{domain};{action}",
-            "usage_zh": f"{server};{action},{','.join(params)}" if params else f"{server};{action}",
+            "usage": f"{domain};{action},{','.join(usage_parts)}" if usage_parts else f"{domain};{action}",
+            "usage_zh": f"{server};{action},{','.join(usage_parts)}" if usage_parts else f"{server};{action}",
             "description": description or f"MCP tool: {name}",
             "description_zh": description or f"MCP 工具: {name}",
             "params": params,
@@ -125,8 +129,12 @@ def _generate_schema(domain: str, tools: list[dict], server: str) -> str:
         })
 
     return json.dumps({
-        "id": f"tcco-mcp-{domain}",
+        "id": f"tc-mcp-{domain}",
+        "name": f"MCP {server} Bridge",
         "name_zh": f"MCP: {server}",
+        "version": "0.1.0",
+        "description": f"MCP bridge package exposing {len(tools)} tools from '{server}'.",
+        "description_zh": f"MCP 桥接包，暴露 '{server}' 的 {len(tools)} 个工具。",
         "runtime": "mcp",
         "type": "native",
         "category": "MCP",
@@ -211,7 +219,7 @@ def main():
                         help="Output directory (default: ./<server-name>/)")
     args = parser.parse_args()
 
-    output_dir = args.out or f"./tcco-mcp-{_safe_id(args.server)}/"
+    output_dir = args.out or f"./tc-mcp-{_safe_id(args.server)}/"
     convert(args.server, output_dir)
 
 

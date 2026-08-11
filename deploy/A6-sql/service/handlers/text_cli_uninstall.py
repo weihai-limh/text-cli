@@ -59,12 +59,8 @@ def text_cli_uninstall(params: list[str]) -> str:
     except Exception as e:
         logger.debug("Failed to parse schema for uninstall '%s': %s", name, e)
         pass
-    ok, msg = remove_files(name)
-    if not ok:
-        log_uninstall(name, False, msg)
-        return f"uninstall failed: {msg}"
 
-    # 2.5 Drop tables (schema.tables → DROP TABLE)
+    # Drop tables first (before remove_files deletes the schema file)
     from .installer.filesystem import _drop_tables
     tbl_msg = ""
     try:
@@ -72,6 +68,12 @@ def text_cli_uninstall(params: list[str]) -> str:
     except Exception as e:
         logger.debug("Failed to drop tables for '%s': %s", name, e)
         pass
+
+    ok, msg = remove_files(name)
+    if not ok:
+        log_uninstall(name, False, msg)
+        return f"uninstall failed: {msg}"
+
     lines = [
         f"uninstalled: {name}",
         f"  {msg}",
@@ -101,6 +103,14 @@ def text_cli_uninstall(params: list[str]) -> str:
     except Exception as e:
         logger.debug("Failed to remove manifest/init for '%s': %s", name, e)
         pass
+
+    # Purge module references from sys.modules
+    try:
+        from .text_cli_install import _invalidate_package
+        _invalidate_package(name)
+    except Exception as e:
+        logger.debug("Failed to invalidate package modules for '%s': %s", name, e)
+
     return result
 
 

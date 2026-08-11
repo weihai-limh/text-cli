@@ -1,0 +1,40 @@
+{
+  "id": "nocode-zh-diagnose",
+  "name": "盆栽急救诊断",
+  "type": "pipeline",
+  "mode": "toolchain",
+  "version": "1.0.0",
+  "default_source": "http://localhost:28050/text-cli/cli",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "symptoms": {"type": "string", "description": "症状描述"}
+    }
+  },
+  "requires": ["tc-markdown;read", "ai;infer"],
+  "steps": [
+    {
+      "id": "index",
+      "instruction": "tc-markdown;read,knowledge-index.md"
+    },
+    {
+      "id": "lookup",
+      "instruction": "ai;infer,根据索引中每个文件名←对应症状的映射，匹配用户症状最像的病，输出一行纯JSON只含文件名。\n\n索引：\n{index.content}\n\n用户症状：{input.symptoms}\n\n输出示例：{\"file\":\"蚜虫.md\"} 不匹配：{\"file\":\"NOMATCH\"}",
+      "output_as": "lookup"
+    },
+    {
+      "id": "read",
+      "instruction": "tc-markdown;read,knowledge/{lookup.file}"
+    },
+    {
+      "id": "diagnose",
+      "instruction": "ai;infer,你是盆栽急救医生。严格基于以下经验诊断，不编造。\n\n1.诊断 2.匹配症状 3.处理方案 4.预防建议\n\n经验：\n{read.content}\n\n症状：{input.symptoms}",
+      "output_as": "diagnose"
+    },
+    {
+      "id": "fallback",
+      "instruction": "ai;infer,症状不在盆栽急救知识库范围内。基于通用植物知识给出建议，声明非专项经验。\n症状：{input.symptoms}",
+      "if": "{lookup.file} == 'NOMATCH'"
+    }
+  ]
+}

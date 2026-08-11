@@ -26,10 +26,6 @@
 
 ## 第三方依赖
 
-| 指令包 | 数据出站目标 | 传输 |
-|------|------|:---:|
-| tx-map / bd-map / gd-map | 腾讯/百度/高德地图 API | HTTPS |
-| zhipu-aiability | 智谱 AI API | HTTPS |
-| MCP 桥接 | 对应 MCP server 地址 | HTTP/HTTPS |
-
-**所有出站请求均由对应指令包的 handler 发起——text-cli 框架本身不主动出站。**
+所有出站请求均由对应指令包的 handler 发起——text-cli 框架本身不主动出站。
+出站目标和传输方式完全取决于已安装的指令包——查看每个包的 schema.json
+了解其外部依赖详情。

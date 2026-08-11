@@ -1,5 +1,6 @@
 import logging
 import os
+from pathlib import Path
 
 import httpx
 
@@ -9,26 +10,71 @@ _aggregate_table: dict[str, dict] = {}
 _external_schema: dict[str, dict] = {}
 
 
-async def refresh_backends():
-    global _aggregate_table
+def _load_backends() -> list[dict]:
+    """Load backend definitions from backends.yaml, falling back to env vars.
+
+    Returns list of {url, token, st_prefix} dicts.
+    """
+    config_path = Path(__file__).resolve().parent.parent / "backends.yaml"
+    if config_path.is_file():
+        try:
+            import yaml
+            with open(config_path, encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+            if isinstance(data, dict) and isinstance(data.get("backends"), list):
+                return [
+                    {
+                        "url": b["url"].rstrip("/"),
+                        "token": b.get("token") or None,
+                        "st_prefix": b.get("st_prefix") or None,
+                    }
+                    for b in data["backends"]
+                    if isinstance(b, dict) and b.get("url")
+                ]
+        except Exception as e:
+            logger.warning("Failed to load backends.yaml: %s — falling back to env vars", e)
+
+    # Fallback to comma-separated env vars
     backends_raw = os.getenv("A3_BACKENDS", "")
     if not backends_raw:
-        logger.warning("A3_BACKENDS not set, skills aggregation disabled")
-        return 0
+        return []
 
     backends = [b.strip().rstrip("/") for b in backends_raw.split(",") if b.strip()]
     tokens_raw = os.getenv("A3_BACKEND_TOKENS", "")
     tokens = [t.strip() for t in tokens_raw.split(",")] if tokens_raw else []
-
     st_prefixes_raw = os.getenv("A3_REGISTERED_PREFIXES", "")
     st_prefixes = [p.strip() for p in st_prefixes_raw.split(",")] if st_prefixes_raw else []
+
+    return [
+        {
+            "url": backends[i],
+            "token": tokens[i] if i < len(tokens) else None,
+            "st_prefix": st_prefixes[i] if i < len(st_prefixes) else None,
+        }
+        for i in range(len(backends))
+    ]
+
+
+def _get_backend_urls_from_config() -> list[str]:
+    """Get raw backend URLs from config or env for get_backend_base_url."""
+    backends = _load_backends()
+    return [b["url"] for b in backends] if backends else os.getenv("A3_BACKENDS", "").split(",")
+
+
+async def refresh_backends():
+    global _aggregate_table
+    backends = _load_backends()
+    if not backends:
+        logger.warning("No backends configured — skills aggregation disabled")
+        return 0
 
     new_table = {}
     count = 0
 
-    for i, backend_base in enumerate(backends):
-        token = tokens[i] if i < len(tokens) else None
-        st_prefix = st_prefixes[i] if i < len(st_prefixes) else ""
+    for backend in backends:
+        backend_base = backend["url"]
+        token = backend["token"]
+        st_prefix = backend["st_prefix"] or ""
 
         skills = await _fetch_skills(backend_base, token)
         if skills is None:
@@ -120,9 +166,9 @@ def get_aggregate_table() -> dict[str, dict]:
 
 def get_backend_base_url() -> str | None:
     if not _aggregate_table:
-        backends_raw = os.getenv("A3_BACKENDS", "")
-        if backends_raw:
-            return backends_raw.split(",")[0].strip().rstrip("/")
+        backends = _load_backends()
+        if backends:
+            return backends[0]["url"]
         return None
 
     for entry in _aggregate_table.values():
@@ -153,7 +199,13 @@ async def _fetch_skills(backend_base: str, token: str | None) -> list[dict] | No
             if isinstance(data, list):
                 return data
             if isinstance(data, dict):
-                return list(data.values())
+                result = []
+                for key, val in data.items():
+                    if isinstance(val, dict):
+                        val["id"] = f"text-cli;path"
+                        val["directive"] = f"text-cli;path,{key}"
+                    result.append(val)
+                return result
             return []
     except Exception as e:
         logger.warning("Skills fetch from %s failed: %s", backend_base, e)

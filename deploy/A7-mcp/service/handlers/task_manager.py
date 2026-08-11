@@ -104,7 +104,11 @@ def complete(task_id: str, result: dict):
 
 
 def fail(task_id: str, error: str):
-    """Mark task as failed."""
+    """Mark task as failed.
+
+    error should be a named value (e.g. "quota_exhausted", "service_restarted")
+    per SPEC §1.2.8 asynchronous task error conventions.
+    """
     db = _get_db()
     db.execute(
         "UPDATE tasks SET state='error',error=?,updated_at=? WHERE task_id=?",
@@ -194,10 +198,14 @@ def _next_seq() -> int:
 
 
 def _mark_stale():
-    """On startup, mark stale running tasks as error."""
+    """On startup, mark stale running tasks as error with named reason.
+
+    Per SPEC §1.2.6: runtime restart shall mark residual running tasks
+    as error with reason "service_restarted".
+    """
     db = _get_db()
     db.execute(
-        "UPDATE tasks SET state='error',error='service restarted',updated_at=? WHERE state='running'",
+        "UPDATE tasks SET state='error',error='service_restarted',updated_at=? WHERE state='running'",
         (int(time.time() * 1000),),
     )
     db.commit()
@@ -229,6 +237,10 @@ def task_status(params: list[str]) -> str:
         if poll_status == "ok":
             update(params[0], "done")
             complete(params[0], result)
+            task = get(params[0])
+        elif poll_status == "stop":
+            # Quota exhausted: per SPEC §1.2.8, mark as error with named reason
+            update(params[0], "error", error="quota_exhausted")
             task = get(params[0])
         elif poll_status in ("error", "failed"):
             update(params[0], "error", error=result.get("reason", "unknown"))

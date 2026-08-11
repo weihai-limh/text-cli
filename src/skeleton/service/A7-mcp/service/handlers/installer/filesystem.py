@@ -19,6 +19,8 @@ COPILOT_WHITELIST_DIR = _PROJECT / "copilot" / "whitelists"
 
 
 def _safe_name(name: str) -> str:
+    if ".." in name or name.startswith(("/", "\\")) or ":" in name:
+        raise ValueError(f"Invalid package name: {name!r} (path traversal rejected)")
     return name.replace("-", "_")
 
 
@@ -58,7 +60,14 @@ def install_files(name: str, meta: dict, runtime: str = "python", force: bool = 
         lines.append(f"file deployed: packages/{name}/handler.py + packages/{name}/schema.json")
 
     elif runtime == "mcp":
-        lines.append(f"MCP schema registered: {name}_schema.json")
+        # Copy service-descriptor.json to packages/<name>/ for refresh_routes
+        pkg_dst = _PROJECT / "service" / "packages" / name
+        pkg_dst.mkdir(parents=True, exist_ok=True)
+        sd_src = pkg_dir / "service-descriptor.json"
+        if sd_src.is_file():
+            shutil.copy2(str(sd_src), str(pkg_dst / "service-descriptor.json"))
+        shutil.copy2(schema_src, str(pkg_dst / "schema.json"))
+        lines.append(f"MCP package deployed: packages/{name}/ (schema + service-descriptor)")
 
     elif runtime == "node":
         handler_src = pathlib.Path(meta["handler_path"])

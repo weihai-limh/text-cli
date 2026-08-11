@@ -15,7 +15,7 @@ Rules:
 
 A0/A1/A5/BYPASS through mode: direct sync from src/skeleton/ → deploy/, no accretion.
 
-Package distribution: full copy from src/text_cli/open_text_cli/ → deploy/packages/.
+Package distribution: copy src/text_cli/open_text_cli/standard-python/ → deploy/packages/ (flatten).
 
 Usage:
   python scripts/build-all.py              # sync all layers
@@ -36,7 +36,7 @@ THIS_FILE = pathlib.Path(__file__).resolve()
 PROJECT_ROOT = THIS_FILE.parent.parent
 SKELETON_ROOT = PROJECT_ROOT / "src" / "skeleton"
 DEPLOY_ROOT = PROJECT_ROOT / "deploy"
-PACKAGES_SOURCE = PROJECT_ROOT / "src" / "text_cli" / "open_text_cli"
+PACKAGES_SOURCE = PROJECT_ROOT / "src" / "text_cli" / "open_text_cli" / "standard-python"
 PACKAGES_DEPLOY = PROJECT_ROOT / "deploy" / "packages"
 
 # Skeleton accretion chain: group/layer format, A2→A9 cumulative overlay.
@@ -50,13 +50,17 @@ LAYER_CHAIN = [
     ("A9", "service/A9-advanced"),
 ]
 
-# A0/A1/A5 through layers: direct sync src/skeleton/ → deploy/, no accretion.
-# BYPASS: non-Python runtimes (CloudBase/Node.js) — independent, no accretion.
+# A0/A5/BYPASS through layers: direct sync src/skeleton/ → deploy/, no accretion.
 THROUGH_LAYERS = [
     ("A0", "base/A0-protocol"),
-    ("A1", "base/A1-skill"),
     ("A5", "endpoint/A5-endpoint"),
     ("BYPASS", "bypass-service"),
+]
+
+# A1 dependent layer: copies A0 SDK first, then A1 itself on top.
+# deploy/A1-skill/ = A0 SDK + A1 infrastructure (self-contained).
+DEPENDENT_LAYERS = [
+    ("A1", "base/A1-skill", ["base/A0-protocol"]),
 ]
 
 # Whitelist of subdirectories within skeleton layers to include in the build.
@@ -65,6 +69,9 @@ SKELETON_SUBDIRS = {"service", "copilot", "media", "MCPservice", "aggregate",
 
 # Directories excluded from os.walk traversal (runtime artifacts).
 _EXCLUDED_DIRS = frozenset({"__pycache__"})
+
+# Files excluded from propagation (dev-only, not part of deployed runtime).
+_EXCLUDED_FILES = frozenset({".gitkeep", ".gitignore", "pytest.ini"})
 
 
 def collect_source(layer_path: str) -> dict[str, pathlib.Path]:
@@ -82,6 +89,8 @@ def collect_source(layer_path: str) -> dict[str, pathlib.Path]:
             if top not in SKELETON_SUBDIRS:
                 continue
         for fname in filenames:
+            if fname in _EXCLUDED_FILES:
+                continue
             rel = str(rel_dir / fname) if rel_dir != pathlib.Path(".") else fname
             files[rel] = root_path / fname
     return files
@@ -148,14 +157,7 @@ def build_through_layer(layer_id: str, layer_path: str) -> dict:
     if not source_dir.is_dir():
         return {"overlaid": [], "stale": [], "total_source": 0}
 
-    expected: dict[str, pathlib.Path] = {}
-    for root, dirs, filenames in os.walk(str(source_dir)):
-        dirs[:] = [d for d in dirs if d not in _EXCLUDED_DIRS]
-        root_path = pathlib.Path(root)
-        rel_dir = root_path.relative_to(source_dir)
-        for fname in filenames:
-            rel = str(rel_dir / fname) if rel_dir != pathlib.Path(".") else fname
-            expected[rel] = root_path / fname
+    expected = _collect_source_files(source_dir)
 
     overlaid = []
     for rel, src in sorted(expected.items()):
@@ -170,8 +172,69 @@ def build_through_layer(layer_id: str, layer_path: str) -> dict:
     return {"overlaid": overlaid, "stale": [], "total_source": len(expected)}
 
 
+def build_dependent_layer(layer_id: str, primary_path: str, dep_paths: list[str]) -> dict:
+    """Dependent build: copy deps first, then primary layer on top.
+    
+    deploy/{layer_name}/ = copy(dep_0) + copy(dep_1) + ... + copy(primary).
+    Primary overwrites deps on filename collision.
+    """
+    layer_name = primary_path.split("/")[-1]
+    deploy_dir = DEPLOY_ROOT / layer_name
+    deploy_dir.mkdir(parents=True, exist_ok=True)
+
+    overlaid = []
+    total_source = 0
+
+    # Step 1: copy dependencies
+    for dp in dep_paths:
+        dep_dir = SKELETON_ROOT / dp
+        if not dep_dir.is_dir():
+            continue
+        dep_expected = _collect_source_files(dep_dir)
+        total_source += len(dep_expected)
+        for rel, src in sorted(dep_expected.items()):
+            dst = deploy_dir / rel
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            if dst.exists():
+                if filecmp.cmp(str(src), str(dst), shallow=False):
+                    continue
+            shutil.copy2(str(src), str(dst))
+            overlaid.append(f"[{layer_id}:dep:{dp}] {rel}")
+
+    # Step 2: copy primary layer (overwrites deps on collision)
+    primary_dir = SKELETON_ROOT / primary_path
+    if primary_dir.is_dir():
+        primary_expected = _collect_source_files(primary_dir)
+        total_source += len(primary_expected)
+        for rel, src in sorted(primary_expected.items()):
+            dst = deploy_dir / rel
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            if dst.exists():
+                if filecmp.cmp(str(src), str(dst), shallow=False):
+                    continue
+            shutil.copy2(str(src), str(dst))
+            overlaid.append(f"[{layer_id}] {rel}")
+
+    return {"overlaid": overlaid, "stale": [], "total_source": total_source}
+
+
+def _collect_source_files(source_dir: pathlib.Path) -> dict[str, pathlib.Path]:
+    """Walk source_dir and return {rel_path: abs_path} for all non-excluded files."""
+    expected: dict[str, pathlib.Path] = {}
+    for root, dirs, filenames in os.walk(str(source_dir)):
+        dirs[:] = [d for d in dirs if d not in _EXCLUDED_DIRS]
+        root_path = pathlib.Path(root)
+        rel_dir = root_path.relative_to(source_dir)
+        for fname in filenames:
+            if fname in _EXCLUDED_FILES:
+                continue
+            rel = str(rel_dir / fname) if rel_dir != pathlib.Path(".") else fname
+            expected[rel] = root_path / fname
+    return expected
+
+
 def build_packages() -> dict:
-    """Full copy from src/text_cli/open_text_cli/ → deploy/packages/."""
+    """Copy src/text_cli/open_text_cli/standard-python/ → deploy/packages/ (flatten)."""
     PACKAGES_DEPLOY.mkdir(parents=True, exist_ok=True)
     if not PACKAGES_SOURCE.is_dir():
         return {"overlaid": [], "total_source": 0}
@@ -199,11 +262,11 @@ def build_packages() -> dict:
 
 
 def check_packages() -> tuple[bool, str, list[str]]:
-    """Verify open_text_cli/ → deploy/packages/ consistency."""
+    """Verify standard-python/ → deploy/packages/ consistency."""
     if not PACKAGES_DEPLOY.is_dir():
         return False, "deploy/packages missing", []
     if not PACKAGES_SOURCE.is_dir():
-        return True, "no open_text_cli source (skip)", []
+        return True, "no standard-python source (skip)", []
 
     expected: dict[str, pathlib.Path] = {}
     for root, dirs, filenames in os.walk(str(PACKAGES_SOURCE)):
@@ -244,7 +307,7 @@ def build_all():
         for f in r["stale"]:
             print(f"     ~ stale: {f}")
 
-    print("Through layers (A0/A1):")
+    print("Through layers (A0/A5/BYPASS):")
     for lid, lpath in THROUGH_LAYERS:
         r = build_through_layer(lid, lpath)
         parts = [f"{lid}: {r['total_source']} source files"]
@@ -255,7 +318,18 @@ def build_all():
         for f in r["overlaid"]:
             print(f"     + {f}")
 
-    print("Package distribution (open_text_cli/ → deploy/packages/):")
+    print("Dependent layers (A1 = A0 + A1-skill):")
+    for lid, lpath, deps in DEPENDENT_LAYERS:
+        r = build_dependent_layer(lid, lpath, deps)
+        parts = [f"{lid}: {r['total_source']} source files"]
+        if r["overlaid"]:
+            parts.append(f"{len(r['overlaid'])} overlaid")
+        status = "[OK]"
+        print(f"  {status} {', '.join(parts)}")
+        for f in r["overlaid"]:
+            print(f"     + {f}")
+
+    print("Package distribution (standard-python/ → deploy/packages/):")
     r = build_packages()
     if r["total_source"] > 0:
         parts = [f"{r['total_source']} source files"]
@@ -265,7 +339,7 @@ def build_all():
         for f in r["overlaid"]:
             print(f"     + {f}")
     else:
-        print("  [OK] open_text_cli/ is empty — no packages to distribute")
+        print("  [OK] standard-python/ is empty — no packages to distribute")
 
 
 def check_layer(layer_id: str, layer_path: str,
@@ -334,6 +408,8 @@ def check_through_layer(layer_id: str, layer_path: str) -> tuple[bool, str, list
         root_path = pathlib.Path(root)
         rel_dir = root_path.relative_to(source_dir)
         for fname in filenames:
+            if fname in _EXCLUDED_FILES:
+                continue
             rel = str(rel_dir / fname) if rel_dir != pathlib.Path(".") else fname
             expected[rel] = root_path / fname
 
@@ -380,6 +456,18 @@ def check_all() -> bool:
                 print(e)
             all_ok = False
 
+    print("Dependent layers:")
+    for lid, lpath, deps in DEPENDENT_LAYERS:
+        r = build_dependent_layer(lid, lpath, deps)
+        layer_ok = len(r["overlaid"]) == 0
+        if layer_ok:
+            print(f"  [OK] {lid}: {r['total_source']} files unchanged")
+        else:
+            print(f"  [ERR] {lid}: {len(r['overlaid'])} files differ")
+            for f in r["overlaid"]:
+                print(f"     ~ {f}")
+            all_ok = False
+
     print("Package distribution:")
     ok, msg, errors = check_packages()
     if ok:
@@ -416,6 +504,8 @@ def main():
 
     target_path = None
     target_is_through = False
+    target_is_dependent = False
+    target_dep_paths = []
     target_is_packages = False
     if args.target:
         if args.target == "packages":
@@ -430,6 +520,13 @@ def main():
                     if lid == args.target:
                         target_path = lpath
                         target_is_through = True
+                        break
+            if not target_path:
+                for lid, lpath, deps in DEPENDENT_LAYERS:
+                    if lid == args.target:
+                        target_path = lpath
+                        target_is_dependent = True
+                        target_dep_paths = deps
                         break
         if not target_path and not target_is_packages:
             print(f"Error: unknown layer — {args.target}", file=sys.stderr)
@@ -449,6 +546,13 @@ def main():
                     sys.exit(1)
             elif target_is_through:
                 ok, msg, errors, warnings = check_through_layer(args.target, target_path)
+            elif target_is_dependent:
+                r = build_dependent_layer(args.target, target_path, target_dep_paths)
+                layer_ok = len(r["overlaid"]) == 0
+                ok = layer_ok
+                msg = f"{args.target}: {r['total_source']} files {'unchanged' if layer_ok else 'differ'}"
+                errors = [f"~ {f}" for f in r["overlaid"]] if not layer_ok else []
+                warnings = []
             else:
                 ok, msg, errors, warnings = check_layer(args.target, target_path, LAYER_CHAIN)
             if ok:
@@ -477,6 +581,8 @@ def main():
                 return
             elif target_is_through:
                 r = build_through_layer(args.target, target_path)
+            elif target_is_dependent:
+                r = build_dependent_layer(args.target, target_path, target_dep_paths)
             else:
                 r = build_layer(args.target, target_path, LAYER_CHAIN)
             print(f"[OK] {args.target}: {r['total_source']} source files")

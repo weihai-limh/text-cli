@@ -30,22 +30,21 @@ _INITS_PATH = Path(__file__).resolve().parent.parent / "config" / "handler_inits
 
 
 @directive("text-cli", "uninstall", domain_alias="文本指令", action_aliases={"uninstall": "卸载"})
-def text_cli_uninstall(params: list[str]) -> str:
+def text_cli_uninstall(params: list[str]) -> dict:
     """Uninstall an instruction package by name."""
     import json
 
     from core.registry import unregister as _registry_unregister
 
     if not params:
-        return "usage: AI:text-cli;uninstall,<package>\n\n" \
-               "Use AI:text-cli;query to view installed packages."
+        return {"status": "error", "reason": "usage: AI:text-cli;uninstall,<package>"}
 
     name = params[0].strip()
 
     # 1. System domain protection
     if name in SYSTEM_DOMAINS:
         log_uninstall(name, False, "rejected: system domain")
-        return f"\"{name}\" is a system reserved domain, cannot be uninstalled."
+        return {"status": "error", "reason": f"\"{name}\" is a system reserved domain, cannot be uninstalled."}
 
     # Unregister in-memory registry entries
     safe = name.replace("-", "_")
@@ -59,12 +58,8 @@ def text_cli_uninstall(params: list[str]) -> str:
     except Exception as e:
         logger.debug("Failed to parse schema for uninstall '%s': %s", name, e)
         pass
-    ok, msg = remove_files(name)
-    if not ok:
-        log_uninstall(name, False, msg)
-        return f"uninstall failed: {msg}"
 
-    # 2.5 Drop tables (schema.tables → DROP TABLE)
+    # Drop tables first (before remove_files deletes the schema file)
     from .installer.filesystem import _drop_tables
     tbl_msg = ""
     try:
@@ -72,20 +67,20 @@ def text_cli_uninstall(params: list[str]) -> str:
     except Exception as e:
         logger.debug("Failed to drop tables for '%s': %s", name, e)
         pass
-    lines = [
-        f"uninstalled: {name}",
-        f"  {msg}",
-    ]
-    if tbl_msg:
-        lines.append(f"  {tbl_msg}")
-    lines += [
-        "",
-        "  pip dependencies not removed (may be shared by other packages).",
-        "  if confirmed no longer needed, clean up manually:",
-        f"    {Path(os.environ.get('TEXT_CLI_HOME', str(Path.home() / 'text-cli'))) / 'service' / '.venv' / 'bin' / 'pip'} uninstall <pkg>",
-    ]
 
-    result = "\n".join(lines)
+    ok, msg = remove_files(name)
+    if not ok:
+        log_uninstall(name, False, msg)
+        return {"status": "error", "reason": msg}
+
+    result_data = {
+        "status": "ok",
+        "package": name,
+        "detail": msg,
+    }
+    if tbl_msg:
+        result_data["table_cleanup"] = tbl_msg
+
     log_uninstall(name, True, "uninstalled")
     # Refresh MCP routing if an MCP package was removed
     if _was_mcp:
@@ -101,7 +96,15 @@ def text_cli_uninstall(params: list[str]) -> str:
     except Exception as e:
         logger.debug("Failed to remove manifest/init for '%s': %s", name, e)
         pass
-    return result
+
+    # Purge module references from sys.modules
+    try:
+        from .text_cli_install import _invalidate_package
+        _invalidate_package(name)
+    except Exception as e:
+        logger.debug("Failed to invalidate package modules for '%s': %s", name, e)
+
+    return result_data
 
 
 def _remove_handler_init(pkg_name: str):

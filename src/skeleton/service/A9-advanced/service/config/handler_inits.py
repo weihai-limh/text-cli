@@ -6,6 +6,9 @@
 HANDLER_INITS = [
     ("handlers.key", "init_key_handler", "db", None),
     ("handlers.task_manager", "init_task_manager", "db_dict", None),
+    ("handlers.mesh_credentials", "init_mesh_credential_injector", "db", None),
+    ("handlers.quota_handler", "init_quota_handler", "quota", None),
+    ("handlers.text_cli_pro", "init_text_cli_pro_handler", "project_root", None),
 ]
 
 # Dispatch callbacks to inject after init (module, setter_fn)

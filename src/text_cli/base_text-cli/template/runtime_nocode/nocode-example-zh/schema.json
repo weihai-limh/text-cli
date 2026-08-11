@@ -1,0 +1,39 @@
+{
+  "id": "nocode-zh",
+  "name": "Plant First Aid Diagnosis",
+  "name_zh": "盆栽急救诊断",
+  "type": "nocode",
+  "runtime": "path",
+  "version": "1.0.0",
+  "category": "知识库",
+  "locales": ["zh"],
+  "description": "Plant disease diagnosis using embedded expert knowledge base. Demonstrates nocode path pipeline: knowledge indexing → semantic matching → AI diagnosis. No code required — domain expert writes Markdown, the path engine orchestrates tc-markdown + ai-inference.",
+  "description_zh": "基于嵌入式专家知识库的盆栽病害诊断。演示无代码路径管道：知识索引 → 语义匹配 → AI 诊断。无需编码——领域专家写 Markdown，路径引擎编排 tc-markdown + ai-inference。",
+  "trust": "community",
+  "requires": {
+    "tc_packages": ["tc-markdown", "ai-inference"]
+  },
+  "directives": [
+    {
+      "domain": "nocode-zh",
+      "domain_zh": "家庭园艺",
+      "action": "diagnose",
+      "action_zh": "诊断",
+      "usage": "nocode-zh;diagnose,<symptoms>",
+      "usage_zh": "家庭园艺;诊断,<症状描述>",
+      "description": "Diagnose plant problems from natural language symptom description using embedded knowledge base and AI inference.",
+      "description_zh": "根据自然语言症状描述诊断盆栽问题，基于嵌入式知识库和 AI 推理。",
+      "params": ["symptoms"],
+      "params_desc": {
+        "symptoms": "用自然语言描述植物症状"
+      },
+      "outputs": ["result"],
+      "estimated_time": "30s",
+      "estimated_time_note": "取决于 AI 推理响应时间，通常 10-30 秒",
+      "source": "张师傅口述,十年花店经验",
+      "verified": "李老师,2025-06-15",
+      "stale_after": "2026-12-31",
+      "doc_status": "stable"
+    }
+  ]
+}

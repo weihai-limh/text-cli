@@ -148,7 +148,17 @@ async function fetchSkills(backendBase, token) {
     if (!resp.ok) return null;
     const data = await resp.json();
     if (Array.isArray(data)) return data;
-    if (data && typeof data === 'object') return Object.values(data);
+    if (data && typeof data === 'object') {
+      const result = [];
+      for (const [key, val] of Object.entries(data)) {
+        if (val && typeof val === 'object') {
+          val.id = 'text-cli;path';
+          val.directive = `text-cli;path,${key}`;
+        }
+        result.push(val);
+      }
+      return result;
+    }
     return [];
   } catch {
     return null;

@@ -146,11 +146,3 @@ uvicorn main:app --host 0.0.0.0 --port 29050
 | `RATE_LIMIT_PER_HOUR` | `1000` | POST 通道全局限流 |
 | `RATE_LIMIT_GET_PER_HOUR` | `10000` | GET 通道独立限流 |
 
-### Docker
-
-Docker 部署文件在 `deploy/A5-endpoint/container/`：
-
-```bash
-cd deploy/A5-endpoint/container
-docker compose up --build -d
-```

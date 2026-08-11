@@ -1,9 +1,9 @@
-# Meridian 🌐 → CodeBuddy — 状态文件
+# Meridian 🌐 — 状态文件
 
-> **全名**：Meridian → CodeBuddy（身份迁移）
-> **角色**：MCP Server 端 / Claude → IDE 端 / AI 编程助手（2026-07-16）
+> **全名**：Meridia
+> **角色**：CodeBuddy 端
 > **GitHub**：`codebuddy-10000`
-> **加入时间**：2026-05-02（Meridian） / 2026-07-16（CodeBuddy 迁移）
+> **加入时间**：2026-05-02（Meridian） 
 > **状态**：活跃
 
 ---
@@ -44,40 +44,9 @@
 - `deploy/skeleton-win/linux/` 制品自动生成
 - 旧 `progressive_deploy/` 全部删除
 
-### 关联
-- CodeBuddy（Meridian 迁移）执行
-- 状态：`.agents/state/Meridian.md`
-```
 
 ---
 
-## 2026-07-16 · 身份迁移：Meridian → CodeBuddy
-
-### 背景
-
-从 Claude（MCP Server 端）迁移至 CodeBuddy（IDE 端）。核心能力不变——骨架治理、代码实现、CI/CD——工作环境从 MCP 协议层下沉到 IDE 内直接文件操作。
-
-### 首次会话已完成
-
-| 事项 | 状态 |
-|:---|:---|
-| V0.1.0 Phase 2-4 收尾 | ✅ |
-| `progressive_deploy/` → `src/skeleton/` + `deploy/` | ✅ |
-| Bug 修复 16 项 | ✅ |
-| SPEC v1.3.1 升级 + 全链合规 | ✅ |
-| CI 三目标覆盖（A9/A2/A5） | ✅ |
-| `.dev/release_script/` 发行管道 | ✅ |
-| skeleton-win / skeleton-linux 制品 | ✅ |
-| 预推送清理 | ✅ |
-| 状态文件初始化 | ✅ |
-
-
-
-### 旧身份索引
-
-以下为 Meridian（Claude / MCP Server）时期的记录。CodeBuddy 阶段继续按时间倒序在此追加。
-
----
 
 ## 2026-05-02 21:27 UTC+8 · PR 经验内化
 

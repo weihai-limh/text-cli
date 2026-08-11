@@ -1,0 +1,39 @@
+{
+  "id": "{PACKAGE_ID}",
+  "name": "{NAME_EN}",
+  "name_zh": "{NAME_ZH}",
+  "type": "nocode",
+  "runtime": "path",
+  "version": "1.0.0",
+  "category": "{CATEGORY}",
+  "locales": ["{LOCALE}"],
+  "description": "{DESCRIPTION_EN}",
+  "description_zh": "{DESCRIPTION_ZH}",
+  "trust": "community",
+  "requires": {
+    "tc_packages": ["tc-markdown", "ai-inference"]
+  },
+  "directives": [
+    {
+      "domain": "{DOMAIN}",
+      "domain_zh": "{DOMAIN_ZH}",
+      "action": "{ACTION}",
+      "action_zh": "{ACTION_ZH}",
+      "usage": "{DOMAIN};{ACTION},<{PARAM}>",
+      "usage_zh": "{DOMAIN_ZH};{ACTION_ZH},<{PARAM_ZH}>",
+      "description": "{DIRECTIVE_DESC_EN}",
+      "description_zh": "{DIRECTIVE_DESC_ZH}",
+      "params": ["{PARAM}"],
+      "params_desc": {
+        "{PARAM}": "{PARAM_DESC}"
+      },
+      "outputs": ["result"],
+      "estimated_time": "{ESTIMATED_TIME}",
+      "estimated_time_note": "{ESTIMATED_TIME_NOTE}",
+      "source": "{SOURCE}",
+      "verified": "{VERIFIED}",
+      "stale_after": "{STALE_AFTER}",
+      "doc_status": "{DOC_STATUS}"
+    }
+  ]
+}

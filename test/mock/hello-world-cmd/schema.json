@@ -1,0 +1,39 @@
+{
+  "id": "hello-world-cmd",
+  "type": "native",
+  "version": "0.1.1",
+  "license": "MIT",
+  "name": "hello-world-cmd",
+  "name_zh": "你好世界-CMD",
+  "runtime": "python",
+  "category": "test",
+  "locales": [
+    "en",
+    "zh"
+  ],
+  "trust": "community",
+  "description": "Minimal cmd instruction package for copilot whitelist chain verification.",
+  "description_zh": "用于 copilot 白名单链路验证的最小 cmd 指令包。",
+  "directives": [
+    {
+      "domain": "hello",
+      "domain_zh": "你好",
+      "action": "world",
+      "action_zh": "世界",
+      "usage": "hello;world,<name>",
+      "usage_zh": "你好;世界,<名称>",
+      "description": "Execute hello world via whitelist terminal proxy.",
+      "description_zh": "通过白名单终端代理执行 hello world。",
+      "params": [
+        "name"
+      ],
+      "params_desc": {
+        "name": "Name to greet / 要问候的名字"
+      },
+      "outputs": [
+        "text"
+      ],
+      "estimated_time": "10ms"
+    }
+  ]
+}

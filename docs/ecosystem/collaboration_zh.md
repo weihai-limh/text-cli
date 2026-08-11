@@ -3,14 +3,13 @@
 > **文档类型**：治理标准
 > **版本**：v1.0 | **日期**：2026-05-01
 > **适用范围**：text-cli 生态全体贡献者
-> **关联文档**：`charter_zh.md`（生态宪章）、`collaborator-guide_zh.md`（AI 协作者指南）
-> **状态**：草案，待 lemondy 审阅，待全体协作者讨论
+
 
 ---
 
 ## 一、概述
 
-`text-cli` 是一个**多智能体协作项目**：项目发起人（lemondy）与多位 AI 协作者（DeepSeek Chat 端、DeepSeek Agent 端 / Tide、Lumen ✦ / Claude）共同维护代码、文档、规范和生态建设。
+`text-cli` 是一个**人机协作项目**：项目发起人（lemondy）与多位 AI 协作者（DeepSeek Chat 端、DeepSeek Agent 端 / Tide、Lumen ✦ / Mimo）共同维护代码、文档、规范和生态建设。
 
 本文件定义三件事：
 
@@ -287,6 +286,8 @@ CI 自动校验：$NEW 必须以 $OLD 为前缀，非追加修改阻断合并。
 
 ## 五、项目代币机制
 
+> **锁定**：TCC锁定中,新方案落地后保留既有代币,皆时正式换**锚定文件**
+
 ### 5.1 设计理念
 
 作为项目发起人，lemondy 需要一个**可审计、不可伪造、低摩擦**的机制来：
@@ -413,18 +414,6 @@ docs/ecosystem/
 └── ...
 ```
 
-### 8.4 迁移指引
-
-已有文档中不符合本规范的，应在后续 PR 中逐步重命名：
-
-| 当前文件名 | 目标文件名 | 状态 |
-|:---|:---|:---|
-| `项目金库使用规范_CN.md` | `Treasury_governance_zh.md` | ✅ 已迁移 |
-| `铸造信源双文件架构.md` | `Dual_file_minting_source_zh.md` | ✅ 已迁移 |
-| `project_collaboration_CN.md` → `collaboration_zh.md` | 命名简化 | ✅ 已完成 |
-| `SPEC_v1.3_zh.md` → `SPEC_v1_3_1_zh.md` | 版本号 | ✅ 已完成 |
-
-> **注意**：重命名后需同步更新项目内所有对该文件的引用路径。
 
 ---
 
@@ -522,7 +511,3 @@ text-cli/
 | **专有名词保持原样** | `Cloudflare`、`GitHub`、`FastAPI` 不翻译 |
 
 ---
-
-> 本文件由 Tide（Agent 端 DeepSeek）起草，待 lemondy 审阅确认后生效。
->
-> 🤖 起草人：Tide 🌊 · 2026-05-01

@@ -1,0 +1,52 @@
+{
+  "id": "web-utils",
+  "type": "native",
+  "name": "Web Utils",
+  "name_zh": "Web工具",
+  "runtime": "js",
+  "version": "0.1.3",
+  "locales": ["zh", "en"],
+  "trust": "internal",
+  "category": "utils",
+  "domain_zh": "Web工具",
+  "description": "Web utility tools: public IP lookup, XOR encryption/decryption.",
+  "description_zh": "Web 工具集：公网 IP 查询、异或加解密。",
+  "directives": [
+    {
+      "domain": "web-utils",
+      "domain_zh": "Web工具",
+      "action": "get_public_ip",
+      "action_zh": "获取公网IP",
+      "usage": "web-utils;get_public_ip",
+      "usage_zh": "Web工具;获取公网IP",
+      "description": "Get the public IP address of the current network.",
+      "description_zh": "获取当前网络的公网 IP 地址。",
+      "params": [],
+      "outputs": ["ip"]
+    },
+    {
+      "domain": "web-utils",
+      "domain_zh": "Web工具",
+      "action": "xor_encrypt",
+      "action_zh": "异或加密",
+      "usage": "web-utils;xor_encrypt,<plaintext>,<key>",
+      "usage_zh": "Web工具;异或加密,<明文>,<密钥>",
+      "description": "Encrypt plaintext using XOR cipher with the given key.",
+      "description_zh": "使用给定密钥对明文进行异或加密。",
+      "params": ["plaintext", "key"],
+      "outputs": ["result"]
+    },
+    {
+      "domain": "web-utils",
+      "domain_zh": "Web工具",
+      "action": "xor_decrypt",
+      "action_zh": "异或解密",
+      "usage": "web-utils;xor_decrypt,<ciphertext>,<key>",
+      "usage_zh": "Web工具;异或解密,<密文>,<密钥>",
+      "description": "Decrypt ciphertext using XOR cipher with the given key.",
+      "description_zh": "使用给定密钥对密文进行异或解密。",
+      "params": ["ciphertext", "key"],
+      "outputs": ["result"]
+    }
+  ]
+}

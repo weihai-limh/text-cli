@@ -19,6 +19,8 @@ COPILOT_WHITELIST_DIR = _PROJECT / "copilot" / "whitelists"
 
 
 def _safe_name(name: str) -> str:
+    if ".." in name or name.startswith(("/", "\\")) or ":" in name:
+        raise ValueError(f"Invalid package name: {name!r} (path traversal rejected)")
     return name.replace("-", "_")
 
 
@@ -58,7 +60,14 @@ def install_files(name: str, meta: dict, runtime: str = "python", force: bool = 
         lines.append(f"file deployed: packages/{name}/handler.py + packages/{name}/schema.json")
 
     elif runtime == "mcp":
-        lines.append(f"MCP schema registered: {name}_schema.json")
+        # Copy service-descriptor.json to packages/<name>/ for refresh_routes
+        pkg_dst = _PROJECT / "service" / "packages" / name
+        pkg_dst.mkdir(parents=True, exist_ok=True)
+        sd_src = pkg_dir / "service-descriptor.json"
+        if sd_src.is_file():
+            shutil.copy2(str(sd_src), str(pkg_dst / "service-descriptor.json"))
+        shutil.copy2(schema_src, str(pkg_dst / "schema.json"))
+        lines.append(f"MCP package deployed: packages/{name}/ (schema + service-descriptor)")
 
     elif runtime == "node":
         handler_src = pathlib.Path(meta["handler_path"])
@@ -96,27 +105,27 @@ def install_files(name: str, meta: dict, runtime: str = "python", force: bool = 
 
     # Deploy runtime modules (text_cli_modules/)
     if pkg_dir.is_dir():
-        ok_mod, mod_msg = _deploy_runtime_modules(pkg_dir, name)
+        _, mod_msg = _deploy_runtime_modules(pkg_dir, name)
         if mod_msg:
             lines.append(mod_msg)
 
         # Deploy auxiliary files
-        ok_aux, aux_msg = _deploy_aux_files(pkg_dir, name, runtime)
+        _, aux_msg = _deploy_aux_files(pkg_dir, name, runtime)
         if aux_msg:
             lines.append(aux_msg)
 
         # Deploy package config (config/* → service/config/, skip existing)
-        ok_cfg, cfg_msg = _deploy_package_config(pkg_dir, name)
+        _, cfg_msg = _deploy_package_config(pkg_dir, name)
         if cfg_msg:
             lines.append(cfg_msg)
 
         # Deploy tables (schema.tables → SQLite CREATE TABLE)
-        ok_tbl, tbl_msg = _deploy_tables(meta.get("schema", {}), name)
+        _, tbl_msg = _deploy_tables(meta.get("schema", {}), name)
         if tbl_msg:
             lines.append(tbl_msg)
 
         # Check binaries
-        ok_bin, bin_msg = _check_binary(pkg_dir, meta)
+        _, bin_msg = _check_binary(pkg_dir, meta)
         if bin_msg:
             lines.append(bin_msg)
 

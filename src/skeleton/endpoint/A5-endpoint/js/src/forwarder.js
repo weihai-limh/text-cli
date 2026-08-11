@@ -29,7 +29,7 @@ export async function forwardRequest({
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), requestTimeout);
 
-      const resp = await fetch(backendUrl, {
+      const resp = await fetch(backendUrl + '/text-cli/cli', {
         method: 'POST',
         headers,
         body: JSON.stringify({ prompt }),
@@ -59,7 +59,7 @@ export async function forwardRequest({
         lastError = 'timeout';
         result = {
           statusCode: 408,
-          body: '{"rst_types":"text","rst_data":{"text":"request to backend timed out"}}',
+          body: '{"rst_types":"text","rst_data":{"reason":"request to backend timed out"},"rst_err":"ERR_ROUTING"}',
           responseTimeMs: elapsed,
           errorMessage: 'timeout',
         };
@@ -67,7 +67,7 @@ export async function forwardRequest({
         lastError = String(err);
         result = {
           statusCode: 502,
-          body: '{"rst_types":"text","rst_data":{"text":"backend request failed"}}',
+          body: '{"rst_types":"text","rst_data":{"reason":"backend request failed"},"rst_err":"ERR_ROUTING"}',
           responseTimeMs: elapsed,
           errorMessage: String(err),
         };

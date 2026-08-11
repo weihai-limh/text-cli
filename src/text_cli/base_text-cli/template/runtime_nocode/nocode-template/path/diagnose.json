@@ -1,0 +1,40 @@
+{
+  "id": "{PACKAGE_ID}-diagnose",
+  "name": "{NAME_EN} Diagnosis",
+  "type": "pipeline",
+  "mode": "toolchain",
+  "version": "1.0.0",
+  "default_source": "http://localhost:28050/text-cli/cli",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "symptoms": {"type": "string", "description": "Symptom description in natural language"}
+    }
+  },
+  "requires": ["tc-markdown;read", "ai;infer"],
+  "steps": [
+    {
+      "id": "index",
+      "instruction": "tc-markdown;read,knowledge-index.md"
+    },
+    {
+      "id": "lookup",
+      "instruction": "ai;infer,Based on the symptom-to-file mapping in the index, find the best matching document for the user's symptoms. Output a single line of pure JSON containing only the filename.\n\nIndex:\n{index.content}\n\nUser symptoms: {input.symptoms}\n\nExample output: {\"file\":\"file-name.md\"}  No match: {\"file\":\"NOMATCH\"}",
+      "output_as": "lookup"
+    },
+    {
+      "id": "read",
+      "instruction": "tc-markdown;read,knowledge/{lookup.file}"
+    },
+    {
+      "id": "diagnose",
+      "instruction": "ai;infer,{AI_ROLE_PROMPT}\n\n1. Diagnosis 2. Matching symptoms 3. Treatment plan 4. Prevention advice\n\nExpert knowledge:\n{read.content}\n\nUser symptoms: {input.symptoms}",
+      "output_as": "diagnose"
+    },
+    {
+      "id": "fallback",
+      "instruction": "ai;infer,{FALLBACK_PROMPT}\n\nUser symptoms: {input.symptoms}",
+      "if": "{lookup.file} == 'NOMATCH'"
+    }
+  ]
+}

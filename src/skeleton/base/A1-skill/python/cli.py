@@ -7,14 +7,12 @@ cli.py — Agent 既有资源 → text-cli 指令 转化工具
 
 最简用法:
 
-    from cli import register, serve
+    from cli import register
 
     @register(domain="天气", action="查询", category="工具")
     def weather(params):
         city = params[0]
         return f"{city}: 晴, 20°C"
-
-    serve(package_id="my-weather")  # 启动 HTTP 服务，自动生成 SPEC v1.3.2 兼容 Schema
 
 指令格式:
     AI:领域;动作,参数1,参数2,...
@@ -111,22 +109,48 @@ def set_package_meta(
     })
 
 
-def dispatch(domain: str, action: str, params: list[str]) -> str:
-    """根据领域和动作分发到已注册的处理器。"""
+# ─── 协议信封 (SPEC §1.2.2) ─────────────────────────────
+
+def _ok(data: dict) -> dict:
+    """构造协议成功信封。pray_rst_types 提升到 rst_types 并从 rst_data 剥离。"""
+    rst_types = "text"
+    pray = data.pop("pray_rst_types", None)
+    if pray and rst_types == "text":
+        rst_types = pray
+    return {"rst_types": rst_types, "rst_data": data, "rst_err": ""}
+
+
+def _err(code: str, reason: str = "") -> dict:
+    """构造协议错误信封。code 必须是协议闭集错误码（SPEC §1.2.8）。"""
+    return {
+        "rst_types": "text",
+        "rst_data": {"status": "error", "reason": reason or code},
+        "rst_err": code,
+    }
+
+
+# ─── 指令分发 ─────────────────────────────────────────
+
+def dispatch(domain: str, action: str, params: list[str]) -> dict:
+    """根据领域和动作分发到已注册的处理器，返回协议信封（SPEC §1.2.2）。"""
     actions = _registry.get(domain)
     if not actions:
-        return f"no matching directive found: {domain};{action}"
+        return _err("ERR_NOT_FOUND", f"no matching directive: {domain};{action}")
     handler = actions.get(action)
     if not handler:
-        return f"no matching directive found: {domain};{action}"
+        return _err("ERR_NOT_FOUND", f"no matching directive: {domain};{action}")
     try:
-        return handler(params)
+        result = handler(params)
+        # handler 可返回 str（包装为 {result}）或 dict（直接使用）
+        if isinstance(result, str):
+            return _ok({"status": "ok", "result": result})
+        return _ok(result)
     except Exception as e:
         logger.exception("instruction execution exception: %s;%s", domain, action)
-        return f"instruction execution failed: {e}"
+        return _err("ERR_EXECUTION", str(e))
 
 
-# ─── Schema 生成 (SPEC v1.3.2 ──────────────────────────
+# ─── Schema 生成 (SPEC v1.3.2) ──────────────────────────
 
 def generate_schema(package_id: str = "") -> dict:
     """
@@ -143,7 +167,7 @@ def generate_schema(package_id: str = "") -> dict:
         for action, func in actions.items():
             sig = signature(func)
             meta = _meta.get(domain, {}).get(action, {})
-            directives.append({
+            entry = {
                 "domain": domain,
                 "domain_zh": meta.get("domain_zh", domain),
                 "action": action,
@@ -156,7 +180,10 @@ def generate_schema(package_id: str = "") -> dict:
                     {"name": p.name, "required": p.default is p.empty}
                     for p in sig.parameters.values()
                 ] if sig.parameters else [],
-            })
+                "outputs": meta.get("outputs", ["text"]),
+                "estimated_time": meta.get("estimated_time", 500),
+            }
+            directives.append(entry)
 
     schema = {
         "id": pkg_id,
@@ -195,93 +222,15 @@ def export_schema(package_id: str = "", path: str = "schema.json") -> str:
     return path
 
 
-# ─── 轻量 HTTP 服务 ──────────────────────────────────
-
-def _create_app():
-    """创建简易 HTTP 应用（不依赖 FastAPI）。"""
-    from http.server import BaseHTTPRequestHandler
-
-    class DirectiveHandler(BaseHTTPRequestHandler):
-        def do_POST(self):
-            if self.path != "/text-cli/cli":
-                self.send_error(404)
-                return
-
-            length = int(self.headers.get("Content-Length", 0))
-            body = json.loads(self.rfile.read(length))
-            prompt = body.get("prompt", "")
-
-            # 解析: AI:领域;动作,参数1,参数2
-            import re
-            match = re.match(
-                r"^\s*AI[:：]([^;]+);([^,]+)(?:,(.+))?\s*$",
-                prompt,
-            )
-            if not match:
-                self._respond(400, {"rst_types": "text", "rst_data": {"text": "invalid directive format"}})
-                return
-
-            domain = match.group(1).strip()
-            action = match.group(2).strip()
-            params = [p.strip() for p in (match.group(3) or "").split(",") if p.strip()]
-
-            result = dispatch(domain, action, params)
-            self._respond(200, {"rst_types": "text", "rst_data": {"text": result}})
-
-        def do_GET(self):
-            if self.path == "/text_cli_schema.json":
-                self._respond(200, generate_schema())
-            elif self.path == "/health":
-                self._respond(200, {"status": "ok"})
-            else:
-                self.send_error(404)
-
-        def _respond(self, code, data):
-            body = json.dumps(data, ensure_ascii=False).encode("utf-8")
-            self.send_response(code)
-            self.send_header("Content-Type", "application/json; charset=utf-8")
-            self.send_header("Content-Length", len(body))
-            self.end_headers()
-            self.wfile.write(body)
-
-        def log_message(self, format, *args):
-            logger.info("%s %s", self.command, self.path)
-
-    return DirectiveHandler
-
-
-def serve(host: str = "0.0.0.0", port: int = 8000, package_id: str = ""):
-    """
-    启动轻量 HTTP 指令服务。
-    自动生成 SPEC v1.3.2 Schema 并写入 schema.json。
-    """
-    from http.server import HTTPServer
-
-    schema_path = export_schema(package_id=package_id)
-    directive_count = sum(len(a) for a in _registry.values())
-    logger.info("Schema generated: %s (%d directives, SPEC v1.3.2 ", schema_path, directive_count)
-
-    handler = _create_app()
-    server = HTTPServer((host, port), handler)
-    logger.info("text-cli Agent directive service started: http://%s:%s", host, port)
-    logger.info("  Schema: http://%s:%s/text_cli_schema.json", host, port)
-    logger.info("  call:   POST http://%s:%s/text-cli/cli", host, port)
-
-    try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        logger.info("service stopped")
-        server.shutdown()
-
-
 # ─── 命令行入口 ───────────────────────────────────────
 
 def main():
     """
-    CLI 入口，加载 handlers/ 目录并启动服务。
+    CLI 入口，加载 handlers/ 目录并支持本地验证。
 
-    python cli.py              # 启动服务
-    python cli.py schema        # 仅生成 Schema
+    python cli.py              # 列出已注册指令
+    python cli.py schema        # 生成 Schema
+    python cli.py 天气;查询,北京  # 本地分发验证
     """
     logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
 
@@ -306,7 +255,33 @@ def main():
         print(f"Schema generated: {path}")
         return
 
-    serve()
+    if len(sys.argv) > 1 and ";" in sys.argv[1]:
+        # 本地分发验证: python cli.py 天气;查询,北京
+        import re
+        raw = sys.argv[1]
+        match = re.match(r"^([^;]+);([^,]+)(?:,(.+))?$", raw)
+        if match:
+            domain = match.group(1).strip()
+            action = match.group(2).strip()
+            params = [p.strip() for p in (match.group(3) or "").split(",") if p.strip()]
+            envelope = dispatch(domain, action, params)
+            # 本地验证友好输出
+            if envelope["rst_err"]:
+                print(f"[{envelope['rst_err']}] {envelope['rst_data'].get('reason', '')}")
+            else:
+                result = envelope["rst_data"].get("result", envelope["rst_data"])
+                print(result)
+        else:
+            print("invalid directive format")
+        return
+
+    # 默认：列出已注册指令
+    if _registry:
+        for domain, actions in _registry.items():
+            for action in actions:
+                print(f"  {domain};{action}")
+    else:
+        print("No directives registered. Create handlers/*.py with @register decorators.")
 
 
 if __name__ == "__main__":

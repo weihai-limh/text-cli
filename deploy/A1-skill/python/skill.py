@@ -1,147 +1,218 @@
 """
-skill.py — Agent 技能基类：将 text-cli 指令封装为可复用的语义技能
+skill.py — Agent skill base class: wraps text-cli directives as reusable semantic skills.
 
-核心理念:
-    指令是原子操作（AI:weather;query,北京）
-    技能是语义封装（"查询天气" → 选端点 + 发指令 + 格式化结果 + 错误兜底）
+Core idea:
+    Directives are atomic (AI:weather;query,Beijing)
+    Skills are semantic wrappers ("query weather" → pick endpoint → call → format → degrade)
 
-技能 = 意图映射 + 指令编排 + 结果加工 + 降级策略
+Skill = intent mapping + directive composition + result formatting + degradation
 
-SPEC v1.3.2 响应格式:
-    {"rst_types": "text", "rst_data": {"text": "..."}}
-
-用法:
-
-    from skill import Skill, skill
-
-    @skill("天气查询", domain="天气", action="查询")
-    class WeatherSkill(Skill):
-        def format_result(self, raw: str) -> str:
-            return f"[OK] {raw}"
-
-        def on_error(self, params, error):
-            return f"暂时无法查询{params[0]}的天气"
-
-    result = WeatherSkill.run("北京", "明天")
+Uses A0 SDK (call.py) for all HTTP and envelope handling — no manual HTTP code.
 """
 
 import json
-import urllib.request
-from dataclasses import dataclass
-from typing import Callable
-from urllib.parse import urlparse
+import logging
+import os
+import pathlib
+from dataclasses import dataclass, field
+from typing import Any, Callable
 
+logger = logging.getLogger(__name__)
+
+# ── A0 SDK import ──────────────────────────────
+
+try:
+    from A0_protocol.python.call import call as a0_call, DirectiveResult
+except ImportError:
+    # Fallback: import from sibling directory
+    _A0_DIR = pathlib.Path(__file__).resolve().parent.parent / "A0-protocol" / "python"
+    if str(_A0_DIR) not in __import__("sys").path:
+        __import__("sys").path.insert(0, str(_A0_DIR))
+    from call import call as a0_call, DirectiveResult
+
+
+# ── Aggregation helpers ────────────────────────
+
+def _resolve_sources(directive_key: str) -> list[dict]:
+    """Look up directive in agent-text-cli-schema.json, return sources ranked."""
+    schema_path = _find_config("agent-text-cli-schema.json")
+    if not schema_path or not schema_path.exists():
+        return []
+    try:
+        data = json.loads(schema_path.read_text(encoding="utf-8"))
+        sources = data.get("directives", {}).get(directive_key, [])
+        return sorted(sources, key=lambda s: s.get("rank", 99))
+    except (json.JSONDecodeError, OSError) as e:
+        logger.warning("Failed to read agent-text-cli-schema.json: %s", e)
+        return []
+
+
+def _load_endpoint(source_name: str) -> dict | None:
+    """Load endpoint config from agent-endpoints.json by source name."""
+    ep_path = _find_config("agent-endpoints.json")
+    if not ep_path or not ep_path.exists():
+        return None
+    try:
+        data = json.loads(ep_path.read_text(encoding="utf-8"))
+        return data.get("endpoints", {}).get(source_name)
+    except (json.JSONDecodeError, OSError) as e:
+        logger.warning("Failed to read agent-endpoints.json: %s", e)
+        return None
+
+
+def _resolve_token(raw: str | None) -> str | None:
+    """Resolve token value: ${VAR} → os.environ, literal → passthrough, None → None."""
+    if raw is None:
+        return None
+    if raw.startswith("${") and raw.endswith("}"):
+        var = raw[2:-1]
+        return os.environ.get(var)
+    return raw
+
+
+def _find_config(filename: str) -> pathlib.Path | None:
+    """Find config file in cwd or A1 config directory."""
+    cwd = pathlib.Path.cwd()
+    candidate = cwd / filename
+    if candidate.exists():
+        return candidate
+    config_dir = cwd / "config"
+    candidate = config_dir / filename
+    if candidate.exists():
+        return candidate
+    return None
+
+
+# ── SkillResult ────────────────────────────────
 
 @dataclass
 class SkillResult:
-    """技能调用结果"""
-    success: bool
-    text: str
+    """Result of a skill call."""
+    ok: bool
+    data: Any = None          # formatted result or async task data
+    error: str = ""           # formatted error message
+    err_code: str = ""        # protocol error code
     skill_name: str = ""
     directive: str = ""
-    raw: str = ""
-    error: str = ""
+    is_async: bool = False    # True if task is pending/running
+    task_id: str = ""         # async task ID (when is_async=True)
 
+
+# ── Skill base class ───────────────────────────
 
 class Skill:
     """
-    技能基类。
+    Skill base class.
 
-    子类只需定义:
-    - domain / action → 映射到哪个指令
-    - format_result()   → 如何加工原始结果
-    - on_error()        → 失败时的兜底回复
+    Subclasses define:
+    - domain / action → which directive to invoke
+    - format_result()  → how to format the result
+    - on_error()       → fallback message on failure
 
-    默认通过 urllib 直接调用 text-cli endpoint（零外部依赖）。
-    可通过 call_fn 参数注入自定义调用函数。
+    Uses A0 SDK for HTTP and envelope parsing. No manual HTTP code.
+    call_fn injection preserved for testing/custom scenarios.
     """
 
     domain: str = ""
     action: str = ""
     name: str = ""
-    endpoint: str | None = None
-    token: str | None = None
 
     def make_directive(self, *params: str) -> str:
-        """将参数列表拼为 text-cli 指令"""
-        params_str = ",".join(params)
-        return f"AI:{self.domain};{self.action},{params_str}"
+        """Compose params into a text-cli directive string."""
+        return f"AI:{self.domain};{self.action},{','.join(params)}"
 
     def call(self, *params: str, call_fn: Callable | None = None) -> SkillResult:
         """
-        执行技能：发指令 → 解析响应 → 格式化结果。
-        子类可覆盖 call() 实现多指令编排。
+        Execute skill: check aggregation schema → resolve endpoint → call → degrade.
+
+        call_fn signature: fn(directive, endpoint, access_token, service_token) → DirectiveResult
+        When omitted, A0.call() is used directly.
         """
         directive = self.make_directive(*params)
-        endpoint = self.endpoint or "http://localhost:28050/text-cli/cli"
-        token = self.token or ""
+        sources = _resolve_sources(f"{self.domain};{self.action}")
 
-        try:
-            if call_fn:
-                raw = call_fn(directive, endpoint=endpoint, token=token)
-            else:
-                raw = self._call_endpoint(directive, endpoint, token)
-        except Exception as e:
-            return SkillResult(
-                success=False,
-                text=self.on_error(params, str(e)),
-                skill_name=self.name,
-                directive=directive,
-                error=str(e),
-            )
+        # Fallback: if no aggregation schema, try local default
+        if not sources:
+            try:
+                result = (call_fn or a0_call)(directive)
+                return self._process_result(result, directive, params)
+            except Exception as e:
+                return SkillResult(ok=False, error=self.on_error(params, str(e)),
+                                  err_code="ERR_EXECUTION", skill_name=self.name,
+                                  directive=directive)
 
-        text = self.format_result(raw, params)
-        return SkillResult(
-            success=True,
-            text=text,
-            skill_name=self.name,
-            directive=directive,
-            raw=raw,
-        )
+        # Degradation: try sources in rank order
+        last_err_code = ""
+        for src in sources:
+            ep = _load_endpoint(src["source"])
+            if not ep:
+                logger.warning("Endpoint not found in agent-endpoints.json: %s", src["source"])
+                continue
 
-    def _call_endpoint(self, directive: str, endpoint: str, token: str) -> str:
-        """通过 urllib 直接调用 text-cli endpoint（零依赖）。"""
-        if urlparse(endpoint).scheme not in ('http', 'https'):
-            raise ValueError(f"Invalid endpoint scheme: {endpoint}")
-        body = json.dumps({"prompt": directive}).encode("utf-8")
-        headers = {"Content-Type": "application/json; charset=utf-8"}
-        if token:
-            headers["Service-token"] = token
+            url = ep.get("url", "")
+            at = _resolve_token(ep.get("access_token"))
+            st = _resolve_token(ep.get("service_token"))
 
-        req = urllib.request.Request(endpoint, data=body, headers=headers, method="POST")
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            result = json.loads(resp.read().decode("utf-8"))
-            if result.get("rst_types") == "text":
-                return result.get("rst_data", {}).get("text", json.dumps(result))
-            return json.dumps(result)
+            try:
+                if call_fn:
+                    result = call_fn(directive, endpoint=url, access_token=at, service_token=st)
+                else:
+                    result = a0_call(directive, endpoint=url, access_token=at, service_token=st)
+            except Exception as e:
+                logger.info("Skill %s source %s failed: %s", self.name, src["source"], e)
+                last_err_code = "ERR_ROUTING"
+                continue
 
-    def format_result(self, raw: str, params: tuple = ()) -> str:
-        """加工原始结果。子类覆盖此方法实现自定义格式化。"""
-        return raw
+            if result.is_async:
+                return SkillResult(ok=True, data=result.data, is_async=True,
+                                  task_id=result.task_id, skill_name=self.name,
+                                  directive=directive)
 
-    def on_error(self, params: tuple, error: str) -> str:
-        """错误时返回兜底文本。子类覆盖此方法实现降级策略。"""
-        return f"[{self.name}] instruction execution failed: {error}"
+            if result.ok:
+                return self._process_result(result, directive, params)
+
+            # Don't degrade on auth or param errors
+            if result.err_code in ("INVALID_PARAMS", "ACCESS_DENIED", "SERVICE_DENIED"):
+                return SkillResult(ok=False, error=self.on_error(params, result.err_code),
+                                  err_code=result.err_code, skill_name=self.name,
+                                  directive=directive)
+
+            last_err_code = result.err_code
+
+        return SkillResult(ok=False,
+                          error=f"All {len(sources)} endpoints exhausted. Last error: {last_err_code}",
+                          err_code=last_err_code or "ERR_NOT_FOUND",
+                          skill_name=self.name, directive=directive)
+
+    def _process_result(self, dr: DirectiveResult, directive: str, params: tuple) -> SkillResult:
+        """Process a successful DirectiveResult into SkillResult."""
+        formatted = self.format_result(dr.data, params)
+        return SkillResult(ok=True, data=formatted, skill_name=self.name, directive=directive)
+
+    def format_result(self, data: Any, params: tuple = ()) -> Any:
+        """Format raw result. Override in subclass for custom formatting."""
+        return data
+
+    def on_error(self, params: tuple, err_code: str) -> str:
+        """Return fallback text on failure. Override in subclass."""
+        return f"[{self.name}] instruction execution failed: {err_code}"
 
     @classmethod
-    def run(cls, *params: str, endpoint: str | None = None, token: str | None = None) -> SkillResult:
-        """快捷类方法：一行调用技能"""
-        instance = cls()
-        instance.endpoint = endpoint or instance.endpoint
-        instance.token = token or instance.token
-        return instance.call(*params)
+    def run(cls, *params: str) -> SkillResult:
+        """Convenience: one-line skill invocation."""
+        return cls().call(*params)
 
 
-# ─── 技能注册表 ──────────────────────────────────────
+# ── Skill registry ─────────────────────────────
 
 _skills: dict[str, type[Skill]] = {}
 
 
 def skill(name: str, domain: str, action: str):
     """
-    装饰器：将 Skill 子类注册为可发现技能。
+    Decorator: register a Skill subclass as a discoverable skill.
 
-    @skill("天气查询", domain="天气", action="查询")
+    @skill("weather", domain="weather", action="query")
     class WeatherSkill(Skill):
         ...
     """
@@ -155,7 +226,7 @@ def skill(name: str, domain: str, action: str):
 
 
 def list_skills() -> dict[str, dict]:
-    """列出所有已注册技能"""
+    """List all registered skills."""
     return {
         name: {"domain": s.domain, "action": s.action}
         for name, s in _skills.items()
@@ -163,5 +234,5 @@ def list_skills() -> dict[str, dict]:
 
 
 def get_skill(name: str) -> type[Skill] | None:
-    """按名称获取技能类"""
+    """Get a skill class by name."""
     return _skills.get(name)

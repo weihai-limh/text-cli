@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import pathlib
 import shutil
+import subprocess
 
 
 def _resolve_project_root() -> pathlib.Path:
@@ -19,6 +20,8 @@ COPILOT_WHITELIST_DIR = _PROJECT / "copilot" / "whitelists"
 
 
 def _safe_name(name: str) -> str:
+    if ".." in name or name.startswith(("/", "\\")) or ":" in name:
+        raise ValueError(f"Invalid package name: {name!r} (path traversal rejected)")
     return name.replace("-", "_")
 
 
@@ -68,6 +71,10 @@ def install_files(name: str, meta: dict, runtime: str = "python", force: bool = 
         try:
             shutil.copy2(handler_src, handler_dst)
             shutil.copy2(schema_src, schema_dst)
+            # Deploy package.json for npm dependency resolution
+            pkg_json_src = handler_src.parent / "package.json"
+            if pkg_json_src.is_file():
+                shutil.copy2(str(pkg_json_src), str(HANDLERS_DIR / f"{safe}_package.json"))
         except OSError as e:
             return False, f"file copy failed: {e}"
         lines.append(f"file deployed: {name}.js + {name}_schema.json")
@@ -271,26 +278,51 @@ def _deploy_aggregate_resources(pkg_dir: pathlib.Path, name: str, lines: list[st
 
 
 def _check_binary(pkg_dir: pathlib.Path, meta: dict) -> tuple[bool, str]:
-    """Check binary dependencies declared in schema.requires.binary."""
-    import stat
+    """Check binary dependencies declared in schema.requires.binaries.
+
+    SPEC v1.3 format:
+        "binaries": {"<name>": {"source": "system"|"package"|"npm-global", "min_version": "..."}}
+    """
+    import shutil
+
     schema = meta.get("schema", {})
     requires = schema.get("requires", {})
-    binaries = requires.get("binary", {})
+    binaries = requires.get("binaries", {})
     if not binaries:
         return True, ""
 
     warnings = []
-    for bin_name in binaries:
-        bin_path = pkg_dir / bin_name
-        if not bin_path.is_file():
-            warnings.append(f"{bin_name}: not found")
-            continue
-        if not (bin_path.stat().st_mode & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)):
-            warnings.append(f"{bin_name}: not executable")
+    for bin_name, bin_info in binaries.items():
+        source = bin_info.get("source", "system")
+
+        if source == "system":
+            if not shutil.which(bin_name):
+                warnings.append(f"{bin_name}: system not installed")
+        elif source == "package":
+            bin_path = pkg_dir / bin_name
+            if not bin_path.is_file():
+                warnings.append(f"{bin_name}: file missing")
+            else:
+                import stat
+                if not (bin_path.stat().st_mode & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)):
+                    warnings.append(f"{bin_name}: not executable")
+        elif source == "npm-global":
+            try:
+                result = subprocess.run(
+                    ["npm", "bin", "-g"], capture_output=True, text=True, timeout=10, check=False,
+                )
+                if result.returncode != 0:
+                    warnings.append(f"{bin_name}: npm global path query failed")
+                else:
+                    npm_bin = pathlib.Path(result.stdout.strip())
+                    if not (npm_bin / bin_name).exists():
+                        warnings.append(f"{bin_name}: npm global not installed")
+            except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+                warnings.append(f"{bin_name}: npm unavailable, cannot check global install")
 
     if warnings:
-        return True, f"  ⚠ binary: {'; '.join(warnings)}"
-    return True, "  ✓ binaries ok"
+        return True, "  [WARN] binary: " + "; ".join(warnings)
+    return True, "  [OK] binaries"
 
 
 def remove_files(name: str) -> tuple[bool, str]:

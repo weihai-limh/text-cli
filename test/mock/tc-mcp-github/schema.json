@@ -1,0 +1,251 @@
+{
+  "id": "tc-mcp-github",
+  "type": "native",
+  "version": "0.1.1",
+  "license": "MIT",
+  "name": "tc MCP Bridge — GitHub",
+  "name_zh": "tc MCP桥接-GitHub",
+  "runtime": "mcp",
+  "category": "MCP桥接",
+  "locales": [
+    "en",
+    "zh"
+  ],
+  "description": "GitHub API via MCP bridge: search repos, manage issues/PRs, read files, list commits. Delegates to mcporter for MCP server communication.",
+  "description_zh": "通过 MCP 桥接 GitHub API：搜索仓库、管理 Issue/PR、读取文件、提交记录。委托 mcporter 进行 MCP 服务端通信。",
+  "trust": "external",
+  "requires": {},
+  "credentials": [
+    {
+      "name": "github_token",
+      "description_en": "GitHub Personal Access Token (classic). Needs repo + read:org scopes.",
+      "description_zh": "GitHub Personal Access Token (classic)。需要 repo + read:org 权限。",
+      "storage": "key_registry",
+      "register_cmd": "AI:key;register,github_token,<token>,github_token"
+    }
+  ],
+  "directives": [
+    {
+      "domain": "comcp-github",
+      "domain_zh": "comcp-github",
+      "action": "search_repos",
+      "action_zh": "搜索仓库",
+      "usage": "comcp-github;search_repos,<query>[,<page>[,<perPage>]]",
+      "usage_zh": "comcp-github;搜索仓库,<关键词>[,<页码>[,<每页数量>]]",
+      "description": "Search GitHub repositories by query.",
+      "description_zh": "搜索 GitHub 仓库。",
+      "mcp_tool": "search_repositories",
+      "params": [
+        "query",
+        "page",
+        "perPage"
+      ],
+      "params_desc": {
+        "query": "Search query (supports GitHub search syntax)",
+        "page": "Page number (default 1)",
+        "perPage": "Results per page (default 30, max 100)"
+      },
+      "outputs": [
+        "status",
+        "result",
+        "reason"
+      ]
+    },
+    {
+      "domain": "comcp-github",
+      "domain_zh": "comcp-github",
+      "action": "get_file",
+      "action_zh": "获取文件",
+      "usage": "comcp-github;get_file,<owner>,<repo>,<path>[,<branch>]",
+      "usage_zh": "comcp-github;获取文件,<owner>,<repo>,<路径>[,<分支>]",
+      "description": "Get file contents from a repository.",
+      "description_zh": "获取仓库中文件的内容。",
+      "mcp_tool": "get_file_contents",
+      "params": [
+        "owner",
+        "repo",
+        "path",
+        "branch"
+      ],
+      "params_desc": {
+        "owner": "Repository owner (username or organization)",
+        "repo": "Repository name",
+        "path": "File path",
+        "branch": "Branch name (defaults to default branch)"
+      },
+      "outputs": [
+        "status",
+        "result",
+        "reason"
+      ]
+    },
+    {
+      "domain": "comcp-github",
+      "domain_zh": "comcp-github",
+      "action": "list_commits",
+      "action_zh": "提交记录",
+      "usage": "comcp-github;list_commits,<owner>,<repo>[,<sha>[,<page>[,<perPage>]]]]",
+      "usage_zh": "comcp-github;提交记录,<owner>,<repo>[,<分支或SHA>[,<页码>[,<每页数量>]]]]",
+      "description": "List commits of a branch in a repository.",
+      "description_zh": "获取仓库的提交记录。",
+      "mcp_tool": "list_commits",
+      "params": [
+        "owner",
+        "repo",
+        "sha",
+        "page",
+        "perPage"
+      ],
+      "params_desc": {
+        "owner": "Repository owner",
+        "repo": "Repository name",
+        "sha": "Branch name or commit SHA",
+        "page": "Page number (default 1)",
+        "perPage": "Results per page (default 30)"
+      },
+      "outputs": [
+        "status",
+        "result",
+        "reason"
+      ]
+    },
+    {
+      "domain": "comcp-github",
+      "domain_zh": "comcp-github",
+      "action": "search_issues",
+      "action_zh": "搜索工单",
+      "usage": "comcp-github;search_issues,<q>[,<order>[,<page>[,<per_page>[,<sort>]]]]",
+      "usage_zh": "comcp-github;搜索工单,<q>[,<排序方向>[,<页码>[,<每页数量>[,<排序字段>]]]]",
+      "description": "Search issues and pull requests across GitHub.",
+      "description_zh": "搜索 GitHub Issues 和 PR。",
+      "mcp_tool": "search_issues",
+      "params": [
+        "q",
+        "order",
+        "page",
+        "per_page",
+        "sort"
+      ],
+      "params_desc": {
+        "q": "Search query",
+        "order": "Sort order: asc / desc",
+        "page": "Page number",
+        "per_page": "Results per page",
+        "sort": "Sort by: comments/reactions/created/updated"
+      },
+      "outputs": [
+        "status",
+        "result",
+        "reason"
+      ]
+    },
+    {
+      "domain": "comcp-github",
+      "domain_zh": "comcp-github",
+      "action": "list_issues",
+      "action_zh": "工单列表",
+      "usage": "comcp-github;list_issues,<owner>,<repo>[,<state>[,<labels>[,<page>[,<perPage>[,<direction>[,<sort>[,<since>]]]]]]]]",
+      "usage_zh": "comcp-github;工单列表,<owner>,<repo>[,<状态>[,<标签>[,<页码>[,<每页数量>[,<排序方向>[,<排序字段>[,<起始时间>]]]]]]]]",
+      "description": "List issues in a repository with filtering.",
+      "description_zh": "列出仓库的 Issues。",
+      "mcp_tool": "list_issues",
+      "params": [
+        "owner",
+        "repo",
+        "state",
+        "labels",
+        "page",
+        "perPage",
+        "direction",
+        "sort",
+        "since"
+      ],
+      "params_desc": {
+        "owner": "Repository owner",
+        "repo": "Repository name",
+        "state": "State: open / closed / all",
+        "labels": "Label list (comma-separated)",
+        "page": "Page number",
+        "perPage": "Results per page",
+        "direction": "Sort direction: asc / desc",
+        "sort": "Sort by: created/updated/comments",
+        "since": "Start time (ISO 8601)"
+      },
+      "outputs": [
+        "status",
+        "result",
+        "reason"
+      ]
+    },
+    {
+      "domain": "comcp-github",
+      "domain_zh": "comcp-github",
+      "action": "create_issue",
+      "action_zh": "创建工单",
+      "usage": "comcp-github;create_issue,<owner>,<repo>,<title>[,<body>[,<assignees>[,<labels>[,<milestone>]]]]",
+      "usage_zh": "comcp-github;创建工单,<owner>,<repo>,<标题>[,<正文>[,<负责人>[,<标签>[,<里程碑>]]]]",
+      "description": "Create a new issue in a GitHub repository.",
+      "description_zh": "在仓库中创建 Issue。",
+      "mcp_tool": "create_issue",
+      "params": [
+        "owner",
+        "repo",
+        "title",
+        "body",
+        "assignees",
+        "labels",
+        "milestone"
+      ],
+      "params_desc": {
+        "owner": "Repository owner",
+        "repo": "Repository name",
+        "title": "Issue title",
+        "body": "Issue body (Markdown)",
+        "assignees": "Assignee list (comma-separated)",
+        "labels": "Label list (comma-separated)",
+        "milestone": "Milestone number"
+      },
+      "outputs": [
+        "status",
+        "result",
+        "reason"
+      ]
+    },
+    {
+      "domain": "comcp-github",
+      "domain_zh": "comcp-github",
+      "action": "create_pr",
+      "action_zh": "创建PR",
+      "usage": "comcp-github;create_pr,<owner>,<repo>,<title>,<head>,<base>[,<body>[,<draft>[,<maintainer_can_modify>]]]]",
+      "usage_zh": "comcp-github;创建PR,<owner>,<repo>,<标题>,<head分支>,<base分支>[,<正文>[,<草稿>[,<允许维护者修改>]]]]",
+      "description": "Create a new pull request.",
+      "description_zh": "创建 Pull Request。",
+      "mcp_tool": "create_pull_request",
+      "params": [
+        "owner",
+        "repo",
+        "title",
+        "head",
+        "base",
+        "body",
+        "draft",
+        "maintainer_can_modify"
+      ],
+      "params_desc": {
+        "owner": "Repository owner",
+        "repo": "Repository name",
+        "title": "PR title",
+        "head": "Source branch name",
+        "base": "Target branch name",
+        "body": "PR body (Markdown)",
+        "draft": "Create as draft: true / false",
+        "maintainer_can_modify": "Allow maintainer edits: true / false"
+      },
+      "outputs": [
+        "status",
+        "result",
+        "reason"
+      ]
+    }
+  ]
+}

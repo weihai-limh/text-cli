@@ -75,18 +75,19 @@ def _resolve_action(canonical_domain: str, action: str) -> str | None:
     return None
 
 
-def dispatch(domain: str, action: str, params: list[str]) -> str:
+def dispatch(domain: str, action: str, params: list[str]):
     """Dispatch a directive, resolving aliases before lookup.
 
-    Returns handler result string, or "No matching directive: ..." if not found.
+    Returns handler result, or None if no matching directive found.
+    Caller is responsible for wrapping in protocol envelope.
     """
     canonical_domain = _resolve_domain(domain)
     if canonical_domain is None:
-        return f"No matching directive: {domain};{action}"
+        return None
 
     canonical_action = _resolve_action(canonical_domain, action)
     if canonical_action is None:
-        return f"No matching directive: {domain};{action}"
+        return None
 
     handler = _registry[canonical_domain][canonical_action]
     return handler(params)

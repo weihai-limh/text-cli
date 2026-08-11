@@ -18,10 +18,10 @@ src/text_cli/
 
 | 文档 | 面向 | 说明 |
 |------|------|------|
-| [package-dev-guide_zh.md](base_text-cli/docs/package-dev-guide_zh.md) | 包开发者 | 标准指令包开发全流程——工具函数、在线 API、容器 API、copilot 四种形态 |
+| [package-python-dev-guide_zh.md](base_text-cli/docs/package-python-dev-guide_zh.md) | 包开发者 | 标准指令包开发全流程——工具函数、在线 API、容器 API、copilot 四种形态 |
+| [package-js-dev-guide_zh.md](base_text-cli/docs/package-js-dev-guide_zh.md) | 包开发者 | JS 标准运行时指令包开发——声明式导出结构 |
 | [package-nocode-guide_zh.md](base_text-cli/docs/package-nocode-guide_zh.md) | 经验持有者（非开发者） | 零代码指令包——Markdown 即指令，两种递进方式 |
 | [package-publish-guide_zh.md](base_text-cli/docs/package-publish-guide_zh.md) | 包作者 | Schema 规范 Checklist + 反例 + 返回信封约定 |
-| [package-dev-other-guide_zh.md](base_text-cli/docs/package-dev-other-guide_zh.md) | 旁路运行时开发者 | CloudBase SCF 等云函数平台的指令包开发 |
 
 ---
 
@@ -61,7 +61,7 @@ src/text_cli/open_text_cli/
 
 按你的角色选择入口：
 
-- **我要写一个新指令包** → [package-dev-guide_zh.md](base_text-cli/docs/package-dev-guide_zh.md) §二，"工具函数包：从零到一"
+- **我要写一个新指令包（Python）** → [package-python-dev-guide_zh.md](base_text-cli/docs/package-python-dev-guide_zh.md) §二，"工具函数包：从零到一"
+- **我要写一个新指令包（JS）** → [package-js-dev-guide_zh.md](base_text-cli/docs/package-js-dev-guide_zh.md) §二，"工具函数包：从零到一"
 - **我只有经验、不会写代码** → [package-nocode-guide_zh.md](base_text-cli/docs/package-nocode-guide_zh.md) §1，"单文件 + 模板脚本"
-- **我要把包发布到 CloudBase** → [package-dev-other-guide_zh.md](base_text-cli/docs/package-dev-other-guide_zh.md) §1
 - **我的包写好了，要检查是否符合规范** → [package-publish-guide_zh.md](base_text-cli/docs/package-publish-guide_zh.md) §2，"schema.json 规范"

@@ -1,0 +1,26 @@
+{"ts": 1786206797.3642962, "ts_human": "2026-08-08 16:33:17", "op": "uninstall", "name": "hello-world-fail", "success": false, "message": "package \"hello-world-fail\" not installed"}
+{"ts": 1786206799.4231954, "ts_human": "2026-08-08 16:33:19", "op": "uninstall", "name": "hello-world-standard", "success": false, "message": "package \"hello-world-standard\" not installed"}
+{"ts": 1786206805.5756774, "ts_human": "2026-08-08 16:33:25", "op": "install", "name": "hello-world-standard", "runtime": "python", "success": true, "message": "installed"}
+{"ts": 1786206807.6487703, "ts_human": "2026-08-08 16:33:27", "op": "install", "name": "hello-world-fail", "runtime": "python", "success": true, "message": "installed"}
+{"ts": 1786206830.7813923, "ts_human": "2026-08-08 16:33:50", "op": "uninstall", "name": "hello-world-fail", "success": true, "message": "uninstalled"}
+{"ts": 1786206833.2007163, "ts_human": "2026-08-08 16:33:53", "op": "uninstall", "name": "hello-world-standard", "success": true, "message": "uninstalled"}
+{"ts": 1786206930.3374274, "ts_human": "2026-08-08 16:35:30", "op": "install", "name": "hello-world-standard", "runtime": "python", "success": true, "message": "installed"}
+{"ts": 1786206930.388074, "ts_human": "2026-08-08 16:35:30", "op": "install", "name": "hello-world-fail", "runtime": "python", "success": true, "message": "installed"}
+{"ts": 1786207091.8504765, "ts_human": "2026-08-08 16:38:11", "op": "uninstall", "name": "hello-world-fail", "success": true, "message": "uninstalled"}
+{"ts": 1786207094.2533004, "ts_human": "2026-08-08 16:38:14", "op": "uninstall", "name": "hello-world-standard", "success": true, "message": "uninstalled"}
+{"ts": 1786207100.3948624, "ts_human": "2026-08-08 16:38:20", "op": "install", "name": "hello-world-standard", "runtime": "python", "success": true, "message": "installed"}
+{"ts": 1786207102.4685323, "ts_human": "2026-08-08 16:38:22", "op": "install", "name": "hello-world-fail", "runtime": "python", "success": true, "message": "installed"}
+{"ts": 1786207125.4111335, "ts_human": "2026-08-08 16:38:45", "op": "uninstall", "name": "hello-world-fail", "success": true, "message": "uninstalled"}
+{"ts": 1786207127.8187225, "ts_human": "2026-08-08 16:38:47", "op": "uninstall", "name": "hello-world-standard", "success": true, "message": "uninstalled"}
+{"ts": 1786207261.0983095, "ts_human": "2026-08-08 16:41:01", "op": "uninstall", "name": "hello-world-fail", "success": false, "message": "package \"hello-world-fail\" not installed"}
+{"ts": 1786207263.173499, "ts_human": "2026-08-08 16:41:03", "op": "uninstall", "name": "hello-world-standard", "success": false, "message": "package \"hello-world-standard\" not installed"}
+{"ts": 1786207269.3242412, "ts_human": "2026-08-08 16:41:09", "op": "install", "name": "hello-world-standard", "runtime": "python", "success": true, "message": "installed"}
+{"ts": 1786207271.3908093, "ts_human": "2026-08-08 16:41:11", "op": "install", "name": "hello-world-fail", "runtime": "python", "success": true, "message": "installed"}
+{"ts": 1786207294.354998, "ts_human": "2026-08-08 16:41:34", "op": "uninstall", "name": "hello-world-fail", "success": true, "message": "uninstalled"}
+{"ts": 1786207296.8110862, "ts_human": "2026-08-08 16:41:36", "op": "uninstall", "name": "hello-world-standard", "success": true, "message": "uninstalled"}
+{"ts": 1786207383.3653622, "ts_human": "2026-08-08 16:43:03", "op": "uninstall", "name": "hello-world-fail", "success": false, "message": "package \"hello-world-fail\" not installed"}
+{"ts": 1786207385.4306498, "ts_human": "2026-08-08 16:43:05", "op": "uninstall", "name": "hello-world-standard", "success": false, "message": "package \"hello-world-standard\" not installed"}
+{"ts": 1786207391.550246, "ts_human": "2026-08-08 16:43:11", "op": "install", "name": "hello-world-standard", "runtime": "python", "success": true, "message": "installed"}
+{"ts": 1786207393.605986, "ts_human": "2026-08-08 16:43:13", "op": "install", "name": "hello-world-fail", "runtime": "python", "success": true, "message": "installed"}
+{"ts": 1786207416.613981, "ts_human": "2026-08-08 16:43:36", "op": "uninstall", "name": "hello-world-fail", "success": true, "message": "uninstalled"}
+{"ts": 1786207419.0493171, "ts_human": "2026-08-08 16:43:39", "op": "uninstall", "name": "hello-world-standard", "success": true, "message": "uninstalled"}

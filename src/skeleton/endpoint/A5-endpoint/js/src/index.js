@@ -29,8 +29,8 @@ function json(data, status = 200) {
   });
 }
 
-function textError(text, status = 400) {
-  return json({ rst_types: 'text', rst_data: { text } }, status);
+function textError(reason, status = 400, errCode = 'ERR_ROUTING') {
+  return json({ rst_types: 'text', rst_data: { reason }, rst_err: errCode }, status);
 }
 
 async function handleTextCli(request, env) {
@@ -43,7 +43,7 @@ async function handleTextCli(request, env) {
   if (ACCESS_TOKEN_REQUIRED) {
     tokenRecord = await verifyAccessToken(authHeader, env.DB, true);
     if (!tokenRecord) {
-      return textError('ACCESS_DENIED', 401);
+      return textError('ACCESS_DENIED', 401, 'ACCESS_DENIED');
     }
   }
 
@@ -51,12 +51,12 @@ async function handleTextCli(request, env) {
   try {
     body = await request.json();
   } catch {
-    return textError('INVALID_JSON', 400);
+    return textError('INVALID_JSON', 400, 'INVALID_PARAMS');
   }
 
   const prompt = body?.prompt;
   if (!prompt) {
-    return textError('INVALID_DIRECTIVE_FORMAT: prompt is required', 400);
+    return textError('INVALID_DIRECTIVE_FORMAT: prompt is required', 400, 'INVALID_PARAMS');
   }
 
   let parsed;
@@ -64,7 +64,7 @@ async function handleTextCli(request, env) {
     parsed = parseDirective(prompt);
   } catch (e) {
     if (e instanceof DirectiveParseError) {
-      return textError(`${e.code}: ${e.message}`, 400);
+      return textError(`${e.code}: ${e.message}`, 400, 'INVALID_PARAMS');
     }
     throw e;
   }
@@ -84,7 +84,7 @@ async function handleTextCli(request, env) {
   }
 
   if (!backendUrl) {
-    return textError(`DIRECTIVE_NOT_FOUND: ${parsed.directiveKey}`, 400);
+    return textError(`DIRECTIVE_NOT_FOUND: ${parsed.directiveKey}`, 400, 'ERR_NOT_FOUND');
   }
 
   const accessTokenPrefix = authHeader.startsWith('Bearer ')
@@ -124,7 +124,7 @@ export default {
     const clientIp = request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For')?.split(',')[0]?.trim() || '';
 
     if (isIPBlocked(clientIp, env)) {
-      return textError('IP_BLOCKED', 403);
+      return textError('IP_BLOCKED', 403, 'ACCESS_DENIED');
     }
 
     if (method === 'POST' && path === '/text-cli/cli') {
@@ -132,10 +132,10 @@ export default {
       if (serviceToken) {
         const prefix = extractServiceTokenPrefix(serviceToken);
         if (isSTPrefixBlocked(prefix, env)) {
-          return textError('TOKEN_PREFIX_BLOCKED', 403);
+          return textError('TOKEN_PREFIX_BLOCKED', 403, 'ACCESS_DENIED');
         }
         if (!isSTPrefixRegistered(prefix, env)) {
-          return textError('TOKEN_PREFIX_UNKNOWN', 403);
+          return textError('TOKEN_PREFIX_UNKNOWN', 403, 'ACCESS_DENIED');
         }
       }
     }
@@ -144,7 +144,7 @@ export default {
       if (env.DB) {
         const allowed = await checkRateLimit(env.DB, env, method === 'GET');
         if (!allowed) {
-          return textError('RATE_LIMIT_EXCEEDED', 429);
+          return textError('RATE_LIMIT_EXCEEDED', 429, 'ACCESS_DENIED');
         }
       }
     }
@@ -180,17 +180,17 @@ export default {
 
     if (method === 'GET' && path === '/text-cli/cli') {
       if (env.ENABLE_PUBLIC_CLI !== 'true') {
-        return textError('PUBLIC_CLI_DISABLED', 404);
+        return textError('PUBLIC_CLI_DISABLED', 404, 'ERR_NOT_FOUND');
       }
 
       const skillId = url.searchParams.get('skill_id');
       if (!skillId) {
-        return textError('INVALID_PARAMS: skill_id is required', 400);
+        return textError('INVALID_PARAMS: skill_id is required', 400, 'INVALID_PARAMS');
       }
 
       const backendBase = getBackendBaseUrl(env);
       if (!backendBase) {
-        return textError('BACKEND_UNAVAILABLE', 502);
+        return textError('BACKEND_UNAVAILABLE', 502, 'ERR_ROUTING');
       }
 
       const body = {};
@@ -221,11 +221,11 @@ export default {
           parsed = respBody;
         }
         return json(
-          typeof parsed === 'object' ? parsed : { rst_types: 'text', rst_data: { text: parsed } },
+          typeof parsed === 'object' ? parsed : { rst_types: 'text', rst_data: { reason: parsed }, rst_err: 'ERR_ROUTING' },
           resp.status,
         );
       } catch {
-        return textError('BACKEND_UNAVAILABLE', 502);
+        return textError('BACKEND_UNAVAILABLE', 502, 'ERR_ROUTING');
       }
     }
 

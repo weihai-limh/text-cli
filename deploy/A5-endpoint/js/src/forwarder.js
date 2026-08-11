@@ -29,7 +29,7 @@ export async function forwardRequest({
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), requestTimeout);
 
-      const resp = await fetch(backendUrl, {
+      const resp = await fetch(backendUrl + '/text-cli/cli', {
         method: 'POST',
         headers,
         body: JSON.stringify({ prompt }),

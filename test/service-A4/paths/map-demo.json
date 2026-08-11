@@ -1,0 +1,17 @@
+{
+  "id": "map-demo",
+  "name": "Map Demo",
+  "type": "pipeline",
+  "version": "0.1.0",
+  "mode": "toolchain",
+  "description": "Minimal map path: 3-element iteration with collect_as downstream consumption.",
+  "steps": [
+    {
+      "mode": "map", "items": "input", "output_as": "results",
+      "steps": [
+        {"id": "greet", "instruction": "hello;world,{item}", "output_as": "greeting"}
+      ]
+    },
+    {"id": "report", "instruction": "hello;world,count:{results}", "output_as": "final"}
+  ]
+}

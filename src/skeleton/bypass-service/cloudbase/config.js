@@ -1,7 +1,12 @@
-module.exports = {
-  routeTable: {
-    'web-utils': 'web-utils',
-    // 后续添加: 'tc-file': 'tc-file', ...
-  },
-  packages: ['web-utils']  // 包注册表（用于 AI:text-cli;query）
+// CloudBase gateway route configuration
+// Maps domain -> cloud function name.
+// Route table is now supplementary — primary routing is schema-driven (T4 design).
+// This config is only for cloud function dispatch.
+
+const routeTable = {
+  'web-utils': 'web-utils',
 };
+
+const packages = ['web-utils'];
+
+module.exports = { routeTable, packages };

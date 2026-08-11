@@ -51,26 +51,45 @@ def test_smoke_load_and_execute():
     # 3. Execute a directive
     result = execute("AI:date-calc;add-days,2026-01-01,30")
     assert result["rst_err"] == ""
-    assert "2026-01-31" in result["rst_data"]["text"], result
+    assert "2026-01-31" == result["rst_data"]["result"], result
 
     # 4. Execute with Chinese alias
     result_cn = execute("AI:日期计算;加天,2026-01-01,30")
     assert result_cn["rst_err"] == ""
-    assert "2026-01-31" in result_cn["rst_data"]["text"], result_cn
+    assert "2026-01-31" == result_cn["rst_data"]["result"], result_cn
 
     # 5. Execute with mixed alias
     result_mixed = execute("AI:date-calc;加天,2026-01-01,30")
     assert result_mixed["rst_err"] == ""
-    assert "2026-01-31" in result_mixed["rst_data"]["text"], result_mixed
+    assert "2026-01-31" == result_mixed["rst_data"]["result"], result_mixed
 
     # 6. Info
     i = info(meta)
     assert i["loader"] == "textcli-loader"
     assert "date-calc" in i["registered"]
 
-    # 7. Error cases — unknown directive returns "not found" string
+    # 7. Error cases — unknown directive returns ERR_NOT_FOUND
     err = execute("AI:unknown;test")
-    assert "No matching directive" in err["rst_data"]["text"], err
+    assert err["rst_err"] == "ERR_NOT_FOUND", err
+
+    # 8. discover — should return the loaded package directive
+    from textcli_loader import discover
+    all_dirs = discover()
+    assert "directives" in all_dirs
+    assert len(all_dirs["directives"]) >= 1
+    found = [d for d in all_dirs["directives"] if d["package"] == "my-date-calc"]
+    assert len(found) == 1
+    assert found[0]["domain"] == "date-calc"
+    assert found[0]["action"] == "add-days"
+
+    # 9. health — should return loader version and protocol version
+    from textcli_loader import health
+    h = health()
+    assert h["status"] == "ok"
+    assert h["body"] == "textcli-loader"
+    assert h["version"] == "0.1.2"
+    assert h["spec_version"] == "1.3.2"
+    assert h["runtime"] == "python"
 
     # Cleanup
     import shutil

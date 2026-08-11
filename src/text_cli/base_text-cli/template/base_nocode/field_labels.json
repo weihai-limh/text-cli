@@ -1,0 +1,92 @@
+{
+    "zh": {
+        "domain":       "领域",
+        "action":       "动作",
+        "triggers":     "触发词",
+        "params":       "参数",
+        "source":       "来源",
+        "verified":     "核实",
+        "stale_after":  "过期",
+        "doc_status":   "状态"
+    },
+    "en": {
+        "domain":       "Domain",
+        "action":       "Action",
+        "triggers":     "Triggers",
+        "params":       "Params",
+        "source":       "Source",
+        "verified":     "Verified",
+        "stale_after":  "Stale After",
+        "doc_status":   "Status"
+    },
+    "fr": {
+        "domain":       "Domaine",
+        "action":       "Action",
+        "triggers":     "Déclencheurs",
+        "params":       "Paramètres",
+        "source":       "Source",
+        "verified":     "Vérifié",
+        "stale_after":  "Périmé après",
+        "doc_status":   "Statut"
+    },
+    "ar": {
+        "domain":       "المجال",
+        "action":       "الإجراء",
+        "triggers":     "المحفزات",
+        "params":       "المعلمات",
+        "source":       "المصدر",
+        "verified":     "تم التحقق",
+        "stale_after":  "تنتهي الصلاحية بعد",
+        "doc_status":   "الحالة"
+    },
+    "es": {
+        "domain":       "Dominio",
+        "action":       "Acción",
+        "triggers":     "Desencadenantes",
+        "params":       "Parámetros",
+        "source":       "Fuente",
+        "verified":     "Verificado",
+        "stale_after":  "Caduca después",
+        "doc_status":   "Estado"
+    },
+    "ru": {
+        "domain":       "Область",
+        "action":       "Действие",
+        "triggers":     "Триггеры",
+        "params":       "Параметры",
+        "source":       "Источник",
+        "verified":     "Проверено",
+        "stale_after":  "Устаревает после",
+        "doc_status":   "Статус"
+    },
+    "ja": {
+        "domain":       "領域",
+        "action":       "動作",
+        "triggers":     "引き金",
+        "params":       "パラメータ",
+        "source":       "出典",
+        "verified":     "確認",
+        "stale_after":  "期限",
+        "doc_status":   "状態"
+    },
+    "ko": {
+        "domain":       "영역",
+        "action":       "동작",
+        "triggers":     "트리거",
+        "params":       "매개변수",
+        "source":       "출처",
+        "verified":     "확인",
+        "stale_after":  "만료일",
+        "doc_status":   "상태"
+    },
+    "zh-Hant": {
+        "domain":       "領域",
+        "action":       "動作",
+        "triggers":     "觸發詞",
+        "params":       "參數",
+        "source":       "來源",
+        "verified":     "核實",
+        "stale_after":  "過期",
+        "doc_status":   "狀態"
+    }
+}

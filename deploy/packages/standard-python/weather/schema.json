@@ -1,0 +1,34 @@
+{
+  "id": "weather",
+  "type": "native",
+  "name": "Weather Query",
+  "name_zh": "天气查询",
+  "runtime": "python",
+  "version": "0.1.1",
+  "license": "MIT",
+  "category": "application",
+  "locales": ["zh", "en", "ja"],
+  "trust": "internal",
+  "description": "Query weather forecast by city and date (Open-Meteo primary, wttr.in fallback). No API key required (both sources are keyless). Output language via lang (zh default, en, ja).",
+  "description_zh": "根据日期和城市返回天气（Open-Meteo / wttr.in 双源降级，双源均免密无需 API key）。lang 控制输出语言（默认 zh，可 en / ja）",
+  "requires": {},
+  "directives": [
+    {
+      "domain": "weather",
+      "domain_zh": "天气",
+      "action": "query",
+      "action_zh": "查询",
+      "usage": "weather;query,<city>[,<date>[,<lang>]]",
+      "usage_zh": "天气;查询,<城市>[,<日期>[,<语言>]]",
+      "description": "Get weather forecast (temperature range, condition, sunrise/sunset) for a city on a given date. Output language via lang (zh default, en / ja).",
+      "description_zh": "根据日期和城市查询天气预报（温度区间、天气状况、日出日落）。lang 控制输出语言（默认 zh，可 en / ja）。",
+      "params": ["city", "date", "lang"],
+      "params_desc": {
+        "city": "City name in Chinese or English, e.g. 威海 / Weihai / London",
+        "date": "today / tomorrow / day after tomorrow, or YYYY-MM-DD (default: today)",
+        "lang": "Output language: zh (default) | en | ja"
+      },
+      "outputs": ["result", "source", "city", "date", "temp_min", "temp_max", "weather_code", "weather_desc", "sunrise", "sunset", "lang"]
+    }
+  ]
+}

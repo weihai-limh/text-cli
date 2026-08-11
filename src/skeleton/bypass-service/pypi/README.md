@@ -92,7 +92,7 @@ my-package/
 └── handler.py      ← Python functions with @directive decorator
 ```
 
-See [package-dev-guide_zh.md](../base_text-cli/docs/package-dev-guide_zh.md) for the full specification.
+See [package-python-dev-guide_zh.md](../base_text-cli/docs/package-python-dev-guide_zh.md) for the full specification.
 
 ## Not supported
 

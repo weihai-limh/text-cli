@@ -103,7 +103,7 @@ def call_mcp_tool(server: str, tool: str, arguments: dict,
 
     try:
         result = subprocess.run(
-            [mcporter_bin, 'call', server, tool,
+            [mcporter_bin, 'call', f'{server}.{tool}',
              '--args', args_json, '--output', 'json', '--raw-strings'],
             capture_output=True, text=True,
             timeout=timeout_sec,
@@ -129,13 +129,13 @@ def call_mcp_tool(server: str, tool: str, arguments: dict,
         return {"ok": False, "error": str(e)}
 
 
-def format_mcp_result(mcp_result: dict) -> str:
-    """Format MCP call result as text-cli response text."""
+def format_mcp_result(mcp_result: dict) -> dict:
+    """Format MCP call result as text-cli rst_data dict."""
     if not mcp_result["ok"]:
-        return json.dumps({
+        return {
             "server": "mcp",
             "error": mcp_result["error"],
-        }, ensure_ascii=False)
+        }
 
     data = mcp_result["result"]
 
@@ -145,20 +145,20 @@ def format_mcp_result(mcp_result: dict) -> str:
         if "total_count" in data:
             items = data.get("items", [])
             total = data["total_count"]
-            return json.dumps({
+            return {
                 "total": total,
                 "count": len(items),
                 "sample": [
                     item.get("full_name") or item.get("path") or item.get("name") or item.get("html_url") or str(item)[:80]
                     for item in items[:5]
                 ]
-            }, ensure_ascii=False)
+            }
         # Single object patterns
         if "sha" in data:
-            return json.dumps({"sha": data["sha"][:12]}, ensure_ascii=False)
+            return {"sha": data["sha"][:12]}
         if "number" in data and "title" in data:
-            return json.dumps({"number": data["number"], "title": data["title"]}, ensure_ascii=False)
+            return {"number": data["number"], "title": data["title"]}
         if "html_url" in data:
-            return json.dumps({"url": data["html_url"], "id": data.get("id", "")}, ensure_ascii=False)
+            return {"url": data["html_url"], "id": data.get("id", "")}
 
-    return json.dumps(data, ensure_ascii=False)
+    return {"result": data}

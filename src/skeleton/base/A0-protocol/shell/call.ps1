@@ -5,6 +5,7 @@
 #   .\call.ps1 "AI:tc-datetime;now"
 #   .\call.ps1 -d "AI:tc-datetime;now" -e http://其它端点/text-cli/cli
 #   "AI:tc-datetime;now" | .\call.ps1
+#   .\call.ps1 -Task <task_id>          # 轮询异步任务
 #
 # 配置（优先级: 环境变量 > conf.json > 内置默认）:
 #   conf.json  — 与本脚本同目录，包含 endpoint / service_token / access_token
@@ -19,6 +20,7 @@ param(
     [string]$directive,   # 指令文本（长参数名）
     [string]$e,           # 端点地址（覆盖）
     [string]$endpoint,    # 端点地址（长参数名）
+    [string]$Task,        # 异步任务 ID（轮询模式）
     [switch]$h,           # 帮助
     [switch]$help         # 帮助（长参数名）
 )
@@ -31,12 +33,14 @@ if ($h -or $help) {
     Write-Host "usage: .\call.ps1 `"AI:domain;action,params`""
     Write-Host "  -d, -directive <text>  directive text"
     Write-Host "  -e, -endpoint <URL>    specify endpoint (optional)"
+    Write-Host "  -Task <task_id>        poll async task status"
     Write-Host "  -h, -help             show help"
     Write-Host ""
     Write-Host "Examples:"
     Write-Host "  .\call.ps1 `"AI:tc-datetime;now`""
     Write-Host "  .\call.ps1 -d `"AI:tc-math;eval,2+3`""
     Write-Host "  `"AI:tc-datetime;now`" | .\call.ps1"
+    Write-Host "  .\call.ps1 -Task abc123"
     exit 0
 }
 
@@ -66,7 +70,45 @@ if ($e) { $Endpoint = $e }
 if ($endpoint) { $Endpoint = $endpoint }
 
 # 默认值
-if (-not $Endpoint) { $Endpoint = "http://127.0.0.1/text-cli/cli" }
+if (-not $Endpoint) { $Endpoint = "http://127.0.0.1:28050/text-cli/cli" }
+
+# ── 构建请求头（复用函数）────────────────────────────
+
+function Build-Headers {
+    $Headers = @{
+        "Content-Type" = "application/json"
+    }
+    if ($AccessToken) {
+        $Headers["Authorization"] = "Bearer $AccessToken"
+    }
+    if ($ServiceToken) {
+        $Headers["Service-token"] = $ServiceToken
+    }
+    return $Headers
+}
+
+# ── 轮询异步任务模式 ──────────────────────────────────
+
+if ($Task) {
+    $TaskUrl = $Endpoint -replace '/cli$', "/tasks/$Task"
+    $Headers = Build-Headers
+
+    try {
+        $Response = Invoke-WebRequest -Uri $TaskUrl -Method Get -Headers $Headers -TimeoutSec 10 -UseBasicParsing -ErrorAction Stop
+
+        if ($Response.StatusCode -eq 200) {
+            Write-Output $Response.Content
+        } else {
+            Write-Host "[ERR] task query failed (HTTP $($Response.StatusCode))" -ForegroundColor Red
+            Write-Output $Response.Content
+            exit 1
+        }
+    } catch {
+        Write-Host "[ERR] task query failed: $($_.Exception.Message)" -ForegroundColor Red
+        exit 1
+    }
+    exit 0
+}
 
 # ── 获取指令文本 ──────────────────────────────────────
 
@@ -85,22 +127,9 @@ if (-not $DirectiveText) {
     Write-Host "usage: .\call.ps1 `"AI:domain;action,params`"" -ForegroundColor Red
     Write-Host "  -d, -directive <text>  directive text" -ForegroundColor Yellow
     Write-Host "  -e, -endpoint <URL>    specify endpoint (optional)" -ForegroundColor Yellow
+    Write-Host "  -Task <task_id>        poll async task status" -ForegroundColor Yellow
     Write-Host "  -h, -help             show help" -ForegroundColor Yellow
     exit 1
-}
-
-# ── 构建请求头 ─────────────────────────────────────────
-
-$Headers = @{
-    "Content-Type" = "application/json"
-}
-
-if ($AccessToken) {
-    $Headers["Authorization"] = "Bearer $AccessToken"
-}
-
-if ($ServiceToken) {
-    $Headers["Service-token"] = $ServiceToken
 }
 
 # ── 构建请求体 ─────────────────────────────────────────
@@ -111,17 +140,22 @@ $Body = @{
 
 # ── 发送请求 ───────────────────────────────────────────
 
+$Headers = Build-Headers
+
 try {
     $Response = Invoke-WebRequest -Uri $Endpoint -Method Post -Headers $Headers -Body $Body -TimeoutSec 10 -UseBasicParsing -ErrorAction Stop
-    
+
     if ($Response.StatusCode -eq 200) {
         $Result = $Response.Content | ConvertFrom-Json
-        
-        if ($Result.rst_types -eq "text") {
-            Write-Output $Result.rst_data.text
-        } else {
-            # 非文本类型，返回原始 JSON
-            Write-Output $Response.Content
+
+        # 检测异步任务提示
+        if ($Result.status -eq "pending" -and $Result.task_id) {
+            Write-Warning "Async task created: $($Result.task_id). Check status: .\call.ps1 -Task $($Result.task_id)"
+        }
+
+        # 直接输出 rst_data
+        if ($Result.rst_data) {
+            Write-Output $Result.rst_data
         }
     } else {
         Write-Host "[ERR] call failed (HTTP $($Response.StatusCode))" -ForegroundColor Red

@@ -1,0 +1,27 @@
+{
+  "id": "weather",
+  "type": "native",
+  "name": "Weather",
+  "name_zh": "天气查询",
+  "runtime": "js",
+  "version": "0.1.0",
+  "locales": ["zh", "en"],
+  "trust": "internal",
+  "category": "weather",
+  "description": "Weather forecast query by city.",
+  "description_zh": "按城市查询天气预报。",
+  "directives": [
+    {
+      "domain": "weather",
+      "domain_zh": "天气",
+      "action": "query",
+      "action_zh": "查询",
+      "usage": "weather;query,<city>[,<date>[,<lang>]]",
+      "usage_zh": "天气;查询,<城市>[,<日期>[,<语言>]]",
+      "description": "Query weather forecast for a city. Returns temperature, weather condition, sunrise/sunset.",
+      "description_zh": "查询指定城市的天气预报，返回温度、天气状况、日出日落时间。",
+      "params": ["city", "date?", "lang?"],
+      "outputs": ["result", "source", "city", "date", "temp_min", "temp_max", "weather_code", "weather_desc", "sunrise", "sunset", "lang"]
+    }
+  ]
+}

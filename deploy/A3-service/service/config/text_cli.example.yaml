@@ -1,0 +1,78 @@
+# ──────────────────────────────────────────────
+# text-cli configuration — single-file config for all runtimes
+# 单文件配置 — 覆盖 Service + Copilot + MCP 全运行时
+#
+# Comment convention (注释约定):
+#   Body in English (正文英文), key terms in 中文 for quick scan (关键术语加中文索引).
+#   All keys are optional; absent keys fall back to built-in defaults.
+#   所有键均为可选；缺失时回退到内置默认值。
+#
+# Priority (优先级): env var > YAML value > built-in default
+# ──────────────────────────────────────────────
+
+server:
+  # HTTP port (HTTP 端口) for Service runtime (A3+)
+  port: 28050
+  # Log level (日志级别): debug | info | warning | error
+  log_level: info
+  # Instance identifier (实例标识) shown in GET /text-cli/health response body
+  instance_id: text-cli
+  # Instruction query output language (指令查询默认语言): zh | en | auto
+  # auto = use canonical fields (name/description/usage) without locale override
+  # zh / en = prefer _zh / _en fields when available
+  # Callers can override per-request via tail parameter: AI:text-cli;query,zh
+  instructions_language: auto  # 指令查询默认语言
+
+auth:
+  # Anonymous access (匿名访问): allow requests without a Service Token.
+  # true = internal-network mode (内网模式, A3 default by product design).
+  # false = require Service Token for all requests (所有请求须携带 Service Token).
+  allow_anonymous: true  # 是否允许匿名访问
+  # Shared secret (共享密钥) for Service Token verification (SPEC §3.1).
+  # Empty = no verification (不校验). Set a value when callers must present a matching Service-token header.
+  service_token: ""  # Service Token 共享密钥
+  # Call audit (调用审计): write call logs to token_call_logs table (requires SQLite / A6+).
+  count_calls: false  # 是否记录调用审计日志
+
+paths:
+  # TEXT_CLI_HOME is set by start.bat / start.sh at launch (环境变量由启动脚本注入).
+  # Do NOT put a "home" key here — the runtime root is never configurable via YAML.
+  # Package source directories (指令包源目录) for text-cli;install
+  packages: ../packages
+  # Token registry SQLite database (Token 注册表数据库)
+  service_db: ./service/text_cli_modules/sqlite/service.db
+  # Install/uninstall state database (安装/卸载状态数据库)
+  state_db: ./service/text_cli.db
+  # Async task result storage (异步任务结果存储)
+  media: ./media
+  # Aggregate routing directory (聚合路由目录)
+  aggregate: ./aggregate
+  # map 循环原语（mode:"map"）— path 引擎对集合逐元素迭代执行
+  # true = 允许, false = 拒绝（默认。map 是入站能力，默认关闭以保护运行时）
+  # env override: MAP_ENABLED=true/false
+  map_enabled: false  # 是否启用 map 循环能力
+  # map 单次迭代元素上限（默认 100，≤1000 代码硬上限）
+  # env override: MAP_MAX_ITER=<n>
+  map_max_iter: 100  # map 扇出上限
+
+mcp:
+  # MCP outbound (MCP 出向) — Service URL for reverse exposure (反向暴露时的 Service 地址)
+  service_url: ""
+  # MCP outbound (MCP 出向) — auth token for reverse exposure
+  service_token: ""  # MCP 出向鉴权 Token (empty = no auth)
+  # MCP outbound (MCP 出向) — FastMCP port
+  port: 9020  # MCP 出向端口
+
+mesh:
+  # Federation mesh security (联邦 Mesh 安全) — reject cross-hop forwarding when
+  # peer credentials are unavailable (对等节点凭证不可用时拒绝跨跳转发).
+  # false (default): allow degraded forwarding + _mesh_credential_degraded signal
+  # true: reject cross-hop with mesh_credential_unavailable error
+  require_credentials: false  # 是否要求 Mesh 凭证
+  # Multi-hop forwarding (多跳跟随) — follow _mesh_redirect in proxy responses
+  # true = 开启；false = 仅单跳（默认）
+  # env: MULTI_HOP_ENABLED=true/false
+  multi_hop_enabled: false  # 是否开启多跳跟随
+  # Max follow depth (最大跟随跳数), trust radius 1–5 (hard cap = 5)
+  # env: MULTI_HOP_MAX_DEPTH=<n>
+  multi_hop_max_depth: 3  # 多跳信任半径

@@ -22,8 +22,9 @@ def load_package(package_dir: str | Path) -> dict[str, Any]:
         - directives: list of {domain, action, description, ...}
         - path: resolved package directory
 
-    Side effect: imports handler.py which registers @directive handlers
-                 into the global registry.
+    Side effects:
+        - imports handler.py which registers @directive handlers into registry
+        - caches schema for discover() via __init__._schemas
 
     Raises LoadError on missing files or invalid schema.
     """
@@ -48,7 +49,11 @@ def load_package(package_dir: str | Path) -> dict[str, Any]:
     if handler_path.is_file():
         _import_handler(pkg_id, handler_path)
 
-    # 3. Extract directive list
+    # 3. Cache schema for discover()
+    import textcli_loader
+    textcli_loader._schemas[pkg_id] = schema
+
+    # 4. Extract directive list
     directives_raw = schema.get("directives", [])
     if isinstance(directives_raw, dict):
         directives_raw = list(directives_raw.values())
@@ -57,7 +62,7 @@ def load_package(package_dir: str | Path) -> dict[str, Any]:
             "domain": d.get("domain", ""),
             "action": d.get("action", ""),
             "description": d.get("description", ""),
-            "directive_zh": d.get("directive_zh", ""),
+            "usage_zh": d.get("usage_zh", ""),
         }
         for d in directives_raw
     ]
@@ -99,7 +104,7 @@ def list_directives(meta: dict) -> list[str]:
     for d in meta.get("directives", []):
         domain = d["domain"]
         action = d["action"]
-        zh = d.get("directive_zh", "")
+        zh = d.get("usage_zh", "")
         desc = d.get("description", "")
         key = f"AI:{domain};{action}"
         label = zh if zh else desc

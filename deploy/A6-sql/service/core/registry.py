@@ -17,8 +17,19 @@ During transition, ALL combinations work:
 
 import logging
 from collections.abc import Callable
+from contextvars import ContextVar
 
 logger = logging.getLogger(__name__)
+
+# ── Ancestor chain — cycle detection for directive re-entry ──
+# Per-request call stack tracked as tuple of resolved target keys.
+# Push on handler entry, pop on exit. Concurrent workers copy the chain.
+_ANCESTOR_CHAIN: ContextVar = ContextVar("_ANCESTOR_CHAIN", default=())
+
+# Directives whose true target key can only be determined after handler-level
+# resolution (e.g. pro resolves short names to path/aggregate targets).
+# These skip entry-level checking and defer to their handler.
+_DEFERRED_KEYS = {("text-cli", "pro")}
 
 _registry: dict[str, dict[str, Callable]] = {}
 
@@ -102,32 +113,96 @@ def _resolve_action(canonical_domain: str, action: str) -> str | None:
 def dispatch(domain: str, action: str, params: list[str]) -> str:
     """Dispatch a directive, resolving aliases before lookup.
     
-    Returns a JSON string with {rst_types, rst_data, rst_err}. If the directive
-    is not found, rst_err is set to 'ERR_NOT_FOUND'. Plain-text handler returns
-    are wrapped in the standard format.
+    Returns a JSON string with {rst_types, rst_data, rst_err}. The handler
+    MUST return a dict — it is placed directly into rst_data. If the handler
+    includes pray_rst_types, the skeleton promotes it to rst_types and strips
+    it from rst_data.
+
+    Implements ancestor-chain cycle detection: push resolved target key on
+    entry, pop on exit. Concurrent workers copy the chain via ctx.copy().
     """
     import json as _json
+    from core.response import ok, error
+
     canonical_domain = _resolve_domain(domain)
     if canonical_domain is None:
-        return _json.dumps({"rst_types": "text", "rst_data": {"text": f"No matching directive: {domain};{action}"},
-                            "rst_err": "ERR_NOT_FOUND"}, ensure_ascii=False)
+        return _json.dumps(error(f"No matching directive: {domain};{action}", "ERR_NOT_FOUND"),
+                           ensure_ascii=False)
 
     canonical_action = _resolve_action(canonical_domain, action)
     if canonical_action is None:
-        return _json.dumps({"rst_types": "text", "rst_data": {"text": f"No matching directive: {domain};{action}"},
-                            "rst_err": "ERR_NOT_FOUND"}, ensure_ascii=False)
+        return _json.dumps(error(f"No matching directive: {domain};{action}", "ERR_NOT_FOUND"),
+                           ensure_ascii=False)
 
-    handler = _registry[canonical_domain][canonical_action]
-    result = handler(params)
+    # ── Ancestor chain: check for re-entry cycles ──
+    is_deferred = (canonical_domain, canonical_action) in _DEFERRED_KEYS
+    chain = _ANCESTOR_CHAIN.get()
+
+    if not is_deferred:
+        # Compute resolved target key as string
+        key = _make_ancestor_key(canonical_domain, canonical_action, params)
+        if key in chain:
+            return _json.dumps(error(
+                f"call cycle detected: {key} re-entered (chain: {' → '.join(chain)})",
+                "ERR_EXECUTION",
+            ), ensure_ascii=False)
+        # Push key onto chain, call handler, pop on exit
+        token = _ANCESTOR_CHAIN.set(chain + (key,))
+    else:
+        token = None
+
+    try:
+        handler = _registry[canonical_domain][canonical_action]
+        result = handler(params)
+    finally:
+        if token is not None:
+            _ANCESTOR_CHAIN.reset(token)
+
+    if isinstance(result, dict):
+        return _json.dumps(ok(result), ensure_ascii=False)
+
     if isinstance(result, str):
-        try:
-            parsed = _json.loads(result)
-            if isinstance(parsed, dict) and "rst_types" in parsed:
-                return result
-        except (_json.JSONDecodeError, TypeError):
-            pass
-    return _json.dumps({"rst_types": "text", "rst_data": {"text": result},
-                        "rst_err": ""}, ensure_ascii=False)
+        return _json.dumps(error(
+            f"Handler for {domain};{action} returned str — handlers must return dict. "
+            f"See package-python-dev-guide_zh.md for the updated handler contract.",
+            "ERR_EXECUTION",
+        ), ensure_ascii=False)
+
+    return _json.dumps(error(
+        f"Handler for {domain};{action} returned unexpected type {type(result).__name__}",
+        "ERR_EXECUTION",
+    ), ensure_ascii=False)
+
+
+def _make_ancestor_key(canonical_domain: str, canonical_action: str,
+                       params: list[str]) -> str:
+    """Build a resolved target key string for ancestor chain tracking.
+
+    Key format:
+        path:<id>        — for text-cli;path (params[0] = path id)
+        agg:<name>       — for aggregate domain entries (matches pro's early check key)
+        native:<domain>;<action> — for all other directives
+    """
+    if canonical_domain == "text-cli" and canonical_action == "path" and params:
+        return f"path:{params[0]}"
+    # Check if this domain is an aggregate entry (so pro's agg:<name> can match)
+    if _is_aggregate_domain(canonical_domain):
+        return f"agg:{canonical_domain}"
+    return f"native:{canonical_domain};{canonical_action}"
+
+
+# Aggregate domain names — populated by main.py's _load_aggregates() on startup.
+# Used by _make_ancestor_key to emit agg:<domain> keys for pro early-check matching.
+_known_aggregate_domains: set = set()
+
+
+def register_aggregate_domain(domain: str) -> None:
+    """Register a domain as an aggregate entry (called by main.py on startup)."""
+    _known_aggregate_domains.add(domain)
+
+
+def _is_aggregate_domain(domain: str) -> bool:
+    return domain in _known_aggregate_domains
 
 
 def get_registered_directives() -> dict[str, list[str]]:

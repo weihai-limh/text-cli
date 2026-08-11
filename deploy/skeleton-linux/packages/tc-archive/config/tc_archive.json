@@ -1,0 +1,6 @@
+{
+  "allowed_paths": ["./"],
+  "max_uncompressed_size_mb": 500,
+  "max_files": 10000,
+  "max_file_size_mb": 100
+}
