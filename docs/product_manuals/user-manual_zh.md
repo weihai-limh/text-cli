@@ -546,7 +546,7 @@ AI:key;get,<svc>
 AI:key;revoke,<svc>
 ```
 
-> `key;get` 的安全边界见 3.16。
+> `key;get` 的安全边界见 §3.19。
 
 #### 3.10 任务管理
 
@@ -738,21 +738,6 @@ Endpoint 部署在公网入口，Service 在内网。`A3_BACKENDS` 指向 Servic
 
 ---
 
-### Part F：门面与聚合（≥A8/A9）
-
-#### 3.21 `text-cli;pro` 简名映射
-
-```bash
-curl ... -d '{"prompt":"AI:text-cli;pro,calc,1+2+3"}'
-# → {"status":"ok","result":6}
-```
-
-`service/config/pro_registry.json`（附录 E）定义简名→目标映射。两种 target：`aggregate`（原子指令）和 `path`（路径引擎）。
-
-#### 3.22 聚合降级链
-
-`aggregate/map.json`（附录 D）定义多提供方降级顺序。配额耗尽自动切换，调用方无感知。显性指定 provider：`AI:map;geocode,北京,gd-map`。
-
 ### Part E 补充：对外暴露（Skills）
 
 Service 通过 `/text-cli/skills` 端点向 Endpoint 暴露已注册指令清单。这是 Endpoint 聚合后端指令表的唯一数据源。
@@ -768,6 +753,23 @@ Service 通过 `/text-cli/skills` 端点向 Endpoint 暴露已注册指令清单
 curl http://localhost:28050/text-cli/skills
 # → {"branch-demo": {"visibility":"public","type":"pipeline",...}}
 ```
+
+---
+
+### Part F：门面与聚合（≥A8/A9）
+
+#### 3.21 `text-cli;pro` 简名映射
+
+```bash
+curl ... -d '{"prompt":"AI:text-cli;pro,calc,1+2+3"}'
+# → {"status":"ok","result":6}
+```
+
+`service/config/pro_registry.json`（附录 E）定义简名→目标映射。两种 target：`aggregate`（原子指令）和 `path`（路径引擎）。
+
+#### 3.22 聚合降级链
+
+`aggregate/map.json`（附录 D）定义多提供方降级顺序。配额耗尽自动切换，调用方无感知。显性指定 provider：`AI:map;geocode,北京,gd-map`。
 
 ---
 

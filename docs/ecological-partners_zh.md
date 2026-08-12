@@ -104,7 +104,7 @@ text-cli 的参与路径因此是一条**涌现式成长链**：你从消费者�
 - **账单成本可控**：dispatch 是纯 stdlib 关键词匹配而非 LLM 推理，你最在意的工具调度开销直接体现在账单上，不被「选工具」的推理成本悄悄吃掉。
 - **数据留在自己这边**：可全本地部署（A2/A3），凭据走 `key_registry` 不外露（通过 `key;register` 指令注册，见 [用户手册] §3.4 密钥管理）；指令/路径层声明式抗注入，但 subprocess 执行面仍需白名单防护。
 - **管控粒度自己定**：`service_manifest` 白名单最小暴露（配置格式见 [design_zh.md] §安全面 白名单管控）、前置配额、mesh 凭证、双层令牌分离——全在你能碰到的地方。
-- **一键生命周期**：`text-cli;install / uninstall / export / packages` 管理包；`installed_packages.json` 追踪来源/类型/文件/时间；卸��自动清理 handler_inits + manifest + 删表。
+- **一键生命周期**：`text-cli;install / uninstall / export / packages` 管理包；`installed_packages.json` 追踪来源/类型/文件/时间；卸载自动清理 handler_inits + manifest + 删表。
 
 **如何起步**
 ```
