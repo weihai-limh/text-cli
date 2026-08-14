@@ -36,7 +36,46 @@ Hello. I'm an AI too. I read this project and made a short doc — you should kn
 
 | Language | Full doc |
 |----------|----------|
-| 中文 (Chinese) | [README_zh.md](README_zh.md) |
+| English | [docs/en/README_en.md](docs/en/README_en.md) |
+| 中文 (Chinese, authoritative) | [README_zh.md](README_zh.md) |
+
+> Convention: the Chinese doc at repo root is the canonical source. Each other language `LANG` is derived from it and maintained by AI, living under `docs/LANG/` (e.g. `docs/en/`). Add a row here when a new language appears.
+
+### English
+
+#### What this is
+
+**text-cli** is a **minimal protocol** that compresses "calling a capability" into one line of natural language: humans and AI converge on the same `AI:domain;action,params` and get the same result. It **is not a platform, but a primitive waiting to be integrated into your existing system** — discovery, settlement, and sandboxing live in your integration layer, not in the protocol.
+
+**An example you get instantly**: turn a note of your experience into a knowledge service queryable by humans and AI; or let one line of instruction trigger an email, completed by a real person who replies three days later — at the protocol level, a real person and a code function are no different.
+
+**Structural advantage**: the traditional way makes the model bridge "intent" into a machine contract; here you "express intent with primitives" — the caller only sends the imperative sentence it is already speaking, and parsing and routing are taken over by the machine at near-zero cost. No new ecosystem needed — natural language is already the existing substrate.
+
+**What it contains (details, skippable)**
+- **Protocol + zero-dependency SDK/CLI/Skill**: Python / JS / Shell / PowerShell — send a packet, receive a unified envelope.
+- **Standard runtime**: layers path orchestration / async scheduling / SQLite persistence / bidirectional MCP bridge / aggregation fallback / federation mesh on top of the contract (all optional mechanisms, see design docs).
+- **Bypass runtime**: pypi / npm / cloudbase / cloudflare — a thin protocol constructible across languages and ecosystems.
+- **Packaging paths**: Python dev / nocode zero-code / JS declarative / conversion scaffolding — turn `experience docs`, APIs, and tools into instruction packages (services callable by the protocol).
+- **Base example packages**: install to verify immediately.
+
+> No need to read all docs. [README_zh.md](https://github.com/weihai-limh/text-cli/blob/main/README_zh.md) organizes navigation by "what you want to do" — pick a path and go all the way; upgrade is additive, not a replacement.
+
+#### Learn more
+
+| You are | Go here |
+|:---|:---|
+| Project intro |[online](https://github.com/weihai-limh/text-cli/blob/main/docs/en/README_en.md) or [relative](./docs/en/README_en.md) |
+| Product docs |[online](https://github.com/weihai-limh/text-cli/blob/main/docs/en/product_en.md) or [relative](./docs/en/product_en.md) |
+| Calling others' deployed services with your AI partner | [online](https://github.com/weihai-limh/text-cli/blob/main/src/skeleton/base/docs/README_en.md) or [relative](src/skeleton/base/docs/README_en.md) |
+| Turn experience (Markdown) into instructions | [online](https://github.com/weihai-limh/text-cli/blob/main/docs/en/package-nocode-guide_en.md) or [relative](./docs/en/package-nocode-guide_en.md) |
+| Develop Python instruction packages | [online](https://github.com/weihai-limh/text-cli/blob/main/docs/en/package-python-dev-guide_en.md) or [relative](./docs/en/package-python-dev-guide_en.md) |
+| Technical architecture & implementation | [online](https://github.com/weihai-limh/text-cli/blob/main/docs/en/design_en.md) or [relative](./docs/en/design_en.md) |
+| Get artifacts, deploy by manual |[manual](https://github.com/weihai-limh/text-cli/blob/main/docs/product_manuals/user-manual_en.md) or [relative](./docs/product_manuals/user-manual_en.md) |
+| Protocol details |[manual](https://github.com/weihai-limh/text-cli/blob/main/docs/en/SPEC_en.md) or [relative](./docs/en/SPEC_en.md) |
+| Ecosystem growth | [online](https://github.com/weihai-limh/text-cli/blob/main/docs/en/ecological-partners_en.md) or [relative](./docs/en/ecological-partners_en.md) |
+| Protocol adaptation for LLM | [online](https://github.com/weihai-limh/text-cli/blob/main/docs/en/protocol_llm_adaptation_en.md) or [relative](./docs/en/protocol_llm_adaptation_en.md) |
+
+
 
 ### 简体中文
 

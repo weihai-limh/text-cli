@@ -27,13 +27,15 @@ A5 是 service 的公网门面。不暴露 service IP，不执行指令逻辑，
 
 A5 不是垂直叠加层——不参与骨架累积链，不参与 `build-all.py`。它是水平旁路，独立于整个垂直栈部署。A2-A9 的累积累积对它不适用。
 
-详见 `deploy/A5-endpoint/docs/` 下的专属文档。
+详见源码级专属文档：[`A5-endpoint/python/README_zh.md`](../A5-endpoint/python/README_zh.md) 与 [`A5-endpoint/js/README_zh.md`](../A5-endpoint/js/README_zh.md)。
 
 ## Endpoint 职责
 
 | 职责 | 说明 |
 |------|------|
 | Access Token 鉴权 | 验证调用方身份，支持额度控制 + 令牌桶限流 |
+| IP 封锁 | 命中 IP 黑名单直接返回 403，阻断恶意来源 |
+| Service Token 前缀识别 | 提取 Service Token 前 8 位作为控制面识别前缀，支持前缀黑名单/白名单封锁 |
 | 指令解析 | 从 prompt 中提取 domain、action、params（双前缀协议） |
 | Schema 路由匹配 | 根据指令找到对应后端 service 的地址 |
 | 请求转发 | 透传 Service Token 到后端，含自动重试 |
@@ -66,5 +68,3 @@ Endpoint **不持有指令包，不执行任何指令逻辑**。收到请求 →
 | A5 | Endpoint（公网入口） | 有协议有 skill，但没地方发请求 |
 
 ---
-
-_2026-07-16_

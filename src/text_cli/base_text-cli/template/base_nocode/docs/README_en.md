@@ -100,7 +100,7 @@ AuthEnabled = True
 ServiceToken = "my-secret"
 ```
 
-Callers must include `Authorization: Bearer my-secret`. Wrong or missing token returns `ACCESS_DENIED`.
+Callers must include the `Service-token: my-secret` header. Wrong or missing token returns `SERVICE_DENIED`.
 
 ## Reference instances
 

@@ -146,22 +146,24 @@ text-cli 不预设"人提供工具、AI 消费工具"。**任何一端创造的�
 1.通过自然语言调用'软件工程制品的服务能力'
 1.1.传统工具调用
 ```
-AI:tc-math;eval,2+3*4 → {"status":"ok","result":7}
-AI:tc-json;parse,{"name":"text-cli"} → {"status":"ok","result":...}
+AI:tc-math;eval,2+3*4 → {"rst_types":"text","rst_data":{"status":"ok","result":14},"rst_err":""}
+AI:tc-json;parse,{"name":"text-cli"} → {"rst_types":"text","rst_data":{"status":"ok","result":{"name":"text-cli"}},"rst_err":""}
 ```
 ```bash
 # 试试：curl -X POST <你的端点>/text-cli/cli -d '{"prompt":"AI:tc-math;eval,2+3*4"}'
 ```
 1.2.webapi 调用（示意 · 需自备 key）
 ```
-AI:天气;查询,明天,威海 → {"温度":"24-32°C","天气":"晴"}
-AI:翻译;文本,Hello World,zh → "你好，世界"
+AI:天气;查询,明天,威海 → {"rst_types":"text","rst_data":{"status":"ok","result":"威海明日天气：25.0-33.4°C，雷阵雨，……"},"rst_err":""}
+AI:翻译;文本,Hello World,zh → {"rst_types":"text","rst_data":{"status":"ok","result":"你好，世界"},"rst_err":""}
 ```
 1.3.容器 api 调用（示意 · 私有部署已验证）
 ```
-AI:jellyfin;library → [{"name":"电影","type":"movies"},{"name":"音乐","type":"music"}]
-AI:aria2;add,https://example.com/file.zip → {"status":"ok","gid":"abc123"}
+AI:jellyfin;library → {"rst_types":"text","rst_data":{"status":"ok","result":[{"name":"电影","type":"movies"},{"name":"音乐","type":"music"}]},"rst_err":""}
+AI:aria2;add,https://example.com/file.zip → {"rst_types":"text","rst_data":{"status":"ok","result":{"gid":"abc123"}},"rst_err":""}
 ```
+> 以上 `rst_data` 内为 handler 返回，外层 `{rst_types,rst_data,rst_err}` 才是协议统一信封（成功时 `rst_err` 为空串，失败时为枚举错误码，业务错误统一走 `rst_data.reason`）。
+
 2.通过一行文本指令（祈使格式）调用'其他能力提供者封装的基于专业领域封装的经验
 ```
 AI:花卉养护;诊断,月季叶子卷曲有黏糊糊液体 → 蚜虫诊断 + 洗衣粉水处理方案
@@ -169,7 +171,7 @@ AI:nocode-CN;诊断,盆栽茎发黑一碰就掉 → 根腐病诊断 + 换土重�
 ```
 3.通过自然语言调用'其他能力提供者封装的限时人工服务'
 ```
-AI:人工;预约,水管工,明天下午,厨房水槽漏水 → {"status":"ok","appointment":"2026-07-24 14:00"}
+AI:人工;预约,水管工,明天下午,厨房水槽漏水 → {"rst_types":"text","rst_data":{"status":"ok","appointment":"2026-07-24 14:00"},"rst_err":""}
 ```
 
 项目本体包含'多种运行时'、'指令集成端点'。skeleton（构建骨架）本身不含任何指令包；而**标准运行时发行物**随附基础指令包——所有其他指令能力由生态包灌入。为了让使用者能够自建指令包和验证运行时完整性，项目提供：
@@ -231,7 +233,7 @@ AI:天气;查询,明天,威海
   → Dispatch 解析 → domain=天气, action=查询, params=[明天, 威海]
   → Registry 匹配 → handler 映射
   → Handler 执行 → {"status":"ok","result":{...}}
-  → JSON 信封返回（以上为 handler 逻辑返回；运行时封装为统一文本信封，由 base 适配器吸收，详见 `docs/SPEC_zh.md` §1.2.2）
+  → 运行时封装为统一文本信封返回（以上为 handler 逻辑返回；统一信封 {rst_types,rst_data,rst_err} 是协议唯一的出口形状，详见 `docs/SPEC_zh.md` §1.2.2）
 
 （示例以「天气」能力示意；开箱自带的是无 key 工具包，见上方「你 clone 完马上能得到什么 / 需要自己接什么」表）
 ```
@@ -283,9 +285,9 @@ graph LR
     A -->|AI:text-cli;query| Q1[翻译能力]
     B -->|AI:text-cli;query| Q2[地图能力]
     C -->|AI:text-cli;query| Q3[天气能力]
+```
 
 > 上图为**目标拓扑示意**：项目提供的标准运行时有mesh能力,开箱时你只有本机工具包；要获得跨节点的远端能力，需接入他人部署的运行时（项目去中心化，需自行寻找或部署运行时；项目不运营发现服务，但可通过 `query` 和 `/skills` 发现远端运行时的能力——确认对端可作为 mesh peer 后，将其加入 `proxy_routes.json` 建立请托关系，此后对该对端的指令请求自动走 mesh 转发解决，可自建发现层）。
-```
 
 ### 指令集成端点
 

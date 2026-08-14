@@ -4,6 +4,8 @@
 
 service 分组下的骨架层绑定 **service 运行时（:28050）**——它是 text-cli 的平台管理核心。从 A3 的基础安装/卸载到 A9 的全量聚合降级，service 是骨架累积链的主干。
 
+> A5（集成端点，:29050）是**独立水平层**，不在此分组的累积链内，由 `src/skeleton/endpoint/` 承载，详见其分组文档。本分组覆盖 A3→A9。
+
 ## 累积链
 
 ```
@@ -15,28 +17,28 @@ A3-service（基础平台）
           → A9-advanced（高级指令 — 累积终点）
 ```
 
-每层在上一层基础上增加新能力。后层同名文件覆盖前层，`build-all.py` 保证累积正确。
+每层在上一层基础上增加新能力。后层同名文件覆盖前层，`build-all.py` 保证累积正确。A5 endpoint 与旁路运行时（CloudBase/PyPI/npm/Cloudflare）不参与累积链——水平独立分发。
 
 ---
 
 ## A3 — Service 平台管理核心
 
-可被 agent-copilot 代理调用的标准指令服务。10 个骨架 handler + 包安装机制 + 多运行时支持（python / node / mcp / cmd / path / aggregate）。
+可被 agent-copilot 代理调用的标准指令服务。9 类骨架 handler（path 在 A4 子目录，pro 在 A9 子目录，其余在 A3）+ 包安装机制 + 多运行时支持（python / node / mcp / cmd / path / aggregate）。
 
 ### 骨架 Handler
 
-| 文件 | 指令 | 说明 |
-|------|------|------|
-| `text_cli_path.py` | `text-cli;path` | 路径引擎骨架（A4 升级为完整引擎版） |
-| `text_cli_pro.py` | `text-cli;pro` | copilot 代理转发 |
-| `text_cli_install.py` | `text-cli;install` `文本指令;安装` | 包安装（pip/npm 依赖 + 文件部署 + manifest 注册） |
-| `text_cli_export.py` | `text-cli;export` `文本指令;导出` | 包导出 |
-| `text_cli_uninstall.py` | `text-cli;uninstall` `文本指令;卸载` | 包卸载（含 DROP TABLE） |
-| `text_cli_nocode.py` | `text-cli;nocode` | Markdown 经验文档自动转化 |
-| `package_manifest.py` | — | 清单持久化 |
-| `schema_query.py` | `text-cli;query` | schema 查询 |
-| `proxy.py` | — | 代理路由（含 `sensitive` 脱敏） |
-| `js_bridge.py` | — | Node.js 运行时桥 |
+| 文件 | 所在层 | 指令 | 说明 |
+|------|--------|------|------|
+| `text_cli_path.py` | A4 | `text-cli;path` | 完整路径引擎（A4 升级为完整引擎版） |
+| `text_cli_pro.py` | **A9** | `text-cli;pro` | 门面抽象（path / aggregate 两类目标入口） |
+| `text_cli_install.py` | A3 | `text-cli;install` `文本指令;安装` | 包安装（pip/npm 依赖 + 文件部署 + manifest 注册） |
+| `text_cli_export.py` | A3 | `text-cli;export` `文本指令;导出` | 包导出 |
+| `text_cli_uninstall.py` | A3 | `text-cli;uninstall` `文本指令;卸载` | 包卸载（含 DROP TABLE） |
+| `text_cli_nocode.py` | A3 | `text-cli;nocode` | Markdown 经验文档自动转化 |
+| `package_manifest.py` | A3 | — | 清单持久化 |
+| `schema_query.py` | A3 | `text-cli;query` | schema 查询 |
+| `proxy.py` | A3 | — | 代理路由（含 `sensitive` 脱敏；联邦 Mesh 转发逻辑在 A9） |
+| `js_bridge.py` | A3 | — | Node.js 运行时桥 |
 
 ### 包分类
 
@@ -102,6 +104,9 @@ AI 读 JSON 理解步骤             引擎解析 if/degradation/timeout
 | — | 降级递补 | `"degradation": [...]` |
 | L2 | 并行执行 | `"mode": "parallel"` + first_ok/all |
 | L2 | 函数表达式 | count/size/exists + eq/gt/lt/gte/lte/ne |
+| L2 | 循环迭代 | `"map": {...}`，`MAP_HARD_CAP=1000`，嵌套深度 ≤ 2 防失控 |
+| L2 | 跨节点派发 | HTTP `http_dispatch` 调用远端运行时 |
+| — | 统一 step 派发器 | 所有 step 经 `_dispatch_step` 统一路由（local / aggregate / http） |
 
 ### 快速开始
 
@@ -151,7 +156,9 @@ quota;check,tx-cloud-asr              # 消耗 1 次调用
 
 ### Token 身份管理
 
-A6 骨架新增两张表。请求入口中间件提取 Service-token 后 6 位 → 查 `token_registry` 准入 → 注入 identity_code。
+A6 骨架新增两张表。请求入口中间件提取 Service-token 后 6 位（token 长度 ≥ 15 时）→ 查 `token_registry` 准入 → 注入 identity_code。
+
+> 口径说明：service 单体以 **后 6 位** 作为身份码；集成端点（A5，:29050）以 **前 8 位** 作为控制面识别前缀。二者作用域不同，不冲突。
 
 **`token_registry`** — token 准入控制：
 
@@ -188,7 +195,7 @@ MCP server  ←→  text-cli 指令
 
 调用方用同样的 `AI:域;动作,参数` 协议调用，不感知底层传输差异（MCP、native handler、Skill Bridge 地位平等）。
 
-`MCPservice/` 是独立的反向代理 MCP 子服务，与 copilot/service 平级运行。
+`MCPservice/` 是独立的反向代理 MCP 子服务，与 copilot/service 平级运行，默认监听 `:9020`（SSE）。它由 main.py 的 lifespan 守护钩子拉起；当 A3 单独部署、未启用 MCP 时自动跳过。
 
 ---
 
@@ -264,5 +271,3 @@ map;geocode,威海
 service 分组下的骨架层参与 `build-all.py` 的标准累积链。后层的真源覆盖前层同名文件。
 
 ---
-
-_2026-07-16_

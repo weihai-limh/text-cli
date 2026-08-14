@@ -397,7 +397,7 @@ class TextCliHandler(BaseHTTPRequestHandler):
         if self.AuthEnabled and self.ServiceToken:
             token = self.headers.get("Service-token", "")
             if token != self.ServiceToken:
-                self._send_json({}, "ACCESS_DENIED")
+                self._send_json({}, "SERVICE_DENIED")
                 return
 
         length = int(self.headers.get("Content-Length", 0))

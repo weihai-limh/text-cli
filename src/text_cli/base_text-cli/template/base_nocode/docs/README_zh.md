@@ -107,7 +107,7 @@ AuthEnabled = True
 ServiceToken = "my-secret"
 ```
 
-开启后调用方须在请求头带 `Authorization: Bearer my-secret`。token 不匹配返回 `ACCESS_DENIED`。
+开启后调用方须在请求头带 `Service-token: my-secret`。token 不匹配返回 `SERVICE_DENIED`。
 
 ## 参考实例
 
