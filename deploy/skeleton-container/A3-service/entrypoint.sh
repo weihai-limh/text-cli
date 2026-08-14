@@ -1,27 +1,24 @@
 #!/bin/bash
-# text-cli 沙箱启动器入口（方案定型 2026-08-13，回灌真源 2026-08-14）
+# text-cli A3-service 沙箱启动器入口（薄沙箱统一方案，2026-08-14 回灌）
+# A3 = copilot(A2) + service(A3)，同容器融合。
 #
 # 容器 = 沙箱 + 启动器：代码 bake 在 /app/seed，首次运行吐到外挂点 /app/runtime。
-# 代码/包/数据全外挂宿主机 —— 频繁装包、热更新不 rebuild。
+# 代码/数据全外挂宿主机 —— 频繁装包、热更新不 rebuild。
 #
 # 环境变量：
 #   PORT                service 端口（默认 28050）
-#   MCP_PORT            MCP bridge 端口（默认 9020）
 #   RUNTIME_DIR         代码外挂点（默认 /app/runtime，docker -v 挂载）
 #   SEED_DIR            镜像内代码种子（默认 /app/seed）
 #   SERVICE_TOKEN       service 鉴权 token
-#   COPILOT_ENABLED     是否启用 copilot（默认 true）
-#   MCP_ENABLED         是否启用 MCP bridge（默认 true）
+#   COPILOT_ENABLED     是否启用 copilot（默认 true；127.0.0.1:20260）
 #   LOG_LEVEL           日志级别（默认 info）
 
 set -e
 
 PORT="${PORT:-28050}"
-MCP_PORT="${MCP_PORT:-9020}"
 RUNTIME_DIR="${RUNTIME_DIR:-/app/runtime}"
 SEED_DIR="${SEED_DIR:-/app/seed}"
 COPILOT_ENABLED="${COPILOT_ENABLED:-true}"
-MCP_ENABLED="${MCP_ENABLED:-true}"
 
 # ------------------------------------------------------------------
 # [前置] 首次吐代码：若外挂 runtime 空，从镜像 seed 复制
@@ -44,8 +41,8 @@ if [ ! -d "$RUNTIME_DIR/service" ]; then
     exit 1
 fi
 
-# 用外挂点设置 PYTHONPATH（代码在 RUNTIME_DIR 下）
-export PYTHONPATH="$RUNTIME_DIR/service:$RUNTIME_DIR/copilot:$RUNTIME_DIR/mcp"
+# 用外挂点设置 PYTHONPATH 与 TEXT_CLI_HOME
+export PYTHONPATH="$RUNTIME_DIR/service:$RUNTIME_DIR/copilot"
 export TEXT_CLI_HOME="${TEXT_CLI_HOME:-$RUNTIME_DIR}"
 
 # ------------------------------------------------------------------
@@ -78,41 +75,24 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 # ------------------------------------------------------------------
-# [0/3] copilot（条件启动，127.0.0.1:20260）
+# [0/2] copilot（条件启动，127.0.0.1:20260）
 # ------------------------------------------------------------------
 if [ "$COPILOT_ENABLED" = "true" ]; then
-    echo "[0/3] starting copilot (127.0.0.1:20260)..."
+    echo "[0/2] starting copilot (127.0.0.1:20260)..."
     cd "$RUNTIME_DIR/copilot"
     python text-cli-copilot.py &
     COPILOT_PID=$!
-    echo "[0/3] copilot started (pid $COPILOT_PID)"
+    echo "[0/2] copilot started (pid $COPILOT_PID)"
     cd "$RUNTIME_DIR/service"
 else
-    echo "[0/3] copilot disabled (COPILOT_ENABLED=$COPILOT_ENABLED)"
+    echo "[0/2] copilot disabled (COPILOT_ENABLED=$COPILOT_ENABLED)"
 fi
 
 # ------------------------------------------------------------------
-# [1/3] MCP bridge（条件启动，0.0.0.0:${MCP_PORT}）
+# [1/2] service（0.0.0.0:${PORT}，前台运行）
 # ------------------------------------------------------------------
-if [ "$MCP_ENABLED" = "true" ]; then
-    echo "[1/3] starting MCP bridge (0.0.0.0:${MCP_PORT})..."
-    export MCP_PORT
-    cd "$RUNTIME_DIR/mcp"
-    python server.py &
-    MCP_PID=$!
-    echo "[1/3] MCP bridge started (pid $MCP_PID)"
-    cd "$RUNTIME_DIR/service"
-else
-    echo "[1/3] MCP bridge disabled (MCP_ENABLED=$MCP_ENABLED)"
-fi
-
-# ------------------------------------------------------------------
-# [2/3] service（0.0.0.0:${PORT}，始终启动，前台运行）
-# ------------------------------------------------------------------
-echo "[2/3] starting service (0.0.0.0:${PORT})..."
+echo "[1/2] starting service (0.0.0.0:${PORT})..."
 export PORT
-# 聚合路由表在 service/aggregate/（seed 已随 service 带入）
-export AGGREGATE_DIR="${AGGREGATE_DIR:-$RUNTIME_DIR/service/aggregate}"
 
 # 等待 copilot 就绪（如果启用）
 if [ "$COPILOT_ENABLED" = "true" ] && [ -n "$COPILOT_PID" ]; then

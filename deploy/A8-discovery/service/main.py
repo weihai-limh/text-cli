@@ -154,7 +154,7 @@ def _internal_dispatch(domain: str, action: str, params: list) -> dict:
     except Exception as e:
         logger.debug("dispatch error for %s;%s: %s", domain, action, e)
         return {"rst_types": "text", "rst_data": {"status": "error", "reason": "dispatch error"},
-                "rst_err": "internal_error"}
+                "rst_err": "ERR_EXECUTION"}
     try:
         result = json.loads(result_str)
         if isinstance(result, dict):
@@ -163,7 +163,7 @@ def _internal_dispatch(domain: str, action: str, params: list) -> dict:
                 "rst_err": ""}
     except (json.JSONDecodeError, TypeError):
         return {"rst_types": "text", "rst_data": {"status": "error", "reason": result_str},
-                "rst_err": "json_parse_error"}
+                "rst_err": "ERR_EXECUTION"}
 
 
 # SQLite 模块检测
@@ -336,7 +336,7 @@ async def image_cache_retrieve(key: str):
         return JSONResponse(
             status_code=410,
             content={"rst_types": "text", "rst_data": {"status": "error", "reason": "cache expired or not found"},
-                      "rst_err": "cache_expired"},
+                      "rst_err": "ERR_NOT_FOUND"},
         )
     return Response(content=data, media_type="text/plain; charset=utf-8")
 
@@ -368,7 +368,7 @@ async def health(request: Request):
             "capabilities": {
                 "packages": [p for p in installed if p not in ("sample",)],
                 "domains": sorted(directives.keys()),
-                "runtimes": ["python", "node", "mcp", "cmd"],
+                "runtimes": ["python", "js", "mcp", "cmd"],
             },
             "endpoints": {
                 "skills": "/text-cli/skills",
@@ -534,10 +534,14 @@ async def handle_directive(request: Request):
             local_handled = isinstance(result, str) and not str(result).startswith("No matching directive")
 
     if local_handled:
-        return ok(result)
+        # dispatch() returns a JSON string already wrapped in the protocol envelope
+        return JSONResponse(content=json.loads(result))
 
     # 3. 本地未匹配 → 尝试 MCP（作为后备路由）
-    mcp_route = get_mcp_route(parsed.domain, parsed.action)
+    if get_mcp_route is not None:
+        mcp_route = get_mcp_route(parsed.domain, parsed.action)
+    else:
+        mcp_route = None
     if mcp_route:
         # Quota check before MCP fallback call
         quota_block = check_mcp_quota(
@@ -589,7 +593,20 @@ async def handle_directive(request: Request):
         return JSONResponse(content=proxy_result)
 
     # 5. 都没有 → 返回本地结果
-    response = ok(result)
+    # dispatch() returns a JSON string already wrapped; if result is empty/None, fall back to ERR_NOT_FOUND
+    if result:
+        try:
+            response = JSONResponse(content=json.loads(result))
+        except (json.JSONDecodeError, TypeError):
+            response = JSONResponse(
+                status_code=500,
+                content=error(f"Internal dispatch error for {parsed.domain};{parsed.action}", "ERR_EXECUTION"),
+            )
+    else:
+        response = JSONResponse(
+            status_code=404,
+            content=error(f"No matching directive: {parsed.domain};{parsed.action}", "ERR_NOT_FOUND"),
+        )
     _write_call_log(request, auth, parsed, _req_start, True)
     return response
 
@@ -621,8 +638,8 @@ async def skills_detail(skill_id: str):
     if detail is None:
         return JSONResponse(
             status_code=404,
-            content={"status": "error", "error": "not_found",
-                      "message": f"skill '{skill_id}' not found or not exposed"},
+            content={"rst_types": "text", "rst_data": {"status": "error", "reason": f"skill '{skill_id}' not found or not exposed"},
+                      "rst_err": "ERR_NOT_FOUND"},
         )
     return JSONResponse(content=detail)
 
@@ -701,15 +718,15 @@ async def copilot_proxy(request: Request, rest: str):
         logger.error("copilot proxy error: %s -> %d", rest, e.response.status_code)
         return JSONResponse(
             status_code=e.response.status_code,
-            content={"rst_types": "text", "rst_data": {"status": "error", "reason": f"[proxy] copilot returned {e.response.status_code}"},
-                      "rst_err": "proxy_error"},
+            content={"rst_types": "text", "rst_data": {"status": "error", "reason": f"[routing_error] copilot returned {e.response.status_code}"},
+                      "rst_err": "ERR_ROUTING"},
         )
     except Exception as e:
         logger.error("copilot proxy failed: %s", e)
         return JSONResponse(
             status_code=502,
-            content={"rst_types": "text", "rst_data": {"status": "error", "reason": f"[proxy] {e}"},
-                      "rst_err": "proxy_error"},
+            content={"rst_types": "text", "rst_data": {"status": "error", "reason": f"[routing_error] {e}"},
+                      "rst_err": "ERR_ROUTING"},
         )
 
 
@@ -773,7 +790,7 @@ async def get_task(task_id: str):
         return JSONResponse(
             status_code=404,
             content={"rst_types": "text", "rst_data": {"status": "error", "reason": f"task not found: {task_id}"},
-                      "rst_err": "not_found"},
+                      "rst_err": "ERR_NOT_FOUND"},
         )
     return JSONResponse(content={"status": "ok", "task": task})
 

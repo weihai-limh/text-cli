@@ -28,22 +28,22 @@ SERVICE_ROOT = HANDLERS_DIR.parent
 
 
 @directive("text-cli", "export", domain_alias="文本指令", action_aliases={"export": "导出"})
-def text_cli_export(params: list[str]) -> str:
+def text_cli_export(params: list[str]) -> dict:
     """Export a package to text-cli-package/<id>/"""
     if not params:
-        return json.dumps({
+        return {
             "status": "error",
             "reason": "Usage: text-cli;export,<package_id>[,--verify]"
-        })
+        }
 
     pkg_id = params[0]
     do_verify = "--verify" in params
     pkg = get(pkg_id)
     if not pkg:
-        return json.dumps({
+        return {
             "status": "error",
             "reason": f"Package '{pkg_id}' not in manifest. Install it first or use text-cli;register"
-        })
+        }
 
     try:
         dest = PACKAGE_DIR / pkg_id
@@ -143,59 +143,59 @@ def text_cli_export(params: list[str]) -> str:
             if src.exists():
                 shutil.copy2(src, dest / "README.md")
 
-        return json.dumps({
+        return {
             "status": "ok",
             "package": pkg_id,
             "type": pkg_type,
             "dest": str(dest),
             **(_verify_export(dest, pkg_id, pkg_type, pkg) if do_verify else {}),
-        }, ensure_ascii=False)
+        }
 
     except Exception as e:
         logger.exception("export failed for %s", pkg_id)
-        return json.dumps({"status": "error", "reason": str(e)})
+        return {"status": "error", "reason": str(e)}
 
 
 @directive("text-cli", "export-all", domain_alias="文本指令", action_aliases={"export-all": "全部导出"})
-def text_cli_export_all(params: list[str]) -> str:
+def text_cli_export_all(params: list[str]) -> dict:
     """Export all installed packages."""
     pkgs = list_all()
     if not pkgs:
-        return json.dumps({"status": "ok", "exported": 0, "message": "No packages in manifest"})
+        return {"status": "ok", "exported": 0, "message": "No packages in manifest"}
 
     exported = []
     for pkg in pkgs:
         pkg_id = pkg["id"]
-        result = json.loads(text_cli_export([pkg_id]))
+        result = text_cli_export([pkg_id])
         exported.append({"id": pkg_id, "status": result.get("status", "error")})
 
-    return json.dumps({
+    return {
         "status": "ok",
         "exported": len([e for e in exported if e["status"] == "ok"]),
         "total": len(exported),
         "dest": str(PACKAGE_DIR),
         "packages": exported,
-    }, ensure_ascii=False)
+    }
 
 
 @directive("text-cli", "packages", domain_alias="文本指令", action_aliases={"packages": "已安装包"})
-def text_cli_packages(params: list[str]) -> str:
+def text_cli_packages(params: list[str]) -> dict:
     """List installed packages from manifest."""
     pkgs = list_all()
     if not pkgs:
-        return "No directive packages installed (manifest empty)."
+        return {"status": "ok", "text": "No directive packages installed (manifest empty).", "packages": []}
 
-    lines = [f"installed {len(pkgs)} directive packages:", ""]
+    items = []
     for p in sorted(pkgs, key=lambda x: x.get("id", "")):
         directives = p.get("directives", [])
-        lines.append(f"  {p['id']:20s} {p.get('type','?')}   {len(directives)} directives")
-        for d in directives[:3]:
-            lines.append(f"    - {d}")
-        if len(directives) > 3:
-            lines.append(f"    ... and {len(directives)-3} more")
-        lines.append("")
+        items.append({
+            "id": p["id"],
+            "type": p.get("type", "?"),
+            "directive_count": len(directives),
+            "directives": directives,
+        })
 
-    return "\n".join(lines)
+    return {"status": "ok", "packages": items, "count": len(items)}
 
 
 # ── Verify helper ───────────────────────────────
@@ -239,13 +239,13 @@ def _verify_export(dest: Path, pkg_id: str, pkg_type: str, pkg: dict) -> dict:
 # ── Repair manifest ────────────────────────────
 
 @directive("text-cli", "repair-manifest", domain_alias="文本指令", action_aliases={"repair-manifest": "修复清单"})
-def text_cli_repair_manifest(params: list[str]) -> str:
+def text_cli_repair_manifest(params: list[str]) -> dict:
     """Scan handlers/schema/ and fill missing files.schema in installed packages."""
     packages = _load_manifest_raw()
     schema_dir = HANDLERS_DIR / "schema"
 
     if not schema_dir.is_dir():
-        return json.dumps({"status": "error", "reason": "schema dir not found"})
+        return {"status": "error", "reason": "schema dir not found"}
 
     repaired = []
     unchanged = []
@@ -285,13 +285,13 @@ def text_cli_repair_manifest(params: list[str]) -> str:
     if repaired:
         _save_manifest_raw(packages)
 
-    return json.dumps({
+    return {
         "status": "ok",
         "repaired": repaired,
         "repaired_count": len(repaired),
         "unchanged": len(unchanged),
         "total_scanned": len(packages),
-    }, ensure_ascii=False)
+    }
 
 
 def _load_manifest_raw() -> dict:

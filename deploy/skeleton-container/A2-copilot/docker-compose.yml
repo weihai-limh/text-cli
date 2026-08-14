@@ -8,6 +8,9 @@
 #
 # 设计红线：copilot 仅 127.0.0.1 可达，【禁止】-p 20260:20260 暴露到 0.0.0.0。
 #   用 network_mode: host，让本机 AI 经回环 localhost:20260 调用。
+# -------------------------------------------------------------------------
+# 薄沙箱全外挂（统一方案）：代码外挂宿主机，镜像只含 Python 环境+seed。
+#   runtime/   首次由 entrypoint 从 seed 填充，之后宿主托管（热更新）
 # =========================================================================
 version: '3.8'
 
@@ -19,7 +22,11 @@ services:
     image: text-cli-copilot:local
     # 红线：不发布端口，靠 host 网络让本机回环可达 localhost:20260
     network_mode: host
+    volumes:
+      - ./runtime:/app/runtime
     environment:
+      - RUNTIME_DIR=/app/runtime
+      - SEED_DIR=/app/seed
       - LOG_LEVEL=info
     restart: unless-stopped
     healthcheck:

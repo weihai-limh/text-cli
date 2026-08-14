@@ -16,6 +16,7 @@ from core.auth import (
 from core.database import init_db
 from core.forwarder import forward_request, forward_skill_request
 from core.ip_guard import is_ip_blocked
+from core.response import err
 from core.parser import DirectiveParseError, parse_directive
 from core.rate_limiter import check_rate_limit
 from core.schema_loader import (
@@ -73,7 +74,7 @@ async def security_middleware(request: Request, call_next):
     if is_ip_blocked(client_ip):
         return JSONResponse(
             status_code=403,
-            content={"rst_types": "text", "rst_data": {"status": "error", "reason": "IP_BLOCKED"}},
+            content=err("IP_BLOCKED", "ACCESS_DENIED"),
         )
 
     if request.url.path == "/text-cli/cli" and request.method == "POST":
@@ -83,12 +84,12 @@ async def security_middleware(request: Request, call_next):
             if is_st_prefix_blocked(prefix):
                 return JSONResponse(
                     status_code=403,
-                    content={"rst_types": "text", "rst_data": {"status": "error", "reason": "TOKEN_PREFIX_BLOCKED"}},
+                    content=err("TOKEN_PREFIX_BLOCKED", "ACCESS_DENIED"),
                 )
             if not is_st_prefix_registered(prefix):
                 return JSONResponse(
                     status_code=403,
-                    content={"rst_types": "text", "rst_data": {"status": "error", "reason": "TOKEN_PREFIX_UNKNOWN"}},
+                    content=err("TOKEN_PREFIX_UNKNOWN", "ACCESS_DENIED"),
                 )
 
     path = request.url.path
@@ -96,7 +97,7 @@ async def security_middleware(request: Request, call_next):
     if path == "/text-cli/cli" and not check_rate_limit(is_get=(method == "GET")):
             return JSONResponse(
                 status_code=429,
-                content={"rst_types": "text", "rst_data": {"status": "error", "reason": "RATE_LIMIT_EXCEEDED"}},
+                content=err("RATE_LIMIT_EXCEEDED", "ACCESS_DENIED"),
             )
 
     response = await call_next(request)
@@ -118,7 +119,7 @@ async def handle_text_cli(request: Request):
         if not token_record:
             return JSONResponse(
                 status_code=401,
-                content={"rst_types": "text", "rst_data": {"status": "error", "reason": "ACCESS_DENIED"}},
+                content=err("ACCESS_DENIED", "ACCESS_DENIED"),
             )
     else:
         token_record = None
@@ -128,14 +129,14 @@ async def handle_text_cli(request: Request):
     except Exception:
         return JSONResponse(
             status_code=400,
-            content={"rst_types": "text", "rst_data": {"status": "error", "reason": "INVALID_JSON"}},
+            content=err("INVALID_JSON", "INVALID_PARAMS"),
         )
 
     prompt = body.get("prompt")
     if not prompt:
         return JSONResponse(
             status_code=400,
-            content={"rst_types": "text", "rst_data": {"status": "error", "reason": "INVALID_DIRECTIVE_FORMAT: prompt is required"}},
+            content=err("INVALID_DIRECTIVE_FORMAT: prompt is required", "INVALID_PARAMS"),
         )
 
     try:
@@ -143,14 +144,14 @@ async def handle_text_cli(request: Request):
     except DirectiveParseError as e:
         return JSONResponse(
             status_code=400,
-            content={"rst_types": "text", "rst_data": {"status": "error", "reason": f"{e.code}: {e.message}"}},
+            content=err(f"{e.code}: {e.message}", "INVALID_PARAMS"),
         )
 
     backend_url = find_backend_url(parsed.directive_key)
     if not backend_url:
         return JSONResponse(
             status_code=400,
-            content={"rst_types": "text", "rst_data": {"status": "error", "reason": f"DIRECTIVE_NOT_FOUND: {parsed.directive_key}"}},
+            content=err(f"DIRECTIVE_NOT_FOUND: {parsed.directive_key}", "ERR_NOT_FOUND"),
         )
 
     access_token = None
@@ -176,7 +177,7 @@ async def handle_text_cli(request: Request):
 
     return JSONResponse(
         status_code=result.status_code,
-        content=resp_body if isinstance(resp_body, (dict, list)) else {"rst_types": "text", "rst_data": {"status": "error", "reason": resp_body}},
+        content=resp_body if isinstance(resp_body, (dict, list)) else err(resp_body, "ERR_ROUTING"),
     )
 
 
@@ -197,21 +198,21 @@ async def handle_public_cli(request: Request):
     if not ENABLE_PUBLIC_CLI:
         return JSONResponse(
             status_code=404,
-            content={"rst_types": "text", "rst_data": {"status": "error", "reason": "PUBLIC_CLI_DISABLED"}},
+            content=err("PUBLIC_CLI_DISABLED", "ERR_NOT_FOUND"),
         )
 
     skill_id = request.query_params.get("skill_id")
     if not skill_id:
         return JSONResponse(
             status_code=400,
-            content={"rst_types": "text", "rst_data": {"status": "error", "reason": "INVALID_PARAMS: skill_id is required"}},
+            content=err("INVALID_PARAMS: skill_id is required", "INVALID_PARAMS"),
         )
 
     backend_base = get_backend_base_url()
     if not backend_base:
         return JSONResponse(
             status_code=502,
-            content={"rst_types": "text", "rst_data": {"status": "error", "reason": "BACKEND_UNAVAILABLE"}},
+            content=err("BACKEND_UNAVAILABLE", "ERR_ROUTING"),
         )
 
     body = {k: v for k, v in request.query_params.items() if k != "skill_id"}
@@ -226,5 +227,5 @@ async def handle_public_cli(request: Request):
 
     return JSONResponse(
         status_code=status_code,
-        content=resp_body if isinstance(resp_body, (dict, list)) else {"rst_types": "text", "rst_data": {"status": "error", "reason": resp_body}},
+        content=resp_body if isinstance(resp_body, (dict, list)) else err(resp_body, "ERR_ROUTING"),
     )

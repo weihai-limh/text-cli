@@ -79,16 +79,27 @@ Stop: `./end.sh`
 
 #### Docker
 
+The Copilot image is a thin sandbox (`text-cli-copilot`): it only contains the Python environment + a code seed; the code lives on the host mount, seeded by entrypoint on first run.
+
 ```bash
-docker run -d -p 20260:20260 text-cli-copilot:latest
+# Build context (run build.py to generate .build/ first)
+cd deploy/skeleton-container && python build.py
+
+# Start: host network + host-mounted runtime
+# 🚨 RED LINE: copilot is reachable only on 127.0.0.1 — 【NEVER -p 20260:20260 expose to 0.0.0.0】
+docker run -d --network=host \
+  -v ./runtime:/app/runtime \
+  text-cli-copilot:latest
 ```
 
 **Verify** (identical on all three platforms):
 
 ```bash
-curl http://localhost:20260/text-cli/health
+curl http://127.0.0.1:20260/text-cli/health
 # → {"status":"ok"}
 ```
+
+> **RED LINE**: copilot's default token is empty (no auth); security relies entirely on the `127.0.0.1` loopback boundary. Exposing it to the network (`-p 20260` or listening on 0.0.0.0 without host-network) is exposing your local privileged agent naked — **forbidden**.
 
 > Other configuration items (auth, log level, query language, etc.) are in [§1.5 Configuration](#15-configuration).
 
@@ -127,22 +138,64 @@ Stop: `./end.sh` (`fuser -k` stops by port)
 
 #### Docker
 
+The Service image is a thin sandbox: it only contains the Python environment + a code seed; code/packages/data all live on host mounts, seeded by entrypoint on first run, then host-managed (hot-update without rebuild).
+
+Service artifacts are distributed by tier: `text-cli-service` (A3, copilot+service) and `text-cli-advanced` (A9, copilot+service+MCP+aggregate). Both share the same image structure; A9 adds the MCP port and aggregate. **Every tier includes copilot — you do not need to deploy Copilot separately.**
+
+**Build (either tier)**:
 ```bash
-docker run -d -p 28050:28050 -p 20260:20260 \
+cd deploy/skeleton-container && python build.py   # generate .build/ context
+```
+
+**A3 (`text-cli-service` image)**:
+```bash
+docker run -d --name tc-service \
+  -p 28050:28050 \
+  -v ./runtime:/app/runtime \
+  -v ./data:/app/data \
   -v ./packages:/packages \
+  -e TEXT_CLI_PACKAGE_SOURCE_DIRS=/packages \
+  -e PORT=28050 \
   text-cli-service:latest
 ```
+
+**A9 (`text-cli-advanced` image, full-featured recommended)**:
+```bash
+docker run -d --name tc-advanced \
+  -p 28050:28050 \
+  -p 9020:9020 \
+  -v ./runtime:/app/runtime \
+  -v ./data:/app/data \
+  -v ./packages:/packages \
+  -e TEXT_CLI_PACKAGE_SOURCE_DIRS=/packages \
+  -e PORT=28050 \
+  -e MCP_PORT=9020 \
+  text-cli-advanced:latest
+```
+
+> **🚨 copilot(:20260) is NOT mapped to the host** — copilot binds 127.0.0.1, reachable only on the loopback (red line, see §1.1). Services reach it via internal proxy; you do not need `-p 20260`.
 
 **Verify**:
 
 ```bash
+# service (A3/A9)
 curl http://localhost:28050/text-cli/health
 # → {"status":"ok","domains":["key","quota","task","text-cli"],"sqlite":"enabled"}
+
+# directive list
+curl -X POST http://localhost:28050/text-cli/cli \
+  -H "Content-Type: application/json" \
+  -d '{"prompt":"AI:text-cli;query,compact"}'
+
+# MCP (A9 / A7+)
+curl http://localhost:9020/...
 ```
 
 #### Package source path
 
 The install directive needs to know where directive packages are placed. The environment variable `TEXT_CLI_PACKAGE_SOURCE_DIRS` defaults to the `packages/` directory alongside the artifact. `start.bat` / `start.sh` detect it at startup — outputs `[OK]` if the directory exists, `[WARN]` and a prompt to create it otherwise.
+
+In the container form just mount `packages/` into the image and set the env — `-v ./packages:/packages -e TEXT_CLI_PACKAGE_SOURCE_DIRS=/packages` (see the A3/A9 run examples above); startup detects `[OK]`/`[WARN]` the same way.
 
 > Other configuration items (auth, log level, query language, etc.) are in [§1.5 Configuration](#15-configuration).
 
@@ -170,11 +223,16 @@ cd text-cli-endpoint-python-v*
 
 #### Docker
 
+The Endpoint image is `text-cli-endpoint` (standalone A5 artifact, built separately by `build-endpoint.py`, not included in the A2-A9 accumulation artifacts).
+
 ```bash
-docker run -d -p 29050:29050 text-cli-endpoint:latest
+docker run -d --name tc-endpoint \
+  -p 29050:29050 \
+  -e A3_BACKENDS=http://service:28050 \
+  text-cli-endpoint:latest
 ```
 
-`start-endpoint.bat` / `start.sh` automatically creates the `.venv` and installs dependencies. Detailed configuration parameters are in Chapter 4.
+`start-endpoint.bat` / `start.sh` automatically creates the `.venv` and installs dependencies. Detailed configuration parameters are in Chapter 4 (`backends.yaml` / `A3_BACKENDS` / `ACCESS_TOKEN_REQUIRED` etc.).
 
 **Verify**:
 
@@ -1006,7 +1064,10 @@ pip install fastapi uvicorn httpx pydantic
 
 ```bash
 # Docker
-docker run -d -p 29050:29050 text-cli-endpoint:latest
+# 🚨 endpoint is a standalone A5 artifact, built by build-endpoint.py, not in the A2-A9 accumulation artifacts
+docker run -d -p 29050:29050 \
+  -e A3_BACKENDS=http://service:28050 \
+  text-cli-endpoint:latest
 ```
 
 ### 5.2 Configuration

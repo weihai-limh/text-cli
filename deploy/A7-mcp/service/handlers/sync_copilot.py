@@ -89,7 +89,7 @@ def _spot_check(routes: dict[str, dict]) -> list[str]:
 
 
 @directive("text-cli", "sync-copilot", domain_alias="文本指令", action_aliases={"sync-copilot": "同步副驾"})
-def sync_copilot(params: list[str]) -> str:
+def sync_copilot(params: list[str]) -> dict:
     """
     发现 A2 copilot 指令并自动生成 A3 proxy 路由。
 
@@ -100,12 +100,12 @@ def sync_copilot(params: list[str]) -> str:
     # 1. 发现
     a2_directives = _fetch_a2_directives()
     if not a2_directives:
-        return "A2 copilot not detected on this node (127.0.0.1:20260), skipping sync."
+        return {"status": "error", "reason": "A2 copilot not detected on this node (127.0.0.1:20260)"}
 
     # 2. 路由合成
     routes = _synthesize_routes(a2_directives)
     if not routes:
-        return "No valid routes extracted from A2-discovered directives, skipping write."
+        return {"status": "error", "reason": "No valid routes extracted from A2-discovered directives"}
 
     # 3. 写入 proxy_routes.json
     config_dir = Path(PROXY_CONFIG_PATH).parent
@@ -123,14 +123,16 @@ def sync_copilot(params: list[str]) -> str:
     check_ok = len(checked)
     check_fail = checked_count - check_ok
 
-    # 6. 摘要
-    lines = [
-        "sync-copilot sync complete",
-        f"  A2 discovered: {len(a2_directives)}  directives",
-        f"  generated routes: {len(routes)} 条",
-        f"  wrote file: {PROXY_CONFIG_PATH}",
-        f"  spot-check: {check_ok}/{checked_count} 通过",
-    ]
+    # 6. 摘要 → dict
+    result_data = {
+        "status": "ok",
+        "a2_discovered": len(a2_directives),
+        "routes_generated": len(routes),
+        "wrote_file": PROXY_CONFIG_PATH,
+        "spot_check_ok": check_ok,
+        "spot_check_total": checked_count,
+    }
     if check_fail:
-        lines.append(f"  ⚠ {check_fail} routes failed spot-check (does not affect written routes, A2 may be busy)")
-    return "\n".join(lines)
+        result_data["spot_check_fail"] = check_fail
+        result_data["spot_check_note"] = "failed routes do not affect written config, A2 may be busy"
+    return result_data

@@ -63,7 +63,7 @@ def install_files(name: str, meta: dict, runtime: str = "python", force: bool = 
     elif runtime == "mcp":
         lines.append(f"MCP schema registered: {name}_schema.json")
 
-    elif runtime == "node":
+    elif runtime == "js":
         handler_src = pathlib.Path(meta["handler_path"])
         handler_dst = HANDLERS_DIR / f"{safe}.js"
         if handler_dst.exists() and not force:
@@ -162,7 +162,7 @@ def _deploy_aux_files(pkg_dir: pathlib.Path, name: str, runtime: str) -> tuple[b
     pkg_dir = pathlib.Path(pkg_dir)
     extra = []
 
-    if runtime == "node":
+    if runtime == "js":
         for js_file in sorted(pkg_dir.glob("*.js")):
             handler_name = f"{name}.js"
             if js_file.name != handler_name:

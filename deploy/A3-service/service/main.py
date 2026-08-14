@@ -368,7 +368,7 @@ async def health(request: Request):
             "capabilities": {
                 "packages": [p for p in installed if p not in ("sample",)],
                 "domains": sorted(directives.keys()),
-                "runtimes": ["python", "node", "mcp", "cmd"],
+                "runtimes": ["python", "js", "mcp", "cmd"],
             },
             "endpoints": {
                 "skills": "/text-cli/skills",
