@@ -81,16 +81,27 @@ chmod +x start.sh
 
 #### Docker
 
+Copilot 镜像为薄沙箱（`text-cli-copilot`）：只含 Python 环境 + 代码种子(seed)，代码外挂宿主机，首次由 entrypoint 从 seed 填充。
+
 ```bash
-docker run -d -p 20260:20260 text-cli-copilot:latest
+# 构建上下文（先跑 build.py 生成 .build/）
+cd deploy/skeleton-container && python build.py
+
+# 启动：host 网络 + 外挂 runtime
+# 🚨 红线：copilot 仅 127.0.0.1 可达，【绝不 -p 20260:20260 暴露到 0.0.0.0】
+docker run -d --network=host \
+  -v ./runtime:/app/runtime \
+  text-cli-copilot:latest
 ```
 
 **验证**（三平台相同）：
 
 ```bash
-curl http://localhost:20260/text-cli/health
+curl http://127.0.0.1:20260/text-cli/health
 # → {"status":"ok"}
 ```
+
+> **红线**：copilot 的默认 token 为空（不校验），安全完全依赖 `127.0.0.1` 回环边界。把它暴露到网络（`-p 20260` 或非 host 网络监听 0.0.0.0）等于把本机特权代理裸奔，**严禁**。
 
 > 其他配置项（鉴权、日志级别、查询语言等）见 [§1.5 配置](#15-配置)。
 
@@ -129,22 +140,64 @@ chmod +x start.sh
 
 #### Docker
 
+Service 镜像为薄沙箱：只含 Python 环境 + 代码种子(seed)，代码/包/数据外挂宿主机，首次由 entrypoint 从 seed 填充，之后宿主托管（热更新不 rebuild）。
+
+Service 制品按层分发：`text-cli-service`（A3，copilot+service）与 `text-cli-advanced`（A9，copilot+service+MCP+aggregate）。两者镜像结构相同，A9 多 MCP 端口与 aggregate。**任意层都含 copilot，不需单独部署 Copilot。**
+
+**构建（任选一层）**：
 ```bash
-docker run -d -p 28050:28050 -p 20260:20260 \
+cd deploy/skeleton-container && python build.py   # 生成 .build/ 构建上下文
+```
+
+**A3（`text-cli-service` 镜像）**：
+```bash
+docker run -d --name tc-service \
+  -p 28050:28050 \
+  -v ./runtime:/app/runtime \
+  -v ./data:/app/data \
   -v ./packages:/packages \
+  -e TEXT_CLI_PACKAGE_SOURCE_DIRS=/packages \
+  -e PORT=28050 \
   text-cli-service:latest
 ```
+
+**A9（`text-cli-advanced` 镜像，推荐全量）**：
+```bash
+docker run -d --name tc-advanced \
+  -p 28050:28050 \
+  -p 9020:9020 \
+  -v ./runtime:/app/runtime \
+  -v ./data:/app/data \
+  -v ./packages:/packages \
+  -e TEXT_CLI_PACKAGE_SOURCE_DIRS=/packages \
+  -e PORT=28050 \
+  -e MCP_PORT=9020 \
+  text-cli-advanced:latest
+```
+
+> **🚨 copilot(:20260) 不对外映射**——copilot 绑 127.0.0.1，仅本机回环可达（红线，见 §1.1）。服务间经内部 proxy 访问，不需 `-p 20260`。
 
 **验证**：
 
 ```bash
+# service (A3/A9)
 curl http://localhost:28050/text-cli/health
 # → {"status":"ok","domains":["key","quota","task","text-cli"],"sqlite":"enabled"}
+
+# 指令列表
+curl -X POST http://localhost:28050/text-cli/cli \
+  -H "Content-Type: application/json" \
+  -d '{"prompt":"AI:text-cli;query,compact"}'
+
+# MCP (A9 / A7+)
+curl http://localhost:9020/...
 ```
 
 #### 包源路径
 
 install 指令需要知道指令包放在哪。环境变量 `TEXT_CLI_PACKAGE_SOURCE_DIRS` 默认指向制品同级目录的 `packages/`。`start.bat` / `start.sh` 启动时检测——目录存在输出 `[OK]`，不存在输出 `[WARN]` 并提示创建。
+
+容器形态：把 `packages/` 外挂到镜像内并设 env 即可——`-v ./packages:/packages -e TEXT_CLI_PACKAGE_SOURCE_DIRS=/packages`（见上文 A3/A9 运行示例），启动时同样检测 `[OK]`/`[WARN]`。
 
 > 其他配置项（鉴权、日志级别、查询语言等）见 [§1.5 配置](#15-配置)。
 
@@ -172,11 +225,16 @@ cd text-cli-endpoint-python-v*
 
 #### Docker
 
+Endpoint 镜像为 `text-cli-endpoint`（独立制品，A5，由 `build-endpoint.py` 单独构建，不含在 A2-A9 累积制品里）。
+
 ```bash
-docker run -d -p 29050:29050 text-cli-endpoint:latest
+docker run -d --name tc-endpoint \
+  -p 29050:29050 \
+  -e A3_BACKENDS=http://service:28050 \
+  text-cli-endpoint:latest
 ```
 
-`start-endpoint.bat` / `start.sh` 自动创建 `.venv` 并安装依赖。详细配置参数见第四章。
+`start-endpoint.bat` / `start.sh` 自动创建 `.venv` 并安装依赖。详细配置参数见第四章（`backends.yaml` / `A3_BACKENDS` / `ACCESS_TOKEN_REQUIRED` 等）。
 
 **验证**：
 
@@ -1010,7 +1068,10 @@ pip install fastapi uvicorn httpx pydantic
 
 ```bash
 # Docker
-docker run -d -p 29050:29050 text-cli-endpoint:latest
+# 🚨 endpoint 是独立的 A5 制品，由 build-endpoint.py 构建，不含在 A2-A9 累积制品里
+docker run -d -p 29050:29050 \
+  -e A3_BACKENDS=http://service:28050 \
+  text-cli-endpoint:latest
 ```
 
 ### 5.2 配置

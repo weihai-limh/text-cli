@@ -27,8 +27,18 @@ from .path_executor import execute_path
 logger = logging.getLogger(__name__)
 
 
+def _wrap_result(text: str) -> dict:
+    """Wrap a path execution result (str) into a dict for the protocol envelope."""
+    return {"status": "ok", "text": text}
+
+
+def _wrap_error(text: str) -> dict:
+    """Wrap an error message into a dict for the protocol envelope."""
+    return {"status": "error", "reason": text}
+
+
 @directive("text-cli", "path", domain_alias="text-cli", action_aliases={"path": "path"})
-def text_cli_path(params: list[str]) -> str:
+def text_cli_path(params: list[str]) -> dict:
     """Execute or register a path definition.
 
     Modes:
@@ -64,7 +74,7 @@ def text_cli_path(params: list[str]) -> str:
             inline_path = True
         except json.JSONDecodeError as e:
             msgs = load_messages("en")
-            return fmt("LOAD_ERR_PARSE", msgs, e=f"Inline JSON: {e}")
+            return {"status": "error", "reason": fmt("LOAD_ERR_PARSE", msgs, e=f"Inline JSON: {e}")}
     else:
         path_def = None
 
@@ -74,13 +84,13 @@ def text_cli_path(params: list[str]) -> str:
             p = discover_path_file(path_file)
             if p is None:
                 msgs = load_messages("en")
-                return fmt("LOAD_ERR_NOT_FOUND", msgs, path=path_file)
+                return _wrap_error(fmt("LOAD_ERR_NOT_FOUND", msgs, path=path_file))
 
         try:
             path_def = json.loads(p.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError) as e:
             msgs = load_messages("en")
-            return fmt("LOAD_ERR_PARSE", msgs, e=str(e))
+            return _wrap_error(fmt("LOAD_ERR_PARSE", msgs, e=str(e)))
 
     lang = path_def.get("lang", "en")
     messages = load_messages(lang)
@@ -90,7 +100,7 @@ def text_cli_path(params: list[str]) -> str:
         source = "<inline>" if inline_path else str(path_file)
         ok, msg = validate_declaration(path_def, source, messages)
         if not ok:
-            return fmt("REGISTER_ERR_VALIDATION", messages, msg=msg)
+            return _wrap_error(fmt("REGISTER_ERR_VALIDATION", messages, msg=msg))
 
         all_ok, missing = check_requires(path_def)
         if not all_ok:
@@ -101,7 +111,7 @@ def text_cli_path(params: list[str]) -> str:
 
         ok, msg = register_path(path_def, source, messages)
         if not ok:
-            return msg
+            return _wrap_error(msg)
 
         path_id = path_def["id"]
         ver = path_def.get("version", "?")
@@ -117,21 +127,21 @@ def text_cli_path(params: list[str]) -> str:
         )
 
         if not initial_input:
-            return result
+            return _wrap_result(result)
         result += "\n"
 
     # 3. Execute path
     mode = path_def.get("mode", "toolchain")
     if mode not in ("toolchain", "parallel"):
-        return fmt("LOAD_ERR_UNSUPPORTED_MODE", messages, mode=mode)
+        return _wrap_error(fmt("LOAD_ERR_UNSUPPORTED_MODE", messages, mode=mode))
 
     steps = path_def.get("steps", [])
     if not steps:
-        return fmt("LOAD_ERR_NO_STEPS", messages)
+        return _wrap_error(fmt("LOAD_ERR_NO_STEPS", messages))
 
     exec_result = execute_path(path_def, initial_input,
                                messages=messages, output_format=output_format)
 
     if register:
-        return result + "\n" + exec_result
-    return exec_result
+        return _wrap_result(result + "\n" + exec_result)
+    return _wrap_result(exec_result)

@@ -8,6 +8,12 @@
 #
 #   compose 的 build.context 指向 build.py 生成的 .build/service，
 #   该目录不存在时请先运行上面的 build.py。
+# -------------------------------------------------------------------------
+# 薄沙箱全外挂（统一方案）：代码/数据外挂宿主机，镜像只含 Python 环境+seed。
+#   runtime/   首次由 entrypoint 从 seed 填充，之后宿主托管
+#   data/      sqlite 等持久数据，重建不丢
+#   packages/  指令包源（可选，挂载后 TEXT_CLI_PACKAGE_SOURCE_DIRS 可用 install）
+# 端口：28050(service)。A3 单运行时不含 copilot/MCP。
 # =========================================================================
 version: '3.8'
 
@@ -19,11 +25,16 @@ services:
     image: text-cli-service:local
     ports:
       - "28050:28050"
-    # 配置已随镜像 baked 进 /app/config（A3 单镜像布局），不要挂空目录覆盖！
-    # 如需覆盖，挂载【已存在】的目录，例如：
-    #   - /abs/path/to/my-service-config:/app/config
+    volumes:
+      - ./runtime:/app/runtime
+      - ./data:/app/data
+      - ./packages:/packages
     environment:
-      - SERVICE_TOKEN=${SERVICE_TOKEN:-test-token}
+      - PORT=28050
+      - RUNTIME_DIR=/app/runtime
+      - SEED_DIR=/app/seed
+      - TEXT_CLI_PACKAGE_SOURCE_DIRS=/packages
+      - SERVICE_TOKEN=${SERVICE_TOKEN:-}
       - LOG_LEVEL=info
     restart: unless-stopped
     healthcheck:

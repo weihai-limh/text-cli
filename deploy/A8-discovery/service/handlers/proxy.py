@@ -159,16 +159,16 @@ async def proxy_dispatch(domain: str, action: str, params: list[str],
             return result
     except httpx.HTTPStatusError as e:
         logger.error("proxy %s -> %s HTTP %d", lookup, target_url, e.response.status_code)
-        return {"rst_types": "text", "rst_data": {"status": "error", "reason": f"[proxy_error] downstream returned {e.response.status_code}"},
-                "rst_err": "proxy_error"}
+        return {"rst_types": "text", "rst_data": {"status": "error", "reason": f"[routing_error] downstream returned {e.response.status_code}"},
+                "rst_err": "ERR_ROUTING"}
     except httpx.TimeoutException as e:
         logger.error("proxy %s -> %s timeout: %s", lookup, target_url, e)
-        return {"rst_types": "text", "rst_data": {"status": "error", "reason": f"[proxy_error] timeout: {e}"},
-                "rst_err": "proxy_error"}
+        return {"rst_types": "text", "rst_data": {"status": "error", "reason": f"[routing_error] timeout: {e}"},
+                "rst_err": "ERR_ROUTING"}
     except Exception as e:
         logger.error("proxy %s -> %s failed: %s", lookup, target_url, e)
-        return {"rst_types": "text", "rst_data": {"status": "error", "reason": f"[proxy_error] {e}"},
-                "rst_err": "proxy_error"}
+        return {"rst_types": "text", "rst_data": {"status": "error", "reason": f"[routing_error] {e}"},
+                "rst_err": "ERR_ROUTING"}
 
 
 # ── Phase 10: Federation mesh multi-hop ───────

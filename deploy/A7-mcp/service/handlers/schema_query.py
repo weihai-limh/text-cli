@@ -392,7 +392,7 @@ def _render_delta(directives: list[dict]) -> str:
 # ── handler ──
 
 @directive("text-cli", "query", domain_alias="文本指令", action_aliases={"query": "查询"})
-def schema_query(params: list[str]) -> str:
+def schema_query(params: list[str]) -> dict:
     """
     元指令：动态发现运行时全部Available directives。
 
@@ -425,53 +425,55 @@ def schema_query(params: list[str]) -> str:
     directives = _collect(all_directives)
 
     if not directives:
-        return "═══ Available directives ═══\n\n(no registered directives)"
+        return {"status": "ok", "text": "(no registered directives)", "count": 0}
 
 
     # ── 模式分发 ──
 
     if mode == "all":
-        return _render_text(directives, lang)
+        return {"status": "ok", "text": _render_text(directives, lang), "count": len(directives)}
 
     if mode == "json":
-        return _render_json(directives)
+        raw = _render_json(directives)
+        result = json.loads(raw)
+        return {"status": "ok", "directives": result.get("directives", []), "count": len(result.get("directives", []))}
 
     if mode == "compact":
-        return _render_compact(directives)
+        return {"status": "ok", "text": _render_compact(directives), "count": len(directives)}
 
     if mode in ("python", "js", "mcp"):
         filtered = _filter_runtime(directives, mode)
-        return _render_text(filtered, lang)
+        return {"status": "ok", "text": _render_text(filtered, lang), "count": len(filtered)}
 
     if mode == "delta":
-        return _render_delta(directives)
+        return {"status": "ok", "text": _render_delta(directives), "count": len(directives)}
 
     if mode == "category":
         if len(params) > 1 and params[1].strip():
             filtered = _filter_category(directives, params[1].strip())
-            return _render_text(filtered, lang)
+            return {"status": "ok", "text": _render_text(filtered, lang), "count": len(filtered)}
         cats = _list_categories(directives)
         if cats:
-            return "category list:\n" + "\n".join(f"  {c}" for c in cats)
-        return "category list:\n  (none)"
+            return {"status": "ok", "categories": cats, "count": len(cats)}
+        return {"status": "ok", "categories": [], "count": 0}
 
     if mode == "collection":
         collection_items = _load_collection_directives()
         if not collection_items:
-            return (
-                "═══ Collection (not configured) ═══\n\n"
-                "config/collection_text_cli.json not found.\n"
-                "Copy config/collection_text_cli.json.example to configure the curated directive set."
-            )
+            return {"status": "error", "reason": "config/collection_text_cli.json not found. Copy .example to configure."}
         filtered = _filter_by_collection(directives, collection_items)
-        return _render_text(filtered, lang) if filtered else "═══ Collection ═══\n\n(no matching directives)"
+        if filtered:
+            return {"status": "ok", "text": _render_text(filtered, lang), "count": len(filtered)}
+        return {"status": "ok", "text": "(no matching directives in collection)", "count": 0}
 
     if mode == "path":
         filtered = _filter_composite(directives)
-        return _render_text(filtered, lang) if filtered else "═══ Path directives ═══\n\n(no registered paths)"
+        if filtered:
+            return {"status": "ok", "text": _render_text(filtered, lang), "count": len(filtered)}
+        return {"status": "ok", "text": "(no registered paths)", "count": 0}
 
     # ── 兜底：关键词搜索 ──
     results = _keyword_search(directives, mode)
     if results:
-        return _render_text(results, lang)
-    return f"no directives matching \"{mode}\" directives found. Use AI:text-cli;query,category to view categories."
+        return {"status": "ok", "text": _render_text(results, lang), "count": len(results)}
+    return {"status": "ok", "text": f"no directives matching \"{mode}\"", "count": 0}

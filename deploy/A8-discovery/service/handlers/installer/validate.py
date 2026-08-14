@@ -152,7 +152,7 @@ def validate_package(name: str, source_dirs: list[pathlib.Path] | None = None) -
         meta["service_descriptor"] = sd
         meta["handler_path"] = None  # MCP has no local handler
 
-    elif runtime == "node":
+    elif runtime == "js":
         entry = schema.get("entry", "handler.js")
         handler_path = pkg_dir / entry
         if not handler_path.is_file():

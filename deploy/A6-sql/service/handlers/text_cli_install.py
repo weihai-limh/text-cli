@@ -150,11 +150,10 @@ def _load_and_wire(name: str, safe: str, init_fn_name: str, arg_key: str | None)
 
 
 @directive("text-cli", "install", domain_alias="文本指令", action_aliases={"install": "安装"})
-def text_cli_install(params: list[str]) -> str:
+def text_cli_install(params: list[str]) -> dict:
     """Install an instruction package by name."""
     if not params:
-        return "usage: AI:text-cli;install,<package>\n\n" \
-               "Use AI:text-cli;query,category to view available categories."
+        return {"status": "error", "reason": "usage: AI:text-cli;install,<package>\n\nUse AI:text-cli;query,category to view available categories."}
 
     name = params[0].strip()
     force = len(params) > 1 and params[1].strip() == "--force"
@@ -163,7 +162,7 @@ def text_cli_install(params: list[str]) -> str:
     ok, msg, meta = validate_package(name)
     if not ok:
         log_install(name, {}, False, msg)
-        return msg if msg.startswith("installation failed") else f"installation failed: {msg}"
+        return {"status": "error", "reason": msg}
 
     schema = meta["schema"]
 
@@ -172,7 +171,7 @@ def text_cli_install(params: list[str]) -> str:
     ok, msg = install_files(name, meta, runtime=runtime, force=force)
     if not ok:
         log_install(name, meta, False, msg)
-        return msg if msg.startswith("installation failed") else f"installation failed: {msg}"
+        return {"status": "error", "reason": msg}
 
     # 3. Check required secrets
     secrets_warnings = _check_secrets(schema, skip_check="--skip-secrets-check" in params)
@@ -182,7 +181,7 @@ def text_cli_install(params: list[str]) -> str:
     entry_runtimes = meta.get("entry_runtimes", [])
     if runtime == "python" or "python" in entry_runtimes:
         ok_deps, dep_msg = install_deps(meta.get("req_path"), name, requires=requires)
-    elif runtime == "node" or "node" in entry_runtimes:
+    elif runtime == "js" or "js" in entry_runtimes:
         npm_dir = meta.get("npm_dir")
         if npm_dir:
             ok_deps, dep_msg = install_npm_deps(npm_dir)
@@ -217,16 +216,25 @@ def text_cli_install(params: list[str]) -> str:
         lines.append(f"  [WARN] dependency install failed: {dep_msg}")
         lines.append("    directive deployed, but may fail to execute due to missing dependencies.")
 
-    result = "\n".join(lines)
+    # Build result dict
+    result_data = {
+        "status": "ok",
+        "package": name,
+        "name_zh": schema.get("name_zh", ""),
+        "runtime": runtime,
+        "directives": directives,
+        "mcp_server": mcp_server,
+    }
+    if not ok_deps:
+        result_data["dep_warning"] = dep_msg
 
     if msg and "\n" in msg:
         extra = "\n".join(msg.split("\n")[1:])
         if extra.strip():
-            result += f"\n{extra}"
+            result_data["note"] = extra
 
-    # Append secrets warnings
     if secrets_warnings:
-        result += "\n\n" + secrets_warnings
+        result_data["secrets_warnings"] = secrets_warnings
 
     log_install(name, meta, True, "installed")
 
@@ -268,7 +276,7 @@ def text_cli_install(params: list[str]) -> str:
         logger.debug("Manifest/init optional for '%s': %s", name, e)
         pass  # manifest/init optional, don't block install
 
-    return result
+    return result_data
 
 
 def _append_handler_init(mod_path: str, fn_name: str, arg_key: str | None = None):

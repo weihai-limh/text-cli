@@ -35,24 +35,24 @@ def init_text_cli_nocode_handler(project_root: str = None):
 
 
 @directive("text-cli", "nocode", domain_alias="文本指令", action_aliases={"nocode": "无代码"})
-def text_cli_nocode(params: list[str]) -> str:
+def text_cli_nocode(params: list[str]) -> dict:
     if not params:
-        return json.dumps({
+        return {
             "status": "error",
             "reason": "Usage: text-cli;nocode,<knowledge_domain>[,<file>]"
-        })
+        }
 
     domain = params[0]
     if not _KNOWLEDGE_DIR:
-        return json.dumps({"status": "error", "reason": "knowledge directory not configured"})
+        return {"status": "error", "reason": "knowledge directory not configured"}
 
     domain_dir = _KNOWLEDGE_DIR / domain
     if not domain_dir.is_dir():
-        return json.dumps({
+        return {
             "status": "error",
             "reason": f"knowledge domain not found: {domain}",
             "available": [d.name for d in _KNOWLEDGE_DIR.iterdir() if d.is_dir()],
-        })
+        }
 
     # Specific file requested
     if len(params) > 1:
@@ -61,18 +61,18 @@ def text_cli_nocode(params: list[str]) -> str:
         if not file_path.suffix:
             file_path = file_path.with_suffix(".md")
         if not file_path.exists():
-            return json.dumps({
+            return {
                 "status": "error",
                 "reason": f"file not found: {file_name}",
                 "domain": domain,
-            })
+            }
         content = file_path.read_text(encoding="utf-8")
-        return json.dumps({
+        return {
             "status": "ok",
             "domain": domain,
             "file": file_path.name,
             "content": content,
-        }, ensure_ascii=False)
+        }
 
     # List all knowledge files
     files = []
@@ -89,9 +89,9 @@ def text_cli_nocode(params: list[str]) -> str:
     if index_path.exists():
         index_content = index_path.read_text(encoding="utf-8")[:2000]
 
-    return json.dumps({
+    return {
         "status": "ok",
         "domain": domain,
         "files": files,
         "index": index_content,
-    }, ensure_ascii=False)
+    }

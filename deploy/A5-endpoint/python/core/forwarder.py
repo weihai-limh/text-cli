@@ -73,7 +73,7 @@ async def forward_request(
                            attempt + 1, 1 + MAX_RETRIES, elapsed, backend_url)
             result = ForwardResult(
                 status_code=408,
-                body=b'{"rst_types":"text","rst_data":{"status":"error","reason":"request to backend timed out"}}',
+                body=b'{"rst_types":"text","rst_data":{"status":"error","reason":"request to backend timed out"},"rst_err":"ERR_ROUTING"}',
                 headers={"Content-Type": "application/json"},
                 response_time_ms=elapsed,
                 error_message="timeout",
@@ -89,7 +89,7 @@ async def forward_request(
                          attempt + 1, 1 + MAX_RETRIES, e)
             result = ForwardResult(
                 status_code=502,
-                body=b'{"rst_types":"text","rst_data":{"status":"error","reason":"backend request failed"}}',
+                body=b'{"rst_types":"text","rst_data":{"status":"error","reason":"backend request failed"},"rst_err":"ERR_ROUTING"}',
                 headers={"Content-Type": "application/json"},
                 response_time_ms=elapsed,
                 error_message=str(e),
@@ -173,6 +173,6 @@ async def forward_skill_request(
             resp = await client.post(url, json=body, headers=headers)
             return resp.status_code, resp.text
     except httpx.TimeoutException:
-        return 408, '{"rst_types":"text","rst_data":{"status":"error","reason":"request to backend timed out"}}'
+        return 408, '{"rst_types":"text","rst_data":{"status":"error","reason":"request to backend timed out"},"rst_err":"ERR_ROUTING"}'
     except httpx.RequestError:
-        return 502, '{"rst_types":"text","rst_data":{"status":"error","reason":"backend request failed"}}'
+        return 502, '{"rst_types":"text","rst_data":{"status":"error","reason":"backend request failed"},"rst_err":"ERR_ROUTING"}'

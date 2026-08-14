@@ -148,21 +148,46 @@ def build_copilot() -> Path:
     if not src.exists():
         raise SystemExit(f"[ERR] 找不到 copilot 源: {src}（先跑 build-all.py 或加 --with-build-all）")
     copy_tree(src, out)
-    _copy_container_meta("A2-copilot", out, ["Dockerfile"])
+    _copy_container_meta("A2-copilot", out, ["Dockerfile", "entrypoint.sh"])
+
+    # 随包分发三类文件（标准发行 copilot 镜像）
+    _copy_bundle_docs(out)
+    _copy_bundle_packages(out)
+    _copy_bundle_protocol(out)
+
     _ensure_dockerignore(out)
     print(f"[ok] copilot 上下文 -> {out}")
     return out
 
 
 def build_service() -> Path:
-    """A3 单 service：deploy/A3-service/service 运行时 + deploy/skeleton-container/A3-service/Dockerfile。"""
+    """A3 copilot+service 融合：deploy/A3-service/{copilot,service} 运行时 + deploy/skeleton-container/A3-service 元文件。"""
     out = BUILD_DIR / "service"
     fresh(out)
-    src = DEPLOY_DIR / "A3-service" / "service"
+    src = DEPLOY_DIR / "A3-service"
     if not src.exists():
-        raise SystemExit(f"[ERR] 找不到 service 源: {src}（先跑 build-all.py 或加 --with-build-all）")
-    copy_tree(src, out)
-    _copy_container_meta("A3-service", out, ["Dockerfile"])
+        raise SystemExit(f"[ERR] 找不到 A3 源: {src}（先跑 build-all.py 或加 --with-build-all）")
+
+    # service 运行时（A3 本体）
+    if (src / "service").exists():
+        copy_items(src, out, ["service"], as_dir=True)
+    else:
+        raise SystemExit(f"[ERR] A3 无 service/ 运行时: {src}/service")
+
+    # copilot 运行时（A3 = copilot(A2) 累积 + service）
+    if (src / "copilot").exists():
+        copy_items(src, out, ["copilot"], as_dir=True)
+    else:
+        print("  [warn] A3 无 copilot/，copilot 能力将缺失")
+
+    # 容器元文件（Dockerfile + entrypoint，薄沙箱）
+    _copy_container_meta("A3-service", out, ["Dockerfile", "entrypoint.sh"])
+
+    # 随包分发三类文件（标准发行 service 镜像）
+    _copy_bundle_docs(out)
+    _copy_bundle_packages(out)
+    _copy_bundle_protocol(out)
+
     _ensure_dockerignore(out)
     print(f"[ok] service 上下文 -> {out}")
     return out
@@ -209,6 +234,11 @@ def build_advanced() -> Path:
             continue
         shutil.copy2(s, out / f)
 
+    # 6) 随包分发三类文件（标准发行镜像：docs + packages + protocol）
+    _copy_bundle_docs(out)
+    _copy_bundle_packages(out)
+    _copy_bundle_protocol(out)
+
     _ensure_dockerignore(out)
     print(f"[ok] advanced 上下文 -> {out}")
     return out
@@ -226,6 +256,66 @@ def build_a5_endpoint() -> Path:
     _ensure_dockerignore(out)
     print(f"[ok] endpoint 上下文 -> {out}")
     return out
+
+
+# ---------------------------------------------------------------------------
+# 随包分发三类文件（标准发行镜像带全量，对齐 win/ubuntu 的 _copy_*）
+#   docs/      手册（docs/product_manuals，5份）
+#   packages/  标准指令包源（deploy/packages/standard-python，10+包）
+#   protocol/  A0 消费 SDK（deploy/A0-protocol，4语言）
+# 镜像内布局：docs → /app/bundle/docs，packages → 构建上下文 packages/（由 Dockerfile COPY），
+#             protocol → 构建上下文 protocol/（由 Dockerfile COPY）
+# ---------------------------------------------------------------------------
+def _bundle_docs_src() -> Path:
+    return REPO_ROOT / "docs" / "product_manuals"
+
+
+def _bundle_packages_src() -> Path:
+    return DEPLOY_DIR / "packages" / "standard-python"
+
+
+def _bundle_protocol_src() -> Path:
+    return DEPLOY_DIR / "A0-protocol"
+
+
+def _copy_bundle_docs(dst: Path) -> int:
+    """Copy docs/product_manuals into dst/docs（手册，给人看）。"""
+    src = _bundle_docs_src()
+    if not src.is_dir():
+        print("  [warn] docs source not found (skip):", src)
+        return 0
+    tgt = dst / "docs"
+    tgt.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(src, tgt, dirs_exist_ok=True)
+    n = sum(1 for _ in tgt.rglob("*") if _.is_file())
+    print(f"  [ok] bundle docs -> {tgt} ({n} files)")
+    return n
+
+
+def _copy_bundle_packages(dst: Path) -> int:
+    """Copy standard-python packages into dst/packages（install 包源）。"""
+    src = _bundle_packages_src()
+    if not src.is_dir():
+        print("  [warn] packages source not found (skip):", src)
+        return 0
+    tgt = dst / "packages"
+    shutil.copytree(src, tgt, dirs_exist_ok=True)
+    n = sum(1 for _ in tgt.rglob("*") if _.is_file())
+    print(f"  [ok] bundle packages -> {tgt} ({n} files)")
+    return n
+
+
+def _copy_bundle_protocol(dst: Path) -> int:
+    """Copy A0-protocol SDK into dst/protocol（消费端 SDK，给外部调用方）。"""
+    src = _bundle_protocol_src()
+    if not src.is_dir():
+        print("  [warn] protocol source not found (skip):", src)
+        return 0
+    tgt = dst / "protocol"
+    shutil.copytree(src, tgt, dirs_exist_ok=True)
+    n = sum(1 for _ in tgt.rglob("*") if _.is_file())
+    print(f"  [ok] bundle protocol -> {tgt} ({n} files)")
+    return n
 
 
 # ---------------------------------------------------------------------------

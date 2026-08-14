@@ -11,13 +11,19 @@
 #
 #   compose 的 build.context 指向 build.py 生成的 .build/advanced，
 #   该目录不存在时请先运行上面的 build.py。
+# -------------------------------------------------------------------------
+# 薄沙箱全外挂（方案定型）：代码/包/数据全部外挂宿主机，镜像只含 Python 环境+seed。
+#   runtime/   首次由 entrypoint 从 seed 填充，之后宿主托管（热更新/代码版本）
+#   data/      sqlite 等持久数据，重建不丢
+#   packages/  指令包源（TEXT_CLI_PACKAGE_SOURCE_DIRS 指向）
+#   env 对齐 entrypoint 的 RUNTIME_DIR / SEED_DIR。
+# 端口：28050(service) + 9020(MCP bridge)；copilot 20260 绑 127.0.0.1，不对外映射（红线）。
 # =========================================================================
 version: '3.8'
 
 services:
   text-cli:
     # 构建上下文 = build.py 生成的 .build/advanced（含 service/copilot/MCPservice/A8-discovery + Dockerfile）
-    # 注意：上下文相对本 compose 文件所在目录解析，即 skeleton-container/.build/advanced
     build:
       context: ../.build/advanced
       dockerfile: Dockerfile
@@ -25,17 +31,19 @@ services:
     ports:
       - "28050:28050"    # service（能力面）
       - "9020:9020"      # MCP bridge（MCP 协议面）
-      # 20260 不映射（copilot 绑 127.0.0.1，仅内部可达）
+      # 20260 不映射（copilot 绑 127.0.0.1，仅本机回环可达，红线不暴露）
     volumes:
-      # 数据持久化（可选）
-      - text-cli-data:/app/data
-      # 配置已随镜像 baked 进 /app/service/config 与 /app/copilot/config，
-      # 不要挂空目录覆盖！如需覆盖，请挂载【已存在】的目录，例如：
-      #   - /abs/path/to/my-service-config:/app/service/config
+      # 全外挂：代码/数据/包源（首次 runtime 空由 entrypoint 从 seed 填充）
+      - ./runtime:/app/runtime
+      - ./data:/app/data
+      - ./packages:/packages
     environment:
       - PORT=28050
       - MCP_PORT=9020
-      - SERVICE_TOKEN=${SERVICE_TOKEN:-test-token}
+      - RUNTIME_DIR=/app/runtime
+      - SEED_DIR=/app/seed
+      - TEXT_CLI_PACKAGE_SOURCE_DIRS=/packages
+      - SERVICE_TOKEN=${SERVICE_TOKEN:-}
       - COPILOT_ENABLED=true
       - MCP_ENABLED=true
       - LOG_LEVEL=info
@@ -46,6 +54,3 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
-
-volumes:
-  text-cli-data:
