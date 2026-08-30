@@ -22,7 +22,7 @@ exports.main = async (event, context) => {
 function handleGet(event) {
   const path = event.path || '';
   if (path === '/health') {
-    return { status: 'ok', service: 'text-cli-router', version: '1.0.0', spec_version: '1.3.2' };
+    return { status: 'ok', service: 'text-cli-router', version: '0.1.1', spec_version: '1.3.2' };
   }
   if (path === '/text-cli/skills') {
     return {};

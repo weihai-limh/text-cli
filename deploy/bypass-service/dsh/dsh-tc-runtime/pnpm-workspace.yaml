@@ -1,0 +1,7 @@
+packages:
+  - "runtime-*"
+
+onlyBuiltDependencies:
+  - esbuild
+allowBuilds:
+  esbuild: true

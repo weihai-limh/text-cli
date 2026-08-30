@@ -1,0 +1,9 @@
+{
+  "name": "textcli-core-credentials",
+  "version": "0.1.1",
+  "description": "凭据按包隔离：TC_ ref + 授权映射 + resolve 链（ACCESS_DENIED/SERVICE_DENIED/QUOTA_STOP）（算法复用 runtime-credentials，resolve 注入）",
+  "type": "module",
+  "main": "index.js",
+  "files": ["index.js"],
+  "license": "MIT"
+}

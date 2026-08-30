@@ -51,7 +51,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="text-cli Endpoint",
     description="text-cli 纯转发集成端点",
-    version="2.0.0",
+    version="0.1.1",
     lifespan=lifespan,
 )
 

@@ -1,0 +1,9 @@
+{
+  "name": "textcli-core-aggregate",
+  "version": "0.1.1",
+  "description": "聚合降级 try-in-order + 显式 provider + 审批合并 + 配额 stop 消费 + AsyncJobBridge（搬运自 runtime-aggregate，路径 B deps 重绑定）",
+  "type": "module",
+  "main": "index.js",
+  "files": ["index.js"],
+  "license": "MIT"
+}

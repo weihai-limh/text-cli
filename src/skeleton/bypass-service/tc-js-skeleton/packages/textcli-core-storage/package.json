@@ -1,0 +1,9 @@
+{
+  "name": "textcli-core-storage",
+  "version": "0.1.1",
+  "description": "统一持久化地基：StorageKV 适配器（内存/文件）+ namespace 分区，供 quota/audit/usage/auth 共享",
+  "type": "module",
+  "main": "index.js",
+  "files": ["index.js"],
+  "license": "MIT"
+}

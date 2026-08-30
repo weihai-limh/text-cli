@@ -1,0 +1,9 @@
+{
+  "name": "textcli-core-guard",
+  "version": "0.1.1",
+  "description": "核心守卫组件：ancestor-chain 环检测（AsyncLocalStorage），最内守卫负责 native:<d>;<a> 键，并作为 path/aggregate 共享链基座",
+  "type": "module",
+  "main": "index.js",
+  "files": ["index.js"],
+  "license": "MIT"
+}

@@ -1,0 +1,12 @@
+{
+  "name": "textcli-core-cloudflare",
+  "version": "0.1.1",
+  "private": true,
+  "description": "Cloudflare 专供版旁路运行时：复用 tc-js-skeleton 逻辑组件 + D1 持久化 + Worker 入口 + 受限执行（非移植，第二安装）",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "license": "MIT"
+}

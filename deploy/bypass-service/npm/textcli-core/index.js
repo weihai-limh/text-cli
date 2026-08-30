@@ -19,7 +19,7 @@ const { dispatch } = require("./registry.js");
 const { loadPackageFromPath } = require("./loader.node.js");
 const { getLoaderState } = require("./loader.node.js");
 
-const VERSION = "0.1.0";
+const VERSION = "0.1.1";
 const SPEC_VERSION = "1.3.2";
 
 /**

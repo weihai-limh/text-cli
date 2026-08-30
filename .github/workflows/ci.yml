@@ -40,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: deploy/A2-copilot
+        working-directory: deploy/A2-copilot/copilot
     steps:
       - uses: actions/checkout@v4
 

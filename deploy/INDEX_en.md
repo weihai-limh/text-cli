@@ -24,13 +24,17 @@ Source code lives under `src/skeleton/`, grouped by runtime (base / copilot / se
 
 ## Bypass Service
 
-Non-Python runtimes, parallel to but independently deployed from the tier navigation, and not participating in the A2→A9 accumulation chain.
+Non-Python runtimes, parallel to but independently deployed from the tier navigation, and not participating in the A2→A9 accumulation chain. `bypass-service/` is synced by `build-all.py` in passthrough mode, covering five forms: local package loaders (pypi / npm), cloud-function gateway (cloudbase), edge-compute gateway (cloudflare D1), generic JS logic layer (tc-js-skeleton), and dsh hosting (dsh-tc-runtime / dsh-tc-bridge).
 
 | Tier | Platform | Directory | Runtime | Notes |
 |:---:|------|------|------|------|
-| BYPASS | cloudbase | `bypass-service/` | Cloud function | text-cli routing + instruction dispatch (Node.js / wx-server-sdk) |
+| BYPASS | cloudbase | `bypass-service/cloudbase/` | Cloud function | Tencent Cloud SCF — gateway routing + instruction dispatch (Node.js / wx-server-sdk) |
+| BYPASS | cloudflare | `bypass-service/cloudflare/` | Edge compute | Cloudflare Workers D1 multi-function edition — executable packages in D1 + restricted execution + single Service-token loop |
+| BYPASS | dsh | `bypass-service/dsh/` | dsh hosting | dsh-tc-runtime (Cordis plugin set) / dsh-tc-bridge (tc instruction-consumption seam) |
+| BYPASS | tc-js | `bypass-service/tc-js-skeleton/` | Generic JS | Generic JS logic layer source (12 textcli-core-* components, onion layering) |
+| BYPASS | pypi / npm | `bypass-service/pypi/` `bypass-service/npm/` | Package loader | Zero-dependency pip / npm instruction-package loaders — load and execute directly in any Python / Node.js environment |
 
-> Subsequent cloud-function platforms (Cloudflare Workers / AWS Lambda / Alibaba Cloud Function Compute) will be appended on demand.
+> Cloud-function platforms such as AWS Lambda / Alibaba Cloud Function Compute will be appended on demand; Cloudflare has already landed as the D1 multi-function edition. See `bypass-service/docs/INDEX_en.md`.
 
 ## Standard Runtime (Python-based) Typical Distribution Directories
 

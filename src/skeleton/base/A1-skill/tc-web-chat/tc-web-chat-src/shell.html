@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>tc-web-chat</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            height: 100vh;
+            height: 100dvh; /* 移动端动态视口，避免地址栏遮挡 */
+        }
+        .chat-container {
+            background: white;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .chat-header {
+            background: #4a6fa5;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .config-toggle-btn {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .lang-btn {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 5px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .lang-btn.active {
+            background: #fff;
+            color: #4a6fa5;
+            border-color: #fff;
+        }
+        .config-panel {
+            display: none; /* 默认隐藏 */
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            background: #fafafa;
+        }
+        .config-panel.show {
+            display: block;
+        }
+        .config-row {
+            margin-bottom: 10px;
+        }
+        .config-row label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+            font-size: 14px;
+        }
+        .config-row input, .config-row textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        .config-row textarea {
+            height: 80px;
+            resize: vertical;
+            font-family: monospace;
+        }
+        /* 开关行（参考 sl-web-chat 样式）：整行可点 + 放大 checkbox + 主题色 */
+        .config-row.checkbox-row { margin-bottom: 4px; }
+        .checkbox-label {
+            display: inline-flex !important;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 0 !important;
+            cursor: pointer;
+            font-weight: 600 !important;
+            font-size: 14px;
+            color: #4a6fa5 !important;
+            user-select: none;
+        }
+        .checkbox-label input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            margin: 0;
+            accent-color: #4a6fa5;
+            cursor: pointer;
+            flex: 0 0 auto;
+        }
+        .config-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .config-actions button {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .save-btn {
+            background: #4a6fa5;
+            color: white;
+        }
+        .cancel-btn {
+            background: #ccc;
+            color: #333;
+        }
+        .export-btn {
+            background: #fff;
+            color: #4a6fa5;
+            border: 1px solid #4a6fa5;
+        }
+        .headers-toggle-btn {
+            background: #6c757d;
+            color: white;
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            margin-top: 5px;
+        }
+        .config-toggle-group {
+            display: flex;
+            gap: 10px;
+        }
+        .config-toggle-group .headers-toggle-btn {
+            flex: 1;
+            margin-top: 0;
+        }
+        .headers-editor {
+            display: none;
+            margin-top: 10px;
+        }
+        .headers-editor.show {
+            display: block;
+        }
+        .chat-messages {
+            flex: 1 1 auto;
+            min-height: 0; /* 关键：flex 子项可滚动而非被内容撑开 */
+            overflow-y: auto;
+            padding: 15px;
+        }
+        .message {
+            margin-bottom: 12px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            max-width: 80%;
+            word-wrap: break-word;
+            white-space: pre-line;
+        }
+        .user-message {
+            background: #e3f2fd;
+            margin-left: auto;
+        }
+        .assistant-message {
+            background: #f1f1f1;
+            margin-right: auto;
+        }
+        .chat-input {
+            display: flex;
+            align-items: flex-end;
+            padding: 15px;
+            border-top: 1px solid #eee;
+        }
+        .chat-input input,
+        .chat-input textarea {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            font-family: inherit;
+        }
+        .chat-input textarea {
+            resize: vertical;
+            min-height: 44px;
+            max-height: 40vh;
+            overflow-y: auto;
+            line-height: 1.4;
+        }
+        .chat-input button {
+            margin-left: 10px;
+            padding: 10px 20px;
+            background: #4a6fa5;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .upload-btn {
+            margin-left: 0;
+            margin-right: 10px;
+            padding: 10px 14px;
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .upload-btn:hover { background: #5a6268; }
+        .clean-btn { background: #6c757d; }
+        .clean-btn:hover { background: #5a6268; }
+        .attachments-tray {
+            display: none;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 10px 15px 0;
+        }
+        .att-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #eef2f7;
+            border: 1px solid #dbe3ec;
+            border-radius: 16px;
+            padding: 4px 8px 4px 4px;
+            max-width: 240px;
+            font-size: 13px;
+        }
+        .att-thumb {
+            width: 28px;
+            height: 28px;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+        .att-icon { font-size: 16px; }
+        .att-name {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 150px;
+        }
+        .att-remove {
+            border: none;
+            background: transparent;
+            color: #888;
+            cursor: pointer;
+            font-size: 16px;
+            line-height: 1;
+            padding: 0 2px;
+        }
+        .att-remove:hover { color: #d32f2f; }
+        .att-inline {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 6px;
+        }
+        .status {
+            text-align: center;
+            padding: 8px;
+            font-size: 14px;
+            color: #666;
+        }
+        .error {
+            color: #d32f2f;
+            background: #ffebee;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px;
+            display: none;
+            white-space: pre-line;
+            line-height: 1.5;
+        }
+        .hint {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        /* ===== 资源渲染（<resources> 协议） ===== */
+        .media-gallery {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 100%;
+        }
+        .resource-message {
+            max-width: 92%;
+            background: #f1f1f1;
+        }
+        .media-item {
+            border-radius: 8px;
+            overflow: hidden;
+            background: #fff;
+            border: 1px solid #e3e3e3;
+        }
+        .media-image {
+            display: block;
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+        }
+        .media-video, .media-audio {
+            display: block;
+            width: 100%;
+            max-width: 480px;
+            border-radius: 8px;
+        }
+        .media-embed {
+            border-radius: 8px;
+        }
+        .media-embed > summary {
+            cursor: pointer;
+            padding: 8px 12px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            background: #f7f7f7;
+            border-radius: 8px;
+            list-style: none;
+        }
+        .media-embed > summary::-webkit-details-marker { display: none; }
+        .media-embed-body {
+            padding: 8px 0 0;
+        }
+        .media-iframe {
+            width: 100%;
+            height: 380px;
+            border: 1px solid #e3e3e3;
+            border-radius: 8px;
+            background: #fff;
+        }
+        .media-open-link {
+            display: inline-block;
+            margin-top: 6px;
+            font-size: 13px;
+            color: #4a6fa5;
+            text-decoration: none;
+        }
+        .media-open-link:hover { text-decoration: underline; }
+        .media-broken, .media-invalid {
+            padding: 16px;
+            text-align: center;
+            font-size: 13px;
+            color: #b3261e;
+            background: #fdecea;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <span id="appTitle">tc-web-chat</span>
+            <div class="header-actions">
+                <select id="langSelect" class="header-drop"></select>
+                <select id="approvalSelect" class="header-drop">
+                    <option value="none" data-i18n="approvalNone">None (ask first)</option>
+                    <option value="readonly" data-i18n="approvalReadonly" selected>Read-only auto</option>
+                    <option value="all" data-i18n="approvalAll">Auto all</option>
+                </select>
+                <button class="config-toggle-btn" id="toggleConfig" data-i18n="configBtn">⚙️ Config</button>
+            </div>
+        </div>
+        
+        <!-- 配置面板 (默认隐藏) -->
+        <div class="config-panel" id="configPanel">
+            <div class="config-row">
+                <label data-i18n="baseUrlLabel">Base URL *</label>
+                <input type="text" id="cfgBaseUrl" data-i18n-ph="baseUrlPh" placeholder="e.g. /v1/chat/completions or https://api.example.com/v1/chat/completions">
+            </div>
+            <div class="config-row">
+                <label data-i18n="modelLabel">Model</label>
+                <input type="text" id="cfgModel" data-i18n-ph="modelPh" placeholder="e.g. gpt-3.5-turbo (leave empty for default)">
+            </div>
+            <div class="config-row">
+                <div class="config-toggle-group">
+                    <button class="headers-toggle-btn" id="toggleHeaders" data-i18n="headersBtn">📋 Edit Headers</button>
+                    <button class="headers-toggle-btn" id="toggleCdn" data-i18n="cdnBtn">🌐 Configure CDN</button>
+                </div>
+                <div class="headers-editor" id="headersEditor">
+                    <textarea id="cfgHeaders" placeholder='{"Content-Type": "application/json"}'>{"Content-Type": "application/json"}</textarea>
+                    <div class="hint" data-i18n="headersHint">Enter valid JSON. Content-Type is included by default. Append your custom request headers here.</div>
+                </div>
+                <div class="headers-editor" id="cdnEditor">
+                    <textarea id="cfgCdn" placeholder='{"cdn_url": "https://your-cdn.com"}'>{"cdn_url": ""}</textarea>
+                    <div class="hint" data-i18n="cdnHint">cdn_url is only the base for upload/callback: not a request header, not the chat POST URL. Leave empty to fall back to the backend same-origin address.</div>
+                </div>
+            </div>
+            
+            <div class="config-row checkbox-row">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="cfgTcEnabled">
+                    <span data-i18n="tcEnabledLabel">tc Enabled</span>
+                </label>
+            </div>
+            <div class="config-row checkbox-row">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="cfgTcPathEnabled">
+                    <span data-i18n="tcPathEnabledLabel">tc Path Enabled</span>
+                </label>
+            </div>
+            <div class="config-row">
+                <label data-i18n="tcEndpointLabel">tc Endpoint</label>
+                <input type="text" id="cfgTcEndpoint" data-i18n-ph="tcEndpointPh" placeholder="http://127.0.0.1:28050/text-cli/cli">
+            </div>
+            <div class="config-row">
+                <label data-i18n="tcTokenLabel">Service Token</label>
+                <input type="password" id="cfgTcToken" placeholder="optional Service-token">
+            </div>
+            <div class="config-row">
+                <label data-i18n="tcAccessTokenLabel">Access Token</label>
+                <input type="password" id="cfgTcAccessToken" placeholder="optional Authorization: Bearer">
+            </div>
+            <div class="config-row">
+                <label data-i18n="tcScopeLabel">tc Scope</label>
+                <input type="text" id="cfgTcScope" placeholder="optional, comma-separated domains">
+            </div>
+            <div class="config-row">
+                <label data-i18n="approvalLabel">Tool Gate</label>
+                <select id="approvalSelectCfg">
+                    <option value="none" data-i18n="approvalNone">None (ask first)</option>
+                    <option value="readonly" data-i18n="approvalReadonly" selected>Read-only auto</option>
+                    <option value="all" data-i18n="approvalAll">Auto all</option>
+                </select>
+            </div>
+            <div class="config-row" id="configLangRow">
+                <label data-i18n="langLabel">Language</label>
+                <select id="langSelectCfg"></select>
+            </div>
+            <div class="config-actions">
+                <button class="cancel-btn" id="cancelConfig" data-i18n="cancelConfig">Cancel</button>
+                <button class="export-btn" id="exportHistory" data-i18n="exportHistory">Export JSONL</button>
+                <button class="save-btn" id="saveConfig" data-i18n="saveConfig">Save Config</button>
+            </div>
+        </div>
+
+        <div class="chat-messages" id="messages" role="log" aria-live="polite"></div>
+        <div class="error" id="error"></div>
+        <div class="status" id="tcStatus" style="margin-top:4px"></div>
+                <div class="status" id="status" data-i18n="statusReady">Ready</div>
+        <div class="attachments-tray" id="attachmentsTray"></div>
+        <form class="chat-input" id="chatForm">
+            <button type="button" class="upload-btn" id="uploadBtn" data-i18n-title="uploadTitle" title="Upload file">📎</button>
+            <input
+                type="file"
+                id="fileInput"
+                multiple
+                accept="image/*,video/*,audio/*,.pdf,.txt,.md,.json,.csv,.doc,.docx,.xls,.xlsx"
+                hidden
+            >
+            <textarea
+                id="userInput"
+                rows="1"
+                data-i18n-ph="inputPlaceholder"
+                placeholder="Type your message, or click 📎 to attach a file..."
+                autocomplete="off"
+            ></textarea>
+            <button type="submit" data-i18n="send">Send</button>
+            <button type="button" class="clean-btn" id="cleanBtn" data-i18n="clean">Clean</button>
+        </form>
+    </div>
+
+    <script>
+    // ===== 模块由 dev/build.js 注入，勿手改此段 =====
+</script>
+</body>
+</html>

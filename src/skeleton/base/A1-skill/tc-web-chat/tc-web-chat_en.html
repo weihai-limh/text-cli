@@ -1,0 +1,2022 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>tc-web-chat</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            height: 100vh;
+            height: 100dvh; /* 移动端动态视口，避免地址栏遮挡 */
+        }
+        .chat-container {
+            background: white;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .chat-header {
+            background: #4a6fa5;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .config-toggle-btn {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .lang-btn {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 5px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .lang-btn.active {
+            background: #fff;
+            color: #4a6fa5;
+            border-color: #fff;
+        }
+        .config-panel {
+            display: none; /* 默认隐藏 */
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            background: #fafafa;
+        }
+        .config-panel.show {
+            display: block;
+        }
+        .config-row {
+            margin-bottom: 10px;
+        }
+        .config-row label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+            font-size: 14px;
+        }
+        .config-row input, .config-row textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        .config-row textarea {
+            height: 80px;
+            resize: vertical;
+            font-family: monospace;
+        }
+        /* 开关行（参考 sl-web-chat 样式）：整行可点 + 放大 checkbox + 主题色 */
+        .config-row.checkbox-row { margin-bottom: 4px; }
+        .checkbox-label {
+            display: inline-flex !important;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 0 !important;
+            cursor: pointer;
+            font-weight: 600 !important;
+            font-size: 14px;
+            color: #4a6fa5 !important;
+            user-select: none;
+        }
+        .checkbox-label input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            margin: 0;
+            accent-color: #4a6fa5;
+            cursor: pointer;
+            flex: 0 0 auto;
+        }
+        .config-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .config-actions button {
+            flex: 1;
+            padding: 8px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .save-btn {
+            background: #4a6fa5;
+            color: white;
+        }
+        .cancel-btn {
+            background: #ccc;
+            color: #333;
+        }
+        .export-btn {
+            background: #fff;
+            color: #4a6fa5;
+            border: 1px solid #4a6fa5;
+        }
+        .headers-toggle-btn {
+            background: #6c757d;
+            color: white;
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            margin-top: 5px;
+        }
+        .config-toggle-group {
+            display: flex;
+            gap: 10px;
+        }
+        .config-toggle-group .headers-toggle-btn {
+            flex: 1;
+            margin-top: 0;
+        }
+        .headers-editor {
+            display: none;
+            margin-top: 10px;
+        }
+        .headers-editor.show {
+            display: block;
+        }
+        .chat-messages {
+            flex: 1 1 auto;
+            min-height: 0; /* 关键：flex 子项可滚动而非被内容撑开 */
+            overflow-y: auto;
+            padding: 15px;
+        }
+        .message {
+            margin-bottom: 12px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            max-width: 80%;
+            word-wrap: break-word;
+            white-space: pre-line;
+        }
+        .user-message {
+            background: #e3f2fd;
+            margin-left: auto;
+        }
+        .assistant-message {
+            background: #f1f1f1;
+            margin-right: auto;
+        }
+        .chat-input {
+            display: flex;
+            align-items: flex-end;
+            padding: 15px;
+            border-top: 1px solid #eee;
+        }
+        .chat-input input,
+        .chat-input textarea {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            font-family: inherit;
+        }
+        .chat-input textarea {
+            resize: vertical;
+            min-height: 44px;
+            max-height: 40vh;
+            overflow-y: auto;
+            line-height: 1.4;
+        }
+        .chat-input button {
+            margin-left: 10px;
+            padding: 10px 20px;
+            background: #4a6fa5;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .upload-btn {
+            margin-left: 0;
+            margin-right: 10px;
+            padding: 10px 14px;
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .upload-btn:hover { background: #5a6268; }
+        .clean-btn { background: #6c757d; }
+        .clean-btn:hover { background: #5a6268; }
+        .attachments-tray {
+            display: none;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 10px 15px 0;
+        }
+        .att-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #eef2f7;
+            border: 1px solid #dbe3ec;
+            border-radius: 16px;
+            padding: 4px 8px 4px 4px;
+            max-width: 240px;
+            font-size: 13px;
+        }
+        .att-thumb {
+            width: 28px;
+            height: 28px;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+        .att-icon { font-size: 16px; }
+        .att-name {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 150px;
+        }
+        .att-remove {
+            border: none;
+            background: transparent;
+            color: #888;
+            cursor: pointer;
+            font-size: 16px;
+            line-height: 1;
+            padding: 0 2px;
+        }
+        .att-remove:hover { color: #d32f2f; }
+        .att-inline {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 6px;
+        }
+        .status {
+            text-align: center;
+            padding: 8px;
+            font-size: 14px;
+            color: #666;
+        }
+        .error {
+            color: #d32f2f;
+            background: #ffebee;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px;
+            display: none;
+            white-space: pre-line;
+            line-height: 1.5;
+        }
+        .hint {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        /* ===== 资源渲染（<resources> 协议） ===== */
+        .media-gallery {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 100%;
+        }
+        .resource-message {
+            max-width: 92%;
+            background: #f1f1f1;
+        }
+        .media-item {
+            border-radius: 8px;
+            overflow: hidden;
+            background: #fff;
+            border: 1px solid #e3e3e3;
+        }
+        .media-image {
+            display: block;
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+        }
+        .media-video, .media-audio {
+            display: block;
+            width: 100%;
+            max-width: 480px;
+            border-radius: 8px;
+        }
+        .media-embed {
+            border-radius: 8px;
+        }
+        .media-embed > summary {
+            cursor: pointer;
+            padding: 8px 12px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            background: #f7f7f7;
+            border-radius: 8px;
+            list-style: none;
+        }
+        .media-embed > summary::-webkit-details-marker { display: none; }
+        .media-embed-body {
+            padding: 8px 0 0;
+        }
+        .media-iframe {
+            width: 100%;
+            height: 380px;
+            border: 1px solid #e3e3e3;
+            border-radius: 8px;
+            background: #fff;
+        }
+        .media-open-link {
+            display: inline-block;
+            margin-top: 6px;
+            font-size: 13px;
+            color: #4a6fa5;
+            text-decoration: none;
+        }
+        .media-open-link:hover { text-decoration: underline; }
+        .media-broken, .media-invalid {
+            padding: 16px;
+            text-align: center;
+            font-size: 13px;
+            color: #b3261e;
+            background: #fdecea;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <span id="appTitle">tc-web-chat</span>
+            <div class="header-actions">
+                <select id="langSelect" class="header-drop"></select>
+                <select id="approvalSelect" class="header-drop">
+                    <option value="none" data-i18n="approvalNone">None (ask first)</option>
+                    <option value="readonly" data-i18n="approvalReadonly" selected>Read-only auto</option>
+                    <option value="all" data-i18n="approvalAll">Auto all</option>
+                </select>
+                <button class="config-toggle-btn" id="toggleConfig" data-i18n="configBtn">⚙️ Config</button>
+            </div>
+        </div>
+        
+        <!-- 配置面板 (默认隐藏) -->
+        <div class="config-panel" id="configPanel">
+            <div class="config-row">
+                <label data-i18n="baseUrlLabel">Base URL *</label>
+                <input type="text" id="cfgBaseUrl" data-i18n-ph="baseUrlPh" placeholder="e.g. /v1/chat/completions or https://api.example.com/v1/chat/completions">
+            </div>
+            <div class="config-row">
+                <label data-i18n="modelLabel">Model</label>
+                <input type="text" id="cfgModel" data-i18n-ph="modelPh" placeholder="e.g. gpt-3.5-turbo (leave empty for default)">
+            </div>
+            <div class="config-row">
+                <div class="config-toggle-group">
+                    <button class="headers-toggle-btn" id="toggleHeaders" data-i18n="headersBtn">📋 Edit Headers</button>
+                    <button class="headers-toggle-btn" id="toggleCdn" data-i18n="cdnBtn">🌐 Configure CDN</button>
+                </div>
+                <div class="headers-editor" id="headersEditor">
+                    <textarea id="cfgHeaders" placeholder='{"Content-Type": "application/json"}'>{"Content-Type": "application/json"}</textarea>
+                    <div class="hint" data-i18n="headersHint">Enter valid JSON. Content-Type is included by default. Append your custom request headers here.</div>
+                </div>
+                <div class="headers-editor" id="cdnEditor">
+                    <textarea id="cfgCdn" placeholder='{"cdn_url": "https://your-cdn.com"}'>{"cdn_url": ""}</textarea>
+                    <div class="hint" data-i18n="cdnHint">cdn_url is only the base for upload/callback: not a request header, not the chat POST URL. Leave empty to fall back to the backend same-origin address.</div>
+                </div>
+            </div>
+            
+            <div class="config-row checkbox-row">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="cfgTcEnabled">
+                    <span data-i18n="tcEnabledLabel">tc Enabled</span>
+                </label>
+            </div>
+            <div class="config-row checkbox-row">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="cfgTcPathEnabled">
+                    <span data-i18n="tcPathEnabledLabel">tc Path Enabled</span>
+                </label>
+            </div>
+            <div class="config-row">
+                <label data-i18n="tcEndpointLabel">tc Endpoint</label>
+                <input type="text" id="cfgTcEndpoint" data-i18n-ph="tcEndpointPh" placeholder="http://127.0.0.1:28050/text-cli/cli">
+            </div>
+            <div class="config-row">
+                <label data-i18n="tcTokenLabel">Service Token</label>
+                <input type="password" id="cfgTcToken" placeholder="optional Service-token">
+            </div>
+            <div class="config-row">
+                <label data-i18n="tcAccessTokenLabel">Access Token</label>
+                <input type="password" id="cfgTcAccessToken" placeholder="optional Authorization: Bearer">
+            </div>
+            <div class="config-row">
+                <label data-i18n="tcScopeLabel">tc Scope</label>
+                <input type="text" id="cfgTcScope" placeholder="optional, comma-separated domains">
+            </div>
+            <div class="config-row">
+                <label data-i18n="approvalLabel">Tool Gate</label>
+                <select id="approvalSelectCfg">
+                    <option value="none" data-i18n="approvalNone">None (ask first)</option>
+                    <option value="readonly" data-i18n="approvalReadonly" selected>Read-only auto</option>
+                    <option value="all" data-i18n="approvalAll">Auto all</option>
+                </select>
+            </div>
+            <div class="config-row" id="configLangRow">
+                <label data-i18n="langLabel">Language</label>
+                <select id="langSelectCfg"></select>
+            </div>
+            <div class="config-actions">
+                <button class="cancel-btn" id="cancelConfig" data-i18n="cancelConfig">Cancel</button>
+                <button class="export-btn" id="exportHistory" data-i18n="exportHistory">Export JSONL</button>
+                <button class="save-btn" id="saveConfig" data-i18n="saveConfig">Save Config</button>
+            </div>
+        </div>
+
+        <div class="chat-messages" id="messages" role="log" aria-live="polite"></div>
+        <div class="error" id="error"></div>
+        <div class="status" id="tcStatus" style="margin-top:4px"></div>
+                <div class="status" id="status" data-i18n="statusReady">Ready</div>
+        <div class="attachments-tray" id="attachmentsTray"></div>
+        <form class="chat-input" id="chatForm">
+            <button type="button" class="upload-btn" id="uploadBtn" data-i18n-title="uploadTitle" title="Upload file">📎</button>
+            <input
+                type="file"
+                id="fileInput"
+                multiple
+                accept="image/*,video/*,audio/*,.pdf,.txt,.md,.json,.csv,.doc,.docx,.xls,.xlsx"
+                hidden
+            >
+            <textarea
+                id="userInput"
+                rows="1"
+                data-i18n-ph="inputPlaceholder"
+                placeholder="Type your message, or click 📎 to attach a file..."
+                autocomplete="off"
+            ></textarea>
+            <button type="submit" data-i18n="send">Send</button>
+            <button type="button" class="clean-btn" id="cleanBtn" data-i18n="clean">Clean</button>
+        </form>
+    </div>
+
+    <script>
+// ---- i18n (from i18n.json, lang=en) ----
+const LANGS = {
+    "en": {
+        "label": "EN",
+        "name": "English",
+        "prompt": "Please respond in English."
+    },
+    "zh": {
+        "label": "CN",
+        "name": "中文",
+        "prompt": "请使用中文响应。"
+    }
+};
+const I18N = {
+    "en": {
+        "configBtn": "⚙️ Config",
+        "send": "Send",
+        "clean": "Clean",
+        "uploadTitle": "Upload file",
+        "inputPlaceholder": "Type your message, or click 📎 to attach a file...",
+        "statusReady": "Ready",
+        "thinking": "Thinking...",
+        "streaming": "Streaming...",
+        "uploading": "Uploading: {name}",
+        "baseUrlLabel": "Base URL *",
+        "baseUrlPh": "e.g. /v1/chat/completions or https://api.example.com/v1/chat/completions",
+        "modelLabel": "Model",
+        "modelPh": "e.g. gpt-3.5-turbo (leave empty for default)",
+        "headersBtn": "📋 Edit Headers",
+        "cdnBtn": "🌐 Configure CDN",
+        "headersHint": "Enter valid JSON. Content-Type is included by default. Append your custom request headers here.",
+        "cdnHint": "cdn_url is only the base for upload/callback: not a request header, not the chat POST URL. Leave empty to fall back to the backend same-origin address.",
+        "saveConfig": "Save Config",
+        "cancelConfig": "Cancel",
+        "configSaved": "Config saved!",
+        "exportHistory": "Export JSONL",
+        "exportHistoryEmpty": "No conversation to export",
+        "exportHistoryDone": "Exported {n} messages to JSONL",
+        "baseUrlEmpty": "Base URL cannot be empty",
+        "headersJsonErr": "Headers JSON format error: {msg}",
+        "requestFailed": "Request failed: {msg}",
+        "uploadFailed": "Upload failed: {msg}",
+        "brokenImage": "⚠️ Image failed to load",
+        "invalidResource": "⚠️ Invalid or blocked resource: {url}",
+        "openInNewTab": "Open in new tab ↗",
+        "mediaPdf": "📄 PDF: ",
+        "mediaWeb": "🌐 Web: ",
+        "removeAtt": "Remove {name}",
+        "greeting": "Hello! I'm your AI assistant.\nClick ⚙️ (top-right) to configure the API endpoint and Headers.",
+        "approvalLabel": "Tool Gate",
+        "approvalNone": "None (ask first)",
+        "approvalReadonly": "Read-only auto",
+        "approvalAll": "Auto all",
+        "tcEnabledLabel": "tc Enabled",
+        "tcPathEnabledLabel": "tc Path Enabled",
+        "tcPathDisabled": "tc path not enabled (chat-only mode)",
+        "tcEndpointLabel": "tc Endpoint",
+        "tcEndpointPh": "http://127.0.0.1:28050/text-cli/cli",
+        "tcTokenLabel": "Service Token",
+        "tcAccessTokenLabel": "Access Token",
+        "tcScopeLabel": "tc Scope",
+        "langLabel": "Language",
+        "tcOffline": "tc offline — chat only",
+        "tcReady": "tc ready",
+        "approvalNeedConfirm": "Need confirmation ({reason})",
+        "approvalConfirmBtn": "Confirm",
+        "approvalRejectBtn": "Reject",
+        "approvalAbortBtn": "Abort",
+        "approvalRejected": "⛔ User rejected {label} (no protocol error code)",
+        "approvalAborted": "⛔ User aborted {label} (no protocol error code)",
+        "tcNotConfigured": "tc endpoint not configured (chat-only mode)",
+        "executed": "Executed",
+        "asyncSubmitted": "Submitted",
+        "asyncPending": " (async task {task})",
+        "degraded": "Degraded",
+        "degradedHint": " (non-terminal, retry alternate route)",
+        "partial": "Partially completed",
+        "delegatedHint": "\nPending delegation:\n",
+        "endpointUnreachable": "tc endpoint unreachable",
+        "tcCapNotEnabled": "(tc capability not enabled, chat-only mode)",
+        "tcCapNotReady": "(tc capability not ready, chat-only mode)",
+        "queryNoCache": "tc cache not ready — connect once, then retry",
+        "queryNoMatch": "No matching directive. Try a shorter keyword, or send query,json for the full list.",
+        "corsBlocked": " cross-origin blocked by browser, open same-origin or configure proxy",
+        "staleCache": " (using stale cache)",
+        "networkConnectErr": "Cannot connect to {baseUrl}.\n• Confirm the backend is running\n• If opened via file://, change localhost to 127.0.0.1\n• Or access http://127.0.0.1:8000/ directly (same-origin, no CORS)",
+        "apiErrorFallback": "API returned an error",
+        "circuitBreaker": " (repeated failures, switched to manual confirmation)",
+        "asyncPolling": "… polling async task {task}",
+        "asyncTimeout": "↳ task;status timed out",
+        "errSeparator": ": ",
+        "err_ERR_NOT_FOUND": "Directive not found (domain/action does not exist)",
+        "err_ERR_EXECUTION": "Execution error (runtime exception)",
+        "err_ERR_ROUTING": "Routing failed (no executor matched)",
+        "err_INVALID_PARAMS": "Invalid parameters",
+        "err_ACCESS_DENIED": "Access denied (insufficient permission)",
+        "err_SERVICE_DENIED": "Service denied (approval/whitelist blocked)",
+        "err_unknown": "Unknown error code {code}"
+    }
+};
+
+// ---- tc-config.js ----
+// ========== tc-config.js ==========
+// 配置状态管理 + 多语言（i18n）+ SYSTEM_PROMPTS 占位
+// 源模块：由 build.js 拼入 tc-web-chat.html 的 <script>
+// 设计稿锚点：§3.2.1（SYSTEM_PROMPTS）、§3.5（LANGS/languagePrompt）、§11.2
+
+// ---------- 配置持久化 ----------
+const CONFIG_KEY = 'tc-web-chat-config';
+const DEFAULT_CONFIG = {
+    baseUrl: '/v1/chat/completions',
+    model: 'default-model',
+    headers: { 'Content-Type': 'application/json' },
+    cdnUrl: '',
+    maxTokens: 1000,
+    temperature: 0.7,
+    // —— tc 桥接新增（§2 配置项 6 项）——
+    tc_enabled: false,      // 是否启用 tc 指令消费；false = 退化为纯聊天（§2 向后兼容）
+    tc_endpoint: 'http://127.0.0.1:28050/text-cli/cli', // §2 默认对齐 A0 call.js DEFAULT_ENDPOINT
+    service_token: '',      // 可选；对应 Service-token 头（§2）
+    access_token: '',       // 可选；对应 Authorization: Bearer 头（§2 双令牌）
+    tc_scope: '',           // 可选；对 query 结果做客户端精选以省 token（§2）
+    auto_execute: 'readonly', // 人闸默认 readonly（§3.5 / §5）
+    tc_path_enabled: false    // 是否启用 tc path 编排教学（§2 扩展：发现面可见 get-path-example，前端特判返回教学）
+};
+
+function loadConfig() {
+    try {
+        const raw = localStorage.getItem(CONFIG_KEY);
+        if (raw) {
+            const obj = JSON.parse(raw);
+            return {
+                ...DEFAULT_CONFIG,
+                ...obj,
+                headers: { 'Content-Type': 'application/json', ...(obj.headers || {}) }
+            };
+        }
+    } catch (e) { /* 解析失败回退默认 */ }
+    return { ...DEFAULT_CONFIG };
+}
+
+function saveConfig(config) {
+    try { localStorage.setItem(CONFIG_KEY, JSON.stringify(config)); } catch (e) { /* storage 满则静默失败 */ }
+}
+
+let runtimeConfig = loadConfig();
+
+// ---------- 语言注册表（§3.5：语言是数据不是分支，加语言 = 改 i18n.json 一行） ----------
+// LANGS / I18N 不再硬编码于此，改由 build.js 构建时从 i18n.json 读取并按 --lang 注入到脚本段
+// （见 build.js：读 i18n.json → 拼 `const LANGS=...; const I18N=...;` 注入）。
+// 运行时此处仅消费全局 LANGS / I18N（同 <script> 共享作用域）。
+function langList() { return Object.keys(LANGS).map((k) => ({ code: k, ...LANGS[k] })); }
+
+// 默认语言：由注入词典推导——单语包只有一个键，默认即为该语言；双包回退 en
+let currentLang = (typeof I18N !== 'undefined' && I18N && Object.keys(I18N).length === 1)
+    ? Object.keys(I18N)[0] : 'en';
+
+function t(key, params) {
+    let s = I18N[currentLang] && I18N[currentLang][key];
+    if (s === undefined) {
+        // 双包才有 en 回退；单语包无 en 键，直接回退 key 本身（避免读 undefined['key'] 抛 TypeError）
+        s = (I18N.en && I18N.en[key] !== undefined) ? I18N.en[key] : key;
+    }
+    if (typeof s === 'function') return s(params);
+    if (params && typeof params === 'object') {
+        for (const k in params) s = s.replace(new RegExp('\\{' + k + '\\}', 'g'), params[k]);
+    }
+    return s;
+}
+
+// 语言 prompt 随下拉变（§3.5 / §3.2.1 第二条）；LANGS 已是注册表对象
+function currentLanguagePrompt() {
+    const lang = LANGS[currentLang] || LANGS.zh;
+    return lang ? lang.prompt : '';
+}
+
+// 遍历 LANGS 注册表生成 <option>（§3.5：语言是数据不是分支）
+function buildLangOptions() {
+    return langList().map((l) =>
+        `<option value="${l.code}">${l.label} · ${l.name}</option>`).join('');
+}
+
+// §2 双令牌：组装 tc 请求头（Service-token + 可选 Authorization: Bearer）
+// 注意：绝不靠 HTTP 状态码判断成功，信封 rst_err 才是协议真相（§4 铁律）
+function buildTcHeaders() {
+    const h = { 'Content-Type': 'application/json' };
+    if (runtimeConfig.service_token) h['Service-token'] = runtimeConfig.service_token;
+    if (runtimeConfig.access_token) h['Authorization'] = 'Bearer ' + runtimeConfig.access_token;
+    return h;
+}
+
+// ---------- SYSTEM_PROMPTS（§3.2.1） ----------
+// 第一条：固定中性、不本地化（如何使用 tc）
+// 第二条：可变的语种指令，随下拉走 currentLanguagePrompt()
+// 第三条（动态）：已缓存能力摘要（§3.2.1 / §3.3——让 LLM 照例生成 AI:）；
+//   依赖 tc-cache.js 的 tcCacheSummary（同作用域）；缓存未就绪则降级为纯对话提示。
+const SYSTEM_PROMPTS_STATIC = [
+    '你可用 tc 工具。不确定用什么指令时，先发 "AI:text-cli;query,{意图关键词}"，' +
+    '我会从本地缓存返回匹配指令示例（域;动作;参数形状;别名），你据此照例生成 "AI:域;动作,参数"。' +
+    '关键词查不到、或需要俯瞰全部可用能力时，发 "AI:text-cli;query,json" 获取完整工具清单。'
+];
+
+// ---------- tc-path 编排教学（§2 扩展） ----------
+// 配置资产：开关开启时 tc-cache.js 把摘要行追加进发现面；tc-quiet.js 特判 get-path-example
+// 本地返回教学文本（不进端点、不过人闸，与 tcDiscover 同类）。内容对齐 text-cli;path 协议
+// （steps/instruction/output_as/if/{input.x}/{step_id.field}，mode 默认 toolchain）。
+// LLM 语言不敏感：教学文本固定中文（单语常量），不做多语言分支。
+const TC_PATH_SUMMARY = 'AI:text-cli;get-path-example  # 多工具编排 — 一条请求编排多步工具的教学';
+
+const TC_PATH_EXAMPLE = 'PATH 编排（临时编排权）：\n' +
+    '用一条调用运行多步工具链。端点按顺序执行各步骤，前一步输出通过 {step_id.field} 注入后续\n' +
+    '步骤（支持深路径）。{input.key} 引用你的尾随输入。\n' +
+    '\n' +
+    '语法：\n' +
+    '  AI:text-cli;path,{内联 JSON}[,输入 JSON]\n' +
+    '  AI:text-cli;path,<已注册 id>[,输入 JSON]\n' +
+    '  AI:text-cli;path,<文件>,--register[,输入 JSON]   # 注册一次，之后按 id 复用\n' +
+    '\n' +
+    'Path JSON：\n' +
+    '  { "id": "...", "type": "pipeline", "steps": [\n' +
+    '      { "id": "s1", "instruction": "域;动作,参数,{input.x}", "output_as": "r1" },\n' +
+    '      { "id": "s2", "instruction": "域2;动作2,{r1.字段}", "output_as": "r2",\n' +
+    '        "if": { "step": "s1", "field": "status", "equals": "ok" } }   # 可选：条件不满足则跳过\n' +
+    '  ]}\n' +
+    '\n' +
+    '最小可运行示例：\n' +
+    '  AI:text-cli;path,{"id":"calc2","type":"pipeline","steps":[\n' +
+    '    {"id":"sq","instruction":"tc-math;eval,{input.a}**2+{input.b}**2","output_as":"sq"},\n' +
+    '    {"id":"rt","instruction":"tc-math;eval,sqrt({sq.result})","output_as":"rt"}\n' +
+    '  ]},{"a":3,"b":4}\n' +
+    '\n' +
+    '说明：mode 默认为 "toolchain"（串行）。若端点不支持 path 会如实返回协议错误——不要盲目重试。';
+
+function buildSystemPrompts() {
+    const prompts = [];
+    if (runtimeConfig.tc_enabled) {
+        prompts.push(...SYSTEM_PROMPTS_STATIC);   // "你可用 tc 工具…"说明段
+        if (typeof tcCacheSummary === 'function') prompts.push(tcCacheSummary());
+    }
+    prompts.push(currentLanguagePrompt());        // 语种指令始终注入（与 tc 无关）
+    return prompts;
+}
+
+// ---------- 语言应用（§3.5：语言是数据不是分支，查表回退） ----------
+// 单语版（注入词典仅一个键）：隐藏语言下拉框（头部 + 面板），避免出现无效切换器
+function isSingleLang() {
+    return !!(I18N && Object.keys(I18N).length === 1);
+}
+
+function applyLang(lang) {
+    currentLang = lang || (isSingleLang() ? Object.keys(I18N)[0] : 'en');
+    document.documentElement.lang = (currentLang === 'zh') ? 'zh-CN' : 'en';
+    document.querySelectorAll('[data-i18n],[data-i18n-ph],[data-i18n-title]').forEach((el) => {
+        if (el.hasAttribute('data-i18n')) el.textContent = t(el.getAttribute('data-i18n'));
+        if (el.hasAttribute('data-i18n-ph')) el.placeholder = t(el.getAttribute('data-i18n-ph'));
+        if (el.hasAttribute('data-i18n-title')) el.title = t(el.getAttribute('data-i18n-title'));
+    });
+    // 单语版不显示语言配置（下拉 + 所在行）；双包才同步 options 并置选中项
+    const single = isSingleLang();
+    ['langSelect', 'langSelectCfg'].forEach((id) => {
+        const sel = document.getElementById(id);
+        if (!sel) return;
+        sel.style.display = single ? 'none' : '';
+        if (!single) {
+            if (!sel.options.length) sel.innerHTML = buildLangOptions();
+            sel.value = currentLang;
+        }
+    });
+    if (single) {
+        const langRow = document.getElementById('configLangRow');
+        if (langRow) langRow.style.display = 'none';
+    }
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        DEFAULT_CONFIG, loadConfig, saveConfig,
+        LANGS, I18N, t, currentLanguagePrompt,
+        SYSTEM_PROMPTS_STATIC, buildSystemPrompts,
+        TC_PATH_SUMMARY, TC_PATH_EXAMPLE,
+        applyLang, bindLangButtons,
+        getRuntimeConfig: () => runtimeConfig,
+        setRuntimeConfig: (c) => { runtimeConfig = c; }
+    };
+}
+
+
+// ---- tc-cache.js ----
+// ========== tc-cache.js ==========
+// 本地能力缓存 + 运行时发现 + 查询过滤
+// 设计稿锚点：§3.1 / §3.2 / §12.3.8（拉取失败可降级）
+
+// ---------- 缓存结构 ----------
+// tcCache: { endpoint, fetchedAt, directives: [ {domain, action, params, alias, desc} ] }
+let tcCache = {
+    endpoint: null,
+    fetchedAt: 0,
+    directives: [],     // 已发现的能力原语元数据
+    ready: false        // §12.3.11 可观测：缓存是否就绪
+};
+
+function tcCacheReset() {
+    tcCache = { endpoint: null, fetchedAt: 0, directives: [], ready: false };
+}
+
+// 端点/令牌变更或 Clean 时失效（§12.3.11）
+function tcCacheInvalidate() {
+    tcCacheReset();
+}
+
+// ---------- 运行时发现（§3.1 / §3.2） ----------
+// 按设计稿 §3.2：POST {tc_endpoint} + {"prompt":"AI:text-cli;query,json"}，
+// 拉回能力清单 directives[]，存本地缓存。
+// 失败按 §12.3.8 三选一降级，§12.3.9 识别 CORS/网络层，绝不抛死，也不伪造 §4 协议码。
+async function tcDiscover() {
+    const ep = runtimeConfig.tc_endpoint;
+    if (!ep) {
+        // 端点空 = 纯对话模式（§12.3.8b 显式提示，主链仍可聊）
+        tcCacheInvalidate();
+        return { ok: false, reason: 'no-endpoint', mode: 'chat-only' };
+    }
+    try {
+        // §2 双令牌头；§4 铁律：成功与否只看信封 rst_err，不看 HTTP 状态
+        const res = await fetch(ep, { method: 'POST', headers: buildTcHeaders(),
+            body: JSON.stringify({ prompt: 'AI:text-cli;query,json' }) });
+        if (!res.ok) {
+            // HTTP 层（非信封层）失败：视为 fetch 层降级，不写协议码（§4 铁律）
+            if (tcCache.ready) return { ok: true, stale: true, directives: tcCache.directives }; // §12.3.8a
+            return { ok: false, reason: 'discover-http-' + res.status, mode: 'chat-only' };
+        }
+        const data = await res.json();
+        // 信封：{rst_err, rst_data}（§4）；rst_err==='' 才成功
+        const env = data || {};
+        if (env.rst_err !== undefined && env.rst_err !== '') {
+            if (tcCache.ready) return { ok: true, stale: true, directives: tcCache.directives }; // §12.3.8a
+            return { ok: false, reason: 'discover-rst-' + env.rst_err, mode: 'chat-only' };
+        }
+        // §3.2 返回的 directives 列表：设计稿约定直接是数组，
+        // 但 zh 实证运行时包了一层 {directives:[...]}（schema 形态），兼容两种。
+        const arr = (env.rst_data && Array.isArray(env.rst_data.directives))
+            ? env.rst_data.directives
+            : (Array.isArray(env.rst_data) ? env.rst_data : []);
+        const directives = arr;
+        tcCache = { endpoint: ep, fetchedAt: Date.now(), directives, ready: true };
+        return { ok: true, directives };
+    } catch (e) {
+        // §12.3.9 本机 CORS / 网络层：识别 TypeError，说人话，不污染 §4 错误码闭集
+        const isCors = (e instanceof TypeError);
+        if (tcCache.ready) return { ok: true, stale: true, directives: tcCache.directives }; // §12.3.8a 降级
+        return {
+            ok: false,
+            reason: isCors ? 'cors-blocked' : 'network-error',
+            hint: isCors
+                ? t('tcEndpointLabel') + t('corsBlocked')
+                : t('endpointUnreachable'),
+            mode: 'chat-only'
+        };
+    }
+}
+
+// ---------- 查询过滤（§3.2） ----------
+// 用户/LLM 描述意图 → 从缓存返回匹配指令示例（域;动作;参数形状;别名）
+function tcQuery(text) {
+    if (!tcCache.ready || !tcCache.directives.length) return [];
+    const q = (text || '').toLowerCase();
+    return tcCache.directives.filter((d) => {
+        const hay = [d.domain, d.action, d.alias, d.desc].filter(Boolean).join(' ').toLowerCase();
+        return q.split(/\s+/).some((tok) => tok && hay.includes(tok));
+    });
+}
+
+// 同步暴露给 LLM 提示词的"已缓存能力摘要"
+// opts.ignoreScope：全暴露（text-cli;query,json）跳过 tc_scope 精选，返回端点全部能力
+function tcCacheSummary(opts) {
+    if (!runtimeConfig.tc_enabled) return t('tcCapNotEnabled');
+    if (!tcCache.ready) return t('tcCapNotReady');
+    // R4：tc_scope 非空时，对 directives 做客户端 best-effort 关键词精选（复用 tcQuery 思路）
+    let directives = tcCache.directives;
+    const scope = (runtimeConfig.tc_scope || '').trim().toLowerCase();
+    if (scope && !(opts && opts.ignoreScope)) {
+        const toks = scope.split(/[\s,;]+/).filter(Boolean);
+        directives = directives.filter((d) => {
+            const hay = [d.domain, d.action, d.alias, d.desc].filter(Boolean).join(' ').toLowerCase();
+            return toks.some((tok) => hay.includes(tok));
+        });
+    }
+    if (!directives.length) return t('tcCapNotReady');
+    const lines = directives.map((d) => `AI:${d.domain};${d.action},${d.params || ''}  # ${d.alias || d.desc || ''}`);
+    // tc-path 编排教学入口：开关开启时追加到发现面（在 scope 过滤之后，独立于端点能力清单）
+    if (runtimeConfig.tc_path_enabled) {
+        lines.push(TC_PATH_SUMMARY);
+    }
+    if (!lines.length) return t('tcCapNotReady');
+    return lines.join('\n');
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        getTcCache: () => tcCache,
+        tcCacheReset, tcCacheInvalidate, tcDiscover, tcQuery, tcCacheSummary,
+        setTcCacheReady: (v) => { tcCache.ready = v; }
+    };
+}
+
+
+// ---- tc-parser.js ----
+// ========== tc-parser.js ==========
+// 解析 LLM 文本中的 tc 指令原语：AI:域;动作,参数
+// 设计稿锚点：§4（实证正则）/ §12.3.10（流结束兜底）
+// §4 实证正则：支持「指令:」中文别名、JSON 括号深度、引号内逗号、限长 2048、限参 50
+
+const TC_MAX_LEN = 2048;
+const TC_MAX_PARAMS = 50;
+
+// 设计稿 §4 实证正则（g）：AI:域;动作,参数（支持「指令:」别名、括号、引号内逗号）
+const TC_DIRECTIVE_RE = /^\s*(?:AI|指令)[：:]([^;]+);([^,]+)(?:,(.+))?\s*$/;
+
+function parseDirectiveLine(line) {
+    const m = TC_DIRECTIVE_RE.exec(line);
+    if (!m) return null;
+    const domain = m[1].trim();
+    const action = m[2].trim();
+    const rawParams = m[3];
+    let params = [];
+    if (rawParams !== undefined) {
+        // 引号内逗号不拆、括号深度不拆（§4 实证容错）
+        const parts = [];
+        let buf = '', depth = 0, inQ = false, q = '';
+        for (const ch of rawParams) {
+            if (inQ) {
+                buf += ch;
+                if (ch === q) inQ = false;
+            } else if (ch === '"' || ch === "'") {
+                inQ = true; q = ch; buf += ch;
+            } else if (ch === '[' || ch === '{' || ch === '(') {
+                depth++; buf += ch;
+            } else if (ch === ']' || ch === '}' || ch === ')') {
+                depth--; buf += ch;
+            } else if (ch === ',' && depth === 0) {
+                parts.push(buf); buf = '';
+            } else {
+                buf += ch;
+            }
+        }
+        if (buf.trim()) parts.push(buf);
+        params = parts.map((s) => s.trim()).filter((s) => s.length);
+    }
+    if (!domain || !action) return null;
+    return { domain, action, params, raw: line.trim() };
+}
+
+function parseDirectives(text) {
+    const out = [];
+    if (!text) return out;
+    const lines = text.slice(0, TC_MAX_LEN).split('\n');
+    for (const line of lines) {
+        const d = parseDirectiveLine(line);
+        if (d) {
+            if (d.params.length > TC_MAX_PARAMS) {
+                // §4 护栏：参数超 50 截断，避免炸弹（安全网）
+                d.params = d.params.slice(0, TC_MAX_PARAMS);
+            }
+            out.push(d);
+        }
+    }
+    // 跨行兜底：正文内整段出现「AI:...」而非独立行时也尝试（§12.3.10 放宽）
+    if (out.length === 0) {
+        const inline = text.match(/(?:AI|指令)[：:][^\n;]+;[^\n]+/g);
+        if (inline) {
+            for (const seg of inline) {
+                const d = parseDirectiveLine(seg.trim());
+                if (d) out.push(d);
+            }
+        }
+    }
+    return out;
+}
+
+// 是否文本包含 tc 指令（用于 submit 判断是否进入免打扰轮）
+function hasDirectives(text) {
+    return parseDirectives(text).length > 0;
+}
+
+// 从文本中抽取"非指令"的普通回复部分（去掉 AI: 行）
+function stripDirectives(text) {
+    if (!text) return text;
+    return text.replace(/(?:AI|指令)[：:][^\n]*/g, '').replace(/\n{2,}/g, '\n').trim();
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { parseDirectives, hasDirectives, stripDirectives, TC_DIRECTIVE_RE, TC_MAX_LEN, TC_MAX_PARAMS };
+}
+
+
+
+// ---- tc-approval.js ----
+// ========== tc-approval.js ==========
+// 人闸（approval gate）：none / readonly / all 三态状态机
+// 设计稿锚点：§3.5（下拉 N 态）/ §5（人审本地中止，无信封码）
+// 语义：人闸是前端本地 UI 决策，不产生 ACCESS_DENIED/SERVICE_DENIED 等业务码（见 §4 铁律）
+
+// 三态定义
+const APPROVAL_MODES = {
+    none:     { key: 'none',     labelKey: 'approvalNone',     auto: false, readonly: false },
+    readonly: { key: 'readonly', labelKey: 'approvalReadonly', auto: true,  readonly: true  },
+    all:      { key: 'all',      labelKey: 'approvalAll',      auto: true,  readonly: false }
+};
+
+// 当前人闸态（默认 readonly，§5 最安全默认）
+let approvalMode = (runtimeConfig && runtimeConfig.auto_execute) || 'readonly';
+
+function getApprovalMode() { return approvalMode; }
+
+function setApprovalMode(mode) {
+    if (!APPROVAL_MODES[mode]) return false;
+    approvalMode = mode;
+    if (runtimeConfig) runtimeConfig.auto_execute = mode;
+    return true;
+}
+
+// §5 副作用判定：依据 query 表单的 usage/description 元数据关键词，而非动作名硬编码
+// 元数据来自 tcCache.directives（§3.2 发现结果）；找不到则保守视为可能副作用 → 询问
+const SIDE_EFFECT_KEYWORDS = ['写', '改', '删', '创建', '发送', '提交', '更新', 'write', 'create', 'delete', 'send', 'submit', 'update', 'mutate', '危险', 'danger'];
+function isSideEffect(directive) {
+    const cache = (typeof getTcCache === 'function') ? getTcCache() : null;
+    const matched = cache && Array.isArray(cache.directives)
+        ? cache.directives.find((d) => d.domain === directive.domain && d.action === directive.action)
+        : null;
+    if (!matched) return true; // 未知指令保守询问（安全网）
+    const usage = String(matched.usage || matched.description || '');
+    if (!usage) return true;    // 无描述保守询问
+    return SIDE_EFFECT_KEYWORDS.some((k) => usage.toLowerCase().includes(k.toLowerCase()));
+}
+
+// ---------- CircuitBreaker（§5 连续 3 次失败转 none） ----------
+let failureStreak = 0;
+const FAILURE_THRESHOLD = 3;
+const CIRCUIT_RECOVER_MS = 5 * 60 * 1000; // 5 分钟 refractory 后允许恢复
+let circuitTrippedAt = 0;
+
+function reportToolFailure() {
+    failureStreak++;
+    if (failureStreak >= FAILURE_THRESHOLD && approvalMode !== 'none') {
+        circuitTrippedAt = Date.now();
+        setApprovalMode('none'); // §5：熔断，转人工兜底
+        return true;             // 本次触发了熔断
+    }
+    return false;
+}
+function reportToolSuccess() { failureStreak = 0; }
+// refractory 后调用可在用户切回时恢复（不自动恢复，需用户操作，但清零计数以便重算）
+function resetCircuitIfRecovered() {
+    if (circuitTrippedAt && Date.now() - circuitTrippedAt > CIRCUIT_RECOVER_MS) {
+        failureStreak = 0; circuitTrippedAt = 0;
+    }
+}
+
+// 决策：给定一条待执行指令，返回 { act: 'auto' | 'ask' | 'deny', reason }
+// - all：一切自动（act=auto）
+// - readonly：只读类（usage 无副作用关键词）自动，写/危险类需询问（act=ask）
+// - none：一切先问（act=ask）
+function decideExecution(directive) {
+    resetCircuitIfRecovered();
+    const mode = APPROVAL_MODES[approvalMode];
+    if (!mode) return { act: 'ask', reason: 'unknown-mode' };
+    if (mode.key === 'all') return { act: 'auto', reason: 'gate-all' };
+    // readonly：按元数据判定副作用（§5），而非动作名前缀
+    const safe = !isSideEffect(directive);
+    if (mode.key === 'readonly') {
+        return safe ? { act: 'auto', reason: 'readonly-safe' } : { act: 'ask', reason: 'readonly-needs-confirm' };
+    }
+    // none：全询问
+    return { act: 'ask', reason: 'gate-none' };
+}
+
+// 渲染人闸卡片（占位 UI；胶水在 tc-chat.js 调 addMessage 时挂）
+function approvalCard(directive, decision) {
+    const params = directive.params || [];
+    // 与 runTool 发送的 AI: 原语逐字节一致（§4 字节同一性）：domain;action,param1,param2
+    const label = `${directive.domain};${directive.action},${params.join(',')}`;
+    return {
+        type: 'approval',
+        label,
+        decision,            // { act, reason }
+        confirmed: false,
+        denied: false
+    };
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        APPROVAL_MODES, getApprovalMode, setApprovalMode, decideExecution, approvalCard,
+        isSideEffect, reportToolFailure, reportToolSuccess, resetCircuitIfRecovered
+    };
+}
+
+
+// ---- tc-quiet.js ----
+// ========== tc-quiet.js ==========
+// 免打扰轮（do-not-disturb round）：免打扰桥接编排闭包
+// 设计稿锚点：§3.3 / §12.3.7（无 AI: 产出出口）/ §12.3.9（CORS 识别）
+// 闭环：LLM 文本 → parseDirectives → 人闸决策 → 执行回填 → 或"无指令"退出
+
+// 免打扰轮最大空转轮数：超过即判定"本轮无工具意图"，退出并把文本当普通回复
+const QUIET_MAX_IDLE = 2;
+
+// 真正执行一条指令：POST 到 tc 端点，解析 SPEC 信封
+// 设计稿锚点：§4（信封铁律）/ §12.3.7（执行失败也可破产退出）
+async function runTool(directive, deps) {
+    const ep = runtimeConfig.tc_endpoint;
+    if (!ep) {
+        // §12.3.8b：端点空 = 纯对话模式，不伪造协议码
+        return { ok: false, code: 'ERR_EXECUTION', message: t('tcNotConfigured') };
+    }
+    // 组装 AI: 原语文本（§4：域;动作,参数）
+    const aiText = `AI:${directive.domain};${directive.action},${(directive.params || []).join(',')}`;
+    try {
+        // §2 双令牌头；§4 铁律：只看信封 rst_err，绝不靠 HTTP 状态
+        const res = await fetch(ep, {
+            method: 'POST',
+            headers: buildTcHeaders(),
+            body: JSON.stringify({ prompt: aiText })
+        });
+        if (!res.ok) {
+            // HTTP 层（非信封层）失败：是 fetch 层降级，不写协议码，说人话（§4 铁律 / §12.3.9）
+            const described = deps && deps.describeBridgeError
+                ? deps.describeBridgeError(new TypeError('HTTP ' + res.status)) : { message: 'HTTP ' + res.status };
+            return { ok: false, code: 'ERR_EXECUTION', message: described.message, cors: described.kind === 'cors-or-network' };
+        }
+        const env = await res.json().catch(() => null);
+        // 信封：{ rst_err, rst_data, rst_types }（§4）
+        const err = (env && typeof env.rst_err === 'string') ? env.rst_err : (env && env.rst_err !== undefined ? String(env.rst_err) : '');
+        const ok = (err === '');                       // §4 铁律：rst_err==='' 即成功
+        const data = (env && env.rst_data != null) ? env.rst_data : null;
+        const types = (env && Array.isArray(env.rst_types)) ? env.rst_types : null;
+        const msg = (env && typeof env.rst_msg === 'string' && env.rst_msg) ? env.rst_msg : '';
+        return {
+            ok,
+            code: err || 'OK',                          // 成功时 code='OK'
+            message: ok ? (msg || t('executed')) : describeCode(err, msg),
+            result: data,
+            types,                                      // §4 多模态（rst_types）供前端渲染
+            // —— §4 非终态/委托信号 ——
+            degraded: (data && data.status === 'stop'), // 降级信号：非终态，换路
+            delegated: (data && Array.isArray(data.delegated)) ? data.delegated : null,
+            pending: (data && data.status === 'pending' && data.task_id) ? data.task_id : null
+        };
+    } catch (e) {
+        // §12.3.9：网络/CORS 层错误，说人话，不污染 §4 闭集
+        const described = deps && deps.describeBridgeError ? deps.describeBridgeError(e) : { message: String(e) };
+        return { ok: false, code: 'ERR_EXECUTION', message: described.message, cors: described.kind === 'cors-or-network' };
+    }
+}
+
+// tc-path 教学指令：本地特判返回（不 POST 端点、不过人闸）。
+// 开关开启 → 返回完整 path 教学文本；关闭 → SERVICE_DENIED（信封闭集，不伪造成功）。
+// 返回的信封与 runTool 同构，可直接交给 onToolResult 展示与入史。
+function tcPathExampleResult() {
+    if (!runtimeConfig.tc_path_enabled) {
+        return { ok: false, code: 'SERVICE_DENIED', message: t('tcPathDisabled') };
+    }
+    const text = (typeof TC_PATH_EXAMPLE !== 'undefined') ? TC_PATH_EXAMPLE : '';
+    return { ok: true, code: 'OK', message: t('executed'), result: text };
+}
+
+// text-cli;query 本地只读查询（不 POST 端点、不过人闸，与教学特判同类）：
+// 参数 json/空 → 全量暴露（跳过 tc_scope 精选）；意图关键词 → 本地缓存过滤命中示例。
+// 缓存未就绪 / 无匹配 → 闭集错误，不伪造成功。
+function tcLocalQueryResult(params) {
+    if (!runtimeConfig.tc_enabled) return { ok: false, code: 'SERVICE_DENIED', message: t('tcCapNotEnabled') };
+    const cache = (typeof getTcCache === 'function') ? getTcCache() : null;
+    if (!cache || !cache.ready || !cache.directives.length) {
+        return { ok: false, code: 'ERR_NOT_FOUND', message: t('queryNoCache') };
+    }
+    const text = (params || []).join(',');
+    const isFull = !text.trim() || text.trim() === 'json';
+    if (isFull) {
+        return { ok: true, code: 'OK', message: t('executed'), result: tcCacheSummary({ ignoreScope: true }) };
+    }
+    const hits = tcQuery(text);
+    if (!hits.length) return { ok: false, code: 'ERR_NOT_FOUND', message: t('queryNoMatch') };
+    const lines = hits.map((d) => `AI:${d.domain};${d.action},${d.params || ''}  # ${d.alias || d.desc || ''}`);
+    return { ok: true, code: 'OK', message: t('executed'), result: lines.join('\n') };
+}
+
+// §4 六码字符串闭集（未知回退 ERR_EXECUTION）：把 rst_err 翻译成人话（不向 LLM 伪造成功）
+// 闭集键集合保持恒定（回归 R7.2 断言依赖）；值由 t() 运行时查表（i18n err_* key），支持多语言。
+const TC_ERR_KEYS = [
+    'ERR_NOT_FOUND', 'ERR_EXECUTION', 'ERR_ROUTING',
+    'INVALID_PARAMS', 'ACCESS_DENIED', 'SERVICE_DENIED'
+];
+function describeCode(code, rstMsg) {
+    const key = 'err_' + code;                                   // i18n key：err_ERR_NOT_FOUND 等
+    const base = TC_ERR_KEYS.includes(code) ? t(key) : t('err_unknown', { code });
+    return rstMsg ? `${base}${t('errSeparator')}${rstMsg}` : base;
+}
+
+// 编排闭包：接收"发起 LLM 请求"的函数，返回处理一轮文本的桥函数
+// deps: { parseDirectives, decideExecution, runTool, onPlain, onToolResult, onAsk, describeBridgeError }
+function createQuietBridge(deps) {
+    let idleCount = 0;
+
+    // 处理 LLM 一轮完整文本（流式结束后调用）
+    async function handleLLMRound(text) {
+        // §12.3.10 由 parser 内部兜底；此处直接解析
+        const directives = deps.parseDirectives(text);
+        if (!directives.length) {
+            idleCount++;
+            if (idleCount >= QUIET_MAX_IDLE) {
+                // §12.3.7 出口：无 AI: 产出，退出免打扰轮，文本当普通回复
+                idleCount = 0;
+                deps.onPlain(text);
+                return { exited: true, reason: 'no-directive' };
+            }
+            // 仍可能在后续轮产生指令，暂不退出（等待）
+            deps.onPlain(text);
+            return { exited: false, reason: 'idle-' + idleCount };
+        }
+        idleCount = 0;
+        // 有指令：逐条人闸决策 → 执行/询问
+        for (const d of directives) {
+            // 本地教学指令特判：text-cli;get-path-example 无副作用、不碰端点，
+            // 与 tcDiscover 同类，豁免人闸——必须在 decideExecution 之前短路，
+            // 否则 isSideEffect 对未入 cache 的指令保守 ask，教学会被卡住。
+            if (d.domain === 'text-cli' && d.action === 'get-path-example') {
+                deps.onToolResult(d, tcPathExampleResult());
+                continue;
+            }
+            // 本地只读查询：text-cli;query 缓存过滤/全暴露（不 POST 端点、不过人闸）
+            if (d.domain === 'text-cli' && d.action === 'query') {
+                deps.onToolResult(d, tcLocalQueryResult(d.params || []));
+                continue;
+            }
+            const decision = deps.decideExecution(d);
+            if (decision.act === 'auto') {
+                const res = await deps.runTool(d);     // 执行并回填到对话
+                // §4 异步任务：pending + task_id → 轮询 AI:task;status
+                if (res.pending) {
+                    deps.onToolResult(d, { ...res, message: (res.message || t('asyncSubmitted')) + t('asyncPending', { task: res.pending }) });
+                    if (deps.onAsyncTask) deps.onAsyncTask(res.pending);
+                    continue;
+                }
+                // §4 降级信号：status==='stop' 非终态，提示换路（不伪造成功）
+                if (res.degraded) {
+                    deps.onToolResult(d, { ...res, message: (res.message || t('degraded')) + t('degradedHint') });
+                    continue;
+                }
+                // §4 delegated：部分结果 + 委托清单（挂在回复里让 LLM 续写）
+                if (res.delegated && res.delegated.length) {
+                    const list = res.delegated.map((x) => `· ${x.domain};${x.action}${x.params ? ',' + x.params : ''}`).join('\n');
+                    deps.onToolResult(d, { ...res, message: (res.message || t('partial')) + t('delegatedHint') + '\n' + list });
+                    continue;
+                }
+                deps.onToolResult(d, res);
+            } else {
+                // 需人确认：挂审批卡片，等待用户操作（不自动执行）
+                deps.onAsk(d, decision);
+            }
+        }
+        return { exited: false, reason: 'directives-' + directives.length };
+    }
+
+    // §12.3.9 CORS / 网络层识别：把 fetch 错误翻译成人话提示，不污染 §4 闭集
+    function describeBridgeError(e) {
+        if (e instanceof TypeError) {
+            return { kind: 'cors-or-network', message: t('tcEndpointLabel') + t('corsBlocked') };
+        }
+        return { kind: 'bridge', message: String(e && e.message || e) };
+    }
+
+    function reset() { idleCount = 0; }
+
+    return { handleLLMRound, describeBridgeError, reset, QUIET_MAX_IDLE };
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { createQuietBridge, QUIET_MAX_IDLE, tcPathExampleResult, tcLocalQueryResult };
+}
+
+
+// ---- tc-chat.js ----
+// ========== tc-chat.js ==========
+// 会话历史 / 资源渲染 / 文件上传 / 提交主链 / Clean / 初始化
+// 设计稿锚点：§3（会话/渲染）、§3.2.1（SYSTEM_PROMPTS 注入占位）、§12.3.10/§12.3.11
+// 依赖（同 <script> 共享作用域）：t / runtimeConfig / buildSystemPrompts /
+//   parseDirectives / tcDiscover / tcCacheInvalidate / createQuietBridge /
+//   decideExecution / getApprovalMode
+
+// ---------- 会话状态 ----------
+// §3.2.1 SYSTEM_PROMPTS 注入：作为 conversationHistory 起始的 system 消息（位置占位，最后一期定）
+let conversationHistory = buildSystemPrompts().map((c) => ({ role: 'system', content: c }));
+let pendingAttachments = [];
+
+// §4 多模态：按 rst_types 把 result 渲染成可读文本（前端不强制结构化，仅展示）
+function renderTcTypes(result, types) {
+    if (result == null) return '';
+    try { return typeof result === 'string' ? result : JSON.stringify(result); }
+    catch (e) { return String(result); }
+}
+
+// DOM 句柄（由 tc-integrate.js 在 DOMContentLoaded 后绑定；此处延迟取）
+let messagesContainer, chatForm, userInput, statusElement, errorElement, attachmentsTray, uploadBtn, fileInput, cleanBtn, tcStatusEl;
+
+// ---------- 资源渲染（<resources> 协议） ----------
+const SECURITY = { whitelistEnabled: false, allowedHosts: [] };
+
+function parseResources(content) {
+    if (typeof content !== 'string') return null;
+    const m = content.match(/^\s*<resources>([\s\S]*?)<\/resources>\s*$/);
+    if (!m) return null;
+    try {
+        const arr = JSON.parse(m[1].trim().replace(/'/g, '"'));
+        return Array.isArray(arr) ? arr : [arr];
+    } catch (e) { return null; }
+}
+
+function detectType(url) {
+    const u = String(url).split('?')[0].toLowerCase();
+    if (/\.(png|jpe?g|gif|webp|avif|svg|bmp)$/.test(u)) return 'image';
+    if (/\.(mp4|webm|ogg|mov|m4v)$/.test(u)) return 'video';
+    if (/\.(mp3|wav|m4a|aac)$/.test(u)) return 'audio';
+    if (/\.pdf$/.test(u)) return 'pdf';
+    return 'webpage';
+}
+
+function safeUrl(url) {
+    try {
+        const u = new URL(url, location.href);
+        if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+        if (SECURITY.whitelistEnabled && !SECURITY.allowedHosts.includes(u.hostname)) return null;
+        return u.href;
+    } catch (e) { return null; }
+}
+
+function fileName(url) {
+    try {
+        const u = new URL(url, location.href);
+        const parts = u.pathname.split('/');
+        return decodeURIComponent(parts[parts.length - 1]) || 'resource';
+    } catch (e) { return 'resource'; }
+}
+
+function invalidResource(url) {
+    const ph = document.createElement('div');
+    ph.className = 'media-invalid';
+    ph.textContent = t('invalidResource', { url });
+    return ph;
+}
+
+function brokenImage() {
+    const ph = document.createElement('div');
+    ph.className = 'media-broken';
+    ph.textContent = t('brokenImage');
+    return ph;
+}
+
+function openLink(url) {
+    const a = document.createElement('a');
+    a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+    a.className = 'media-open-link';
+    a.textContent = t('openInNewTab');
+    return a;
+}
+
+function renderResource(url) {
+    const safe = safeUrl(url);
+    if (!safe) return invalidResource(url);
+    const type = detectType(safe);
+    if (type === 'image') {
+        const block = document.createElement('div');
+        block.className = 'media-item media-image-wrap';
+        const img = document.createElement('img');
+        img.className = 'media-image'; img.loading = 'lazy'; img.alt = fileName(safe);
+        img.addEventListener('error', () => img.replaceWith(brokenImage()));
+        img.src = safe; block.appendChild(img); return block;
+    }
+    if (type === 'video') {
+        const block = document.createElement('div'); block.className = 'media-item';
+        const v = document.createElement('video'); v.className = 'media-video'; v.controls = true; v.preload = 'none'; v.src = safe;
+        block.appendChild(v); return block;
+    }
+    if (type === 'audio') {
+        const block = document.createElement('div'); block.className = 'media-item';
+        const a = document.createElement('audio'); a.className = 'media-audio'; a.controls = true; a.preload = 'none'; a.src = safe;
+        block.appendChild(a); return block;
+    }
+    const block = document.createElement('div'); block.className = 'media-item';
+    const details = document.createElement('details'); details.className = 'media-embed';
+    const summary = document.createElement('summary');
+    summary.textContent = (type === 'pdf' ? t('mediaPdf') : t('mediaWeb')) + fileName(safe);
+    const body = document.createElement('div'); body.className = 'media-embed-body';
+    details.appendChild(summary); details.appendChild(body);
+    details.addEventListener('toggle', () => {
+        if (details.open && !body.dataset.built) {
+            body.dataset.built = '1';
+            const iframe = document.createElement('iframe');
+            iframe.className = 'media-iframe'; iframe.sandbox = 'allow-scripts allow-same-origin';
+            iframe.referrerPolicy = 'no-referrer'; iframe.src = safe;
+            body.appendChild(iframe); body.appendChild(openLink(safe));
+        }
+    });
+    block.appendChild(details); return block;
+}
+
+function renderGallery(list) {
+    const gallery = document.createElement('div'); gallery.className = 'media-gallery';
+    list.forEach((item) => {
+        const url = typeof item === 'string' ? item : (item && item.url);
+        if (!url) return; gallery.appendChild(renderResource(url));
+    });
+    return gallery;
+}
+
+function addMessage(role, content) {
+    const list = parseResources(content);
+    const messageDiv = document.createElement('div');
+    messageDiv.className = list ? 'message resource-message' : `message ${role}-message`;
+    if (list) messageDiv.appendChild(renderGallery(list));
+    else messageDiv.textContent = content;
+    messagesContainer.appendChild(messageDiv);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+function showError(message) {
+    errorElement.textContent = message;
+    errorElement.style.display = 'block';
+}
+
+// 导出会话为 jsonl：只读外化 conversationHistory（本地 Blob 下载，不碰端点、不上传）
+function exportConversationJsonl() {
+    if (!conversationHistory.length) {
+        showError(t('exportHistoryEmpty'));
+        return false;
+    }
+    const pad = (n) => String(n).padStart(2, '0');
+    const d = new Date();
+    const ts = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+    const blob = new Blob([conversationHistory.map((m) => JSON.stringify(m)).join('\n')], { type: 'application/x-ndjson' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tc-history-${ts}.jsonl`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showError(t('exportHistoryDone', { n: conversationHistory.length }));
+    return true;
+}
+
+// ---------- LLM 请求（非流式 + 流式） ----------
+async function sendToLLM(messages) {
+    statusElement.textContent = t('thinking');
+    const requestHeaders = { ...runtimeConfig.headers };
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), 30000);
+    let response;
+    try {
+        response = await fetch(runtimeConfig.baseUrl, {
+            method: 'POST', headers: requestHeaders,
+            body: JSON.stringify({
+                model: runtimeConfig.model, messages: messages,
+                max_tokens: runtimeConfig.maxTokens, temperature: runtimeConfig.temperature, stream: true
+            }),
+            signal: ac.signal
+        });
+    } catch (e) { clearTimeout(timer); throw e; }
+    clearTimeout(timer);
+    if (!response.ok) {
+        let msg = `HTTP ${response.status}`;
+        try {
+            const errData = await response.json();
+            if (errData && errData.error && errData.error.message) msg = errData.error.message;
+        } catch (e) { /* ignore */ }
+        throw new Error(msg);
+    }
+    const ct = response.headers.get('content-type') || '';
+    if (ct.includes('text/event-stream')) return await readStreaming(response);
+    const data = await response.json();
+    if (data.error) throw new Error(data.error.message || t('apiErrorFallback'));
+    const message = (data.choices && data.choices[0] && data.choices[0].message) || {};
+    const content = message.content || '';
+    addMessage('assistant', content);
+    return content;
+}
+
+// 流式读取 SSE；收尾时 <resources> 整体替换为画廊。
+// §12.3.10 流结束兜底：对 fullText 在 done 后由 parseDirectives（含 EOL 兜底）统一收口。
+async function readStreaming(response) {
+    statusElement.textContent = t('streaming');
+    const bubble = document.createElement('div');
+    bubble.className = 'message assistant-message';
+    bubble.setAttribute('aria-live', 'off');
+    messagesContainer.appendChild(bubble);
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = ''; let fullText = ''; let potentialResource = false;
+    const flush = () => { messagesContainer.scrollTop = messagesContainer.scrollHeight; };
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let idx;
+        while ((idx = buffer.indexOf('\n\n')) !== -1) {
+            const rawEvent = buffer.slice(0, idx); buffer = buffer.slice(idx + 2);
+            const line = rawEvent.trim();
+            if (!line.startsWith('data:')) continue;
+            const dataStr = line.slice(5).trim();
+            if (dataStr === '[DONE]') continue;
+            let evt; try { evt = JSON.parse(dataStr); } catch (e) { continue; }
+            const choice = (evt.choices && evt.choices[0]) || {};
+            const delta = choice.delta || {};
+            if (delta.content) {
+                fullText += delta.content;
+                const trimmed = fullText.trimStart();
+                if (/^\s*<resources[\s>]/.test(trimmed)) {
+                    potentialResource = true; bubble.textContent = '';
+                } else if (!potentialResource) {
+                    bubble.textContent = fullText;
+                }
+                flush();
+            }
+        }
+    }
+    if (potentialResource) {
+        const list = parseResources(fullText);
+        if (list) {
+            const galleryMsg = document.createElement('div');
+            galleryMsg.className = 'message resource-message';
+            galleryMsg.appendChild(renderGallery(list));
+            bubble.replaceWith(galleryMsg);
+        } else { bubble.textContent = fullText; }
+    }
+    bubble.setAttribute('aria-live', 'polite');
+    return fullText; // §12.3.10：调用方可对 fullText 跑 parseDirectives 收尾
+}
+
+// ---------- 文件上传 + 多模态附件 ----------
+function resolveUploadUrl() {
+    const cdn = (runtimeConfig.cdnUrl || '').trim().replace(/\/+$/, '');
+    if (cdn) return cdn + '/upload';
+    try {
+        const b = new URL(runtimeConfig.baseUrl, location.href);
+        return (b.origin || location.origin) + '/upload';
+    } catch (e) { return location.origin + '/upload'; }
+}
+
+function mediaPartFor(type, url) {
+    if (type === 'image') return { type: 'image_url', image_url: { url } };
+    if (type === 'video') return { type: 'video_url', video_url: { url } };
+    if (type === 'audio') return { type: 'audio_url', audio_url: { url } };
+    return { type: 'file_url', file_url: { url } };
+}
+
+function makeChip(att, withRemove, index) {
+    const chip = document.createElement('div'); chip.className = 'att-chip att-' + att.type;
+    if (att.type === 'image') {
+        const img = document.createElement('img'); img.src = att.url; img.alt = att.name; img.className = 'att-thumb';
+        chip.appendChild(img);
+    } else {
+        const icon = document.createElement('span'); icon.className = 'att-icon';
+        icon.textContent = att.type === 'video' ? '🎬' : att.type === 'audio' ? '🔊' : '📄';
+        chip.appendChild(icon);
+    }
+    const name = document.createElement('span'); name.className = 'att-name'; name.textContent = att.name; name.title = att.name;
+    chip.appendChild(name);
+    if (withRemove) {
+        const x = document.createElement('button'); x.type = 'button'; x.className = 'att-remove';
+        x.setAttribute('aria-label', t('removeAtt', { name: att.name })); x.textContent = '×';
+        x.addEventListener('click', () => removeAttachment(index));
+        chip.appendChild(x);
+    }
+    return chip;
+}
+
+function renderAttachmentsTray() {
+    attachmentsTray.innerHTML = '';
+    if (pendingAttachments.length === 0) { attachmentsTray.style.display = 'none'; return; }
+    attachmentsTray.style.display = 'flex';
+    pendingAttachments.forEach((att, i) => attachmentsTray.appendChild(makeChip(att, true, i)));
+}
+
+function removeAttachment(i) { pendingAttachments.splice(i, 1); renderAttachmentsTray(); }
+
+function addUserBubble(text, attachments) {
+    const div = document.createElement('div'); div.className = 'message user-message';
+    if (text) { const p = document.createElement('div'); p.textContent = text; div.appendChild(p); }
+    if (attachments && attachments.length) {
+        const tray = document.createElement('div'); tray.className = 'att-inline';
+        attachments.forEach((att) => tray.appendChild(makeChip(att, false, -1)));
+        div.appendChild(tray);
+    }
+    messagesContainer.appendChild(div);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+async function uploadFile(file) {
+    const url = resolveUploadUrl();
+    const fd = new FormData();
+    fd.append('file', file, file.name);
+    const headers = { ...runtimeConfig.headers };
+    delete headers['Content-Type'];
+    statusElement.textContent = t('uploading', { name: file.name });
+    try {
+        const res = await fetch(url, { method: 'POST', headers, body: fd });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || ('HTTP ' + res.status));
+        }
+        const data = await res.json();
+        if (!data.url) throw new Error('upload response missing url');
+        pendingAttachments.push({ url: data.url, name: data.name || file.name, type: detectType(file.name) });
+        renderAttachmentsTray();
+        statusElement.textContent = t('statusReady');
+    } catch (e) {
+        console.error('上传失败:', e);
+        showError(t('uploadFailed', { msg: e.message }));
+        statusElement.textContent = t('statusReady');
+    }
+}
+
+// ---------- 桥接入点：免打扰轮编排实例 ----------
+// §12.3.7 出口 / §12.3.9 CORS / §5 人闸决策
+let quietBridge = null;
+function initQuietBridge() {
+    quietBridge = createQuietBridge({
+        parseDirectives,
+        decideExecution,
+        // 真接通：交给 tc-quiet.js 的 runTool（POST tc_endpoint + 6 码闭集解析）
+        runTool: (d) => runTool(d, {
+            describeBridgeError: (e) => quietBridge.describeBridgeError(e)
+        }),
+        onPlain: (text) => { if (text && text.trim()) addMessage('assistant', text); },
+        onToolResult: (d, res) => {
+            // §4 信封展示：成功显示结果，失败显示码文案（不伪造成功）
+            const head = `↳ ${d.domain};${d.action}`;
+            if (res.ok) {
+                reportToolSuccess();                                 // §5 CircuitBreaker 清零
+                const payload = (res.types && res.result != null)
+                    ? renderTcTypes(res.result, res.types)           // §4 多模态 rst_types
+                    : res.result;
+                // R1：对象类结果美化呈现（去信封已具备：payload = res.result，信封不进 UI）
+                const display = (typeof payload === 'object' && payload !== null)
+                    ? JSON.stringify(payload, null, 2)
+                    : payload;
+                addMessage('assistant', `${head} ✓ ${display}`);
+                // R1：工具结果入史，供后续多轮连贯（不做二次 LLM 合成回环）
+                conversationHistory.push({ role: 'tool', content: String(display) });
+            } else {
+                const tripped = reportToolFailure();                 // §5 连续失败熔断
+                const extra = tripped ? t('circuitBreaker') : '';
+                addMessage('assistant', `${head} ✗ [${res.code}] ${res.message}${extra}`);
+                // R1：失败也入史（如实记录，不伪造协议码）
+                conversationHistory.push({ role: 'tool', content: `${head} ✗ [${res.code}] ${res.message}` });
+            }
+        },
+        onAsk: (d, decision) => {
+            // R2：渲染真实人审卡片（确认/拒绝/中止三态均可操作），不再只弹文字
+            const card = approvalCard(d, decision);          // 纯数据：label 与发送原语逐字节一致
+            const wrap = document.createElement('div');
+            wrap.className = 'tc-approval-card';
+            wrap.style.cssText = 'margin:6px 0;padding:8px 10px;border:1px solid #c9a227;border-radius:8px;background:#fff8e6;color:#333;';
+            const head = document.createElement('div');
+            head.textContent = `${t('approvalNeedConfirm', { reason: decision.reason })}: AI:${card.label}`;
+            head.style.cssText = 'margin-bottom:6px;font-weight:600;';
+            const mkBtn = (key, bg) => {
+                const b = document.createElement('button');
+                b.textContent = t(key);
+                b.style.cssText = `margin-right:6px;padding:4px 10px;border:1px solid #bbb;border-radius:6px;cursor:pointer;background:${bg};`;
+                return b;
+            };
+            const btnConfirm = mkBtn('approvalConfirmBtn', '#4caf50');
+            const btnReject  = mkBtn('approvalRejectBtn', '#f0ad4e');
+            const btnAbort   = mkBtn('approvalAbortBtn', '#d9534f');
+            const lock = () => { btnConfirm.disabled = btnReject.disabled = btnAbort.disabled = true; };
+            btnConfirm.onclick = async () => {
+                lock();
+                // 确认 → 真实执行（复用 runTool + onToolResult 闭幕逻辑，不伪造任何协议码）
+                const res = await runTool(d, { describeBridgeError: (e) => quietBridge.describeBridgeError(e) });
+                onToolResult(d, res);
+                wrap.style.borderColor = '#4caf50';
+            };
+            btnReject.onclick = () => {
+                lock();
+                // 拒绝 → 本地 UI 决策，不产生 ACCESS_DENIED/SERVICE_DENIED（§5 铁律）
+                addMessage('assistant', t('approvalRejected', { label: 'AI:' + card.label }));
+                wrap.style.borderColor = '#d9534f';
+            };
+            btnAbort.onclick = () => {
+                lock();
+                // 中止 → 同拒绝语义，仅文案差异（§5 人审本地中止，无信封码）
+                addMessage('assistant', t('approvalAborted', { label: 'AI:' + card.label }));
+                wrap.style.borderColor = '#d9534f';
+            };
+            wrap.appendChild(head);
+            wrap.appendChild(btnConfirm); wrap.appendChild(btnReject); wrap.appendChild(btnAbort);
+            if (typeof messagesContainer !== 'undefined' && messagesContainer) messagesContainer.appendChild(wrap);
+            else addMessage('assistant', `${t('approvalNeedConfirm', { reason: decision.reason })}: AI:${card.label}`); // 兜底
+        },
+        // §4 异步任务：pending 后用 AI:task;status 轮询回填
+        onAsyncTask: async (taskId) => {
+            addMessage('assistant', t('asyncPolling', { task: taskId }));
+            for (let i = 0; i < 30; i++) {
+                await new Promise((r) => setTimeout(r, 1000));
+                const r = await runTool({ domain: 'task', action: 'status', params: [taskId] }, {
+                    describeBridgeError: (e) => quietBridge.describeBridgeError(e)
+                });
+                if (r.ok && r.result && r.result.status !== 'pending') {
+                    addMessage('assistant', `↳ task;status ✓ ${r.result.status}`);
+                    return;
+                }
+            }
+            addMessage('assistant', t('asyncTimeout'));
+        }
+    });
+}
+
+// 处理一轮 LLM 完整文本：若有 AI: 指令走免打扰轮，否则按普通回复
+async function handleAssistantTurn(fullText) {
+    // R3：tc 未启用时，即便文本含 AI: 原语也按纯文本呈现，不进免打扰轮、不解析、不执行
+    if (runtimeConfig.tc_enabled && hasDirectives(fullText)) {
+        // R1：补回 LLM 前导语（剥掉 AI: 行、保留自然语言）；handleLLMRound 在有指令时不会显示
+        //     自然语言（见 tc-quiet.js:80-91 仅在无指令时 onPlain），故此处补显不会重复
+        const preamble = stripDirectives(fullText);
+        if (preamble && preamble.trim()) addMessage('assistant', preamble);
+        await quietBridge.handleLLMRound(fullText);
+    } else if (fullText && fullText.trim()) {
+        addMessage('assistant', fullText);
+    }
+}
+
+// ---------- 提交主链 ----------
+function bindChatForm() {
+    chatForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const userMessage = userInput.value.trim();
+        if (!userMessage && pendingAttachments.length === 0) return;
+        userInput.disabled = true;
+        const submitBtn = chatForm.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+        let content;
+        if (pendingAttachments.length === 0) content = userMessage;
+        else {
+            content = [{ type: 'text', text: userMessage }];
+            pendingAttachments.forEach((att) => content.push(mediaPartFor(att.type, att.url)));
+        }
+        try {
+            addUserBubble(userMessage, pendingAttachments);
+            conversationHistory.push({ role: 'user', content });
+            userInput.value = ''; userInput.style.height = 'auto';
+            pendingAttachments = []; renderAttachmentsTray();
+            // §12.3.10 流结束兜底：sendToLLM 返回的 fullText 在此统一收口
+            const assistantResponse = await sendToLLM(conversationHistory);
+            await handleAssistantTurn(assistantResponse);
+            conversationHistory.push({ role: 'assistant', content: assistantResponse });
+            const MAX_HISTORY = 100;
+            if (conversationHistory.length > MAX_HISTORY) {
+                conversationHistory = conversationHistory.slice(-MAX_HISTORY);
+            }
+        } catch (error) {
+            console.error('请求失败:', error);
+            let detail;
+            // §12.3.9：fetch 网络层失败（TypeError）→ 说人话，不污染协议层
+            if (error instanceof TypeError || error.name === 'TypeError') {
+                detail = t('networkConnectErr', { baseUrl: runtimeConfig.baseUrl });
+            } else { detail = error.message; }
+            showError(t('requestFailed', { msg: detail }));
+        } finally {
+            userInput.disabled = false; submitBtn.disabled = false;
+            userInput.focus(); statusElement.textContent = t('statusReady');
+        }
+    });
+}
+
+// ---------- Clean：§12.3.11 缓存生命周期 ----------
+function bindCleanBtn() {
+    cleanBtn.addEventListener('click', () => {
+        messagesContainer.innerHTML = '';
+        pendingAttachments = []; renderAttachmentsTray();
+        errorElement.style.display = 'none';
+        // 先失效 tc 缓存（§12.3.11），再重建 system 段 → 摘要描述同步降级为"纯对话模式"
+        tcCacheInvalidate();
+        conversationHistory = buildSystemPrompts().map((c) => ({ role: 'system', content: c }));
+        statusElement.textContent = t('statusReady');
+        userInput.focus();
+    });
+}
+
+// ---------- 初始化 ----------
+function bindUpload() {
+    uploadBtn.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', async () => {
+        const files = Array.from(fileInput.files || []);
+        fileInput.value = '';
+        for (const f of files) await uploadFile(f);
+    });
+}
+
+function autoGrow() {
+    userInput.style.height = 'auto';
+    const max = Math.round(window.innerHeight * 0.4);
+    userInput.style.height = Math.min(userInput.scrollHeight, max) + 'px';
+}
+
+function bindInput() {
+    userInput.addEventListener('input', autoGrow);
+    userInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+            e.preventDefault(); chatForm.requestSubmit();
+        }
+    });
+}
+
+// 由 tc-integrate.js 在 DOM 就绪后调用：抓取 DOM 句柄 + 绑定事件 + 触发 tcDiscover
+function initChatDom() {
+    messagesContainer = document.getElementById('messages');
+    chatForm = document.getElementById('chatForm');
+    userInput = document.getElementById('userInput');
+    statusElement = document.getElementById('status');
+    errorElement = document.getElementById('error');
+    attachmentsTray = document.getElementById('attachmentsTray');
+    uploadBtn = document.getElementById('uploadBtn');
+    fileInput = document.getElementById('fileInput');
+    cleanBtn = document.getElementById('cleanBtn');
+    tcStatusEl = document.getElementById('tcStatus');   // §12.3 可观测状态灯
+    initQuietBridge();
+    bindChatForm(); bindCleanBtn(); bindUpload(); bindInput();
+}
+
+// §12.3 可观测：把桥状态点亮成绿/黄/红（不增逻辑，只可视化可恢复分叉）
+function setTcStatusLight(disc) {
+    if (!tcStatusEl) return;
+    let color, text;
+    if (disc && disc.ok && !disc.stale) { color = '#2e7d32'; text = t('tcReady'); }
+    else if (disc && disc.ok && disc.stale) { color = '#f9a825'; text = t('tcOffline') + t('staleCache'); }
+    else { color = '#d32f2f'; text = t('tcOffline'); }
+    if (disc && disc.hint) text += ' — ' + disc.hint;
+    tcStatusEl.style.color = color;
+    tcStatusEl.textContent = text;
+}
+
+async function onAppLoad() {
+    applyLang(currentLang);
+    if (typeof loadConfigToForm === 'function') loadConfigToForm();
+    initChatDom();
+    addMessage('assistant', t('greeting'));
+    // R3：tc 未启用时跳过去发现，状态保持"纯聊天"，不残留 tc 痕迹、不发起发现请求
+    if (!runtimeConfig.tc_enabled) {
+        statusElement.textContent = t('tcOffline');
+        return;                       // 状态灯 #tcStatus 保持初始空态（=未启用）
+    }
+    // §12.3.8 拉取失败可降级：端点空/拉取失败均不阻断聊天主链
+    const disc = await tcDiscover();
+    statusElement.textContent = disc.ok ? t('tcReady') : t('tcOffline');
+    setTcStatusLight(disc);
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        handleAssistantTurn, onAppLoad, initChatDom, exportConversationJsonl,
+        getConversationHistory: () => conversationHistory,
+        setConversationHistory: (h) => { conversationHistory = h; }
+    };
+}
+
+
+// ---- tc-integrate.js ----
+// ========== tc-integrate.js ==========
+// 唯一胶水层：知道 HTML 结构，绑定所有 DOM 事件，串起各源模块。
+// 设计稿锚点：§11.2（唯一知道行号）/ §3.5（人闸下拉 + tc 端点字段）
+// 依赖（同 <script> 共享作用域）：runtimeConfig / saveConfig / loadConfigToForm /
+//   t / LANGS / applyLang / bindLangButtons / setApprovalMode / getApprovalMode /
+//   onAppLoad / showError / exportConversationJsonl / getTcCache
+
+// ---------- 配置面板（旧 html 547–642 迁此） ----------
+function bindConfigPanel() {
+    const toggleConfigBtn = document.getElementById('toggleConfig');
+    const configPanel = document.getElementById('configPanel');
+    const toggleHeadersBtn = document.getElementById('toggleHeaders');
+    const headersEditor = document.getElementById('headersEditor');
+    const toggleCdnBtn = document.getElementById('toggleCdn');
+    const cdnEditor = document.getElementById('cdnEditor');
+    const saveConfigBtn = document.getElementById('saveConfig');
+    const cancelConfigBtn = document.getElementById('cancelConfig');
+    const exportHistoryBtn = document.getElementById('exportHistory');
+    const cfgBaseUrl = document.getElementById('cfgBaseUrl');
+    const cfgModel = document.getElementById('cfgModel');
+    const cfgHeaders = document.getElementById('cfgHeaders');
+    const cfgCdn = document.getElementById('cfgCdn');
+    const errorElement = document.getElementById('error');
+
+    loadConfigToForm = function () {
+        cfgBaseUrl.value = runtimeConfig.baseUrl;
+        cfgModel.value = runtimeConfig.model;
+        cfgHeaders.value = JSON.stringify(runtimeConfig.headers, null, 2);
+        cfgCdn.value = JSON.stringify({ cdn_url: runtimeConfig.cdnUrl }, null, 2);
+        // §2 六配置 + §3.5 人闸下拉（头部 approvalSelect / 面板 approvalSelectCfg 两处）
+        const en = document.getElementById('cfgTcEnabled');
+        const ep = document.getElementById('cfgTcEndpoint');
+        const tk = document.getElementById('cfgTcToken');
+        const at = document.getElementById('cfgTcAccessToken');
+        const sc = document.getElementById('cfgTcScope');
+        const pp = document.getElementById('cfgTcPathEnabled');
+        if (en) en.checked = !!runtimeConfig.tc_enabled;
+        if (pp) pp.checked = !!runtimeConfig.tc_path_enabled;
+        if (ep) ep.value = runtimeConfig.tc_endpoint || '';
+        if (tk) tk.value = runtimeConfig.service_token || '';
+        if (at) at.value = runtimeConfig.access_token || '';
+        if (sc) sc.value = runtimeConfig.tc_scope || '';
+        // §3.5 人闸/语言下拉：头部与面板两份都要同步（id 列表遍历，兼容双实例）
+        syncSelectValue(['approvalSelect', 'approvalSelectCfg'], runtimeConfig.auto_execute || 'readonly');
+        syncLangSelect();
+        applyLang(currentLang);
+    };
+
+    toggleConfigBtn.addEventListener('click', () => {
+        if (!configPanel.classList.contains('show')) loadConfigToForm();
+        configPanel.classList.toggle('show');
+    });
+    toggleHeadersBtn.addEventListener('click', () => headersEditor.classList.toggle('show'));
+    toggleCdnBtn.addEventListener('click', () => cdnEditor.classList.toggle('show'));
+    cancelConfigBtn.addEventListener('click', () => {
+        configPanel.classList.remove('show'); headersEditor.classList.remove('show');
+    });
+    // 导出会话为 jsonl：本地 Blob 下载，只读外化 conversationHistory（含 system/工具回填/信封码）
+    exportHistoryBtn.addEventListener('click', () => exportConversationJsonl());
+
+    saveConfigBtn.addEventListener('click', () => {
+        const baseUrl = cfgBaseUrl.value.trim();
+        if (!baseUrl) { showError(t('baseUrlEmpty')); return; }
+        try {
+            const parsedHeaders = JSON.parse(cfgHeaders.value.trim());
+            runtimeConfig.baseUrl = baseUrl;
+            runtimeConfig.model = cfgModel.value.trim() || 'default-model';
+            runtimeConfig.headers = parsedHeaders;
+            try {
+                const parsedCdn = JSON.parse(cfgCdn.value.trim());
+                runtimeConfig.cdnUrl = (parsedCdn.cdn_url || '').trim();
+            } catch (e) { runtimeConfig.cdnUrl = ''; }
+
+            // §2 落库：六配置项
+            const en = document.getElementById('cfgTcEnabled');
+            const ep = document.getElementById('cfgTcEndpoint');
+            const tk = document.getElementById('cfgTcToken');
+            const at = document.getElementById('cfgTcAccessToken');
+            const sc = document.getElementById('cfgTcScope');
+            const pp = document.getElementById('cfgTcPathEnabled');
+            if (en) runtimeConfig.tc_enabled = en.checked;
+            if (pp) runtimeConfig.tc_path_enabled = pp.checked;
+            if (ep) runtimeConfig.tc_endpoint = ep.value.trim();
+            if (tk) runtimeConfig.service_token = tk.value.trim();
+            if (at) runtimeConfig.access_token = at.value.trim();
+            if (sc) runtimeConfig.tc_scope = sc.value.trim();
+            // §3.5 人闸：取头部或面板任一处的值（两处绑定同一 state）
+            const apHead = document.getElementById('approvalSelect');
+            const apCfg = document.getElementById('approvalSelectCfg');
+            const apVal = (apHead && apHead.value) || (apCfg && apCfg.value);
+            if (apVal) setApprovalMode(apVal);
+
+            errorElement.textContent = t('configSaved');
+            errorElement.style.background = '#e8f5e9';
+            errorElement.style.color = '#2e7d32';
+            errorElement.style.display = 'block';
+            setTimeout(() => {
+                errorElement.style.display = 'none';
+                errorElement.style.background = '#ffebee';
+                errorElement.style.color = '#d32f2f';
+            }, 2000);
+            configPanel.classList.remove('show');
+            headersEditor.classList.remove('show');
+            saveConfig(runtimeConfig);
+            // §12.3.11 端点/令牌变更：重建缓存并刷新状态灯（不阻断主链）
+            if (typeof tcDiscover === 'function') {
+                tcDiscover().then((disc) => {
+                    if (typeof setTcStatusLight === 'function') setTcStatusLight(disc);
+                });
+            }
+        } catch (e) {
+            showError(t('headersJsonErr', { msg: e.message }));
+        }
+    });
+}
+
+// 同步多个同义下拉（头部 + 面板两份）的选中值
+function syncSelectValue(ids, value) {
+    ids.forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.value = value;
+    });
+}
+// 填充并同步所有语言下拉（头部 langSelect + 面板 langSelectCfg）
+function syncLangSelect() {
+    ['langSelect', 'langSelectCfg'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) {
+            if (!el.options.length) el.innerHTML = buildLangOptions();
+            el.value = currentLang;
+        }
+    });
+}
+
+// ---------- 语言下拉 + 人闸下拉（头部 + 面板双实例都绑） ----------
+function bindUiControls() {
+    ['langSelect', 'langSelectCfg'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', () => applyLang(el.value));
+    });
+    ['approvalSelect', 'approvalSelectCfg'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', () => setApprovalMode(el.value));
+    });
+}
+
+// ---------- 全部绑定 + 启动 ----------
+function bootTcWebChat() {
+    bindConfigPanel();
+    bindUiControls();
+    // 聊天 DOM + 事件由 tc-chat.js 的 initChatDom 负责（它也在 onAppLoad 调）
+    window.addEventListener('DOMContentLoaded', () => {
+        onAppLoad();
+    });
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { bindConfigPanel, bindUiControls, bootTcWebChat };
+}
+
+
+// ---- bootstrap ----
+bootTcWebChat();
+
+</script>
+</body>
+</html>

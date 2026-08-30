@@ -1,6 +1,6 @@
 # text-cli Design Document
 
-> **Document type**: Technical design | **Related**: [SPEC_en.md](SPEC_en.md) | **Revision**: 2026-07-31
+> **Document type**: Technical design | **Related**: [SPEC_en.md](SPEC_en.md) | **Revision**: 2026-08-29
 > **Language note:** This English text is a translation of the normative Chinese design document (`docs/design_zh.md`). Where this translation and the Chinese original differ or are ambiguous, the Chinese version is authoritative.
 > **Scope**: text-cli full project
 >
@@ -58,10 +58,12 @@ Long-running tasks (video conversion, ASR, etc.) do not return results immediate
 
 ### 2.1 Runtime Classification
 
-text-cli classifies runtimes into two categories by capability coverage:
+text-cli positions runtimes on **the same gradient** by capability coverage (SPEC §6.1) — the three (minimal-compliant / bypass / standard) are positions, not ranks:
 
 - **Standard runtime**: Fully implements all mechanisms required by the protocol. The standard runtime is a capability definition, not tied to any specific language — any implementation that fully carries the protocol mechanism set is a standard runtime. The current standard runtime is based on Python (see §Four).
-- **Bypass runtime**: Only needs to support a subset of protocol mechanisms, not the full set. By form: cloud platforms (CloudBase SCF / Cloudflare Workers) and multi-language SDKs (textcli-loader / textcli-core). Constraint examples: textcli-loader (PyPI) and textcli-core (npm) do not support federation Mesh and path orchestration; Cloudflare Workers is a pure gateway and performs no execution.
+- **Bypass runtime**: Implements **any mechanism subset** above the mandatory baseline — **including the full set**; the full set is not required. By form: multi-language SDKs (textcli-loader / textcli-core), zero-code single file (base_nocode), cloud platforms (CloudBase SCF / Cloudflare Workers), and plugin host (dsh-tc-runtime). Constraint examples: textcli-loader (PyPI) and textcli-core (npm) do not support federation Mesh and path orchestration.
+
+> **Identity is self-declared by the implementer; the project does not adjudicate**: `dsh-tc-runtime` covers the full 9-mechanism set but self-describes as a bypass form — coverage does not imply identity. Callers are unaffected: the one-dimensional contract guarantees runtime identity is invisible to the caller.
 
 ### 2.2 Standard Runtime Required Mechanisms
 
@@ -83,13 +85,16 @@ The protocol only specifies the mechanism set itself, not the implementation app
 
 ### 2.3 Current Runtime Forms
 
-| Form | Type | Description |
-|------|------|------|
-| Python standard runtime | Standard | Self-hosted deployment, full 9 mechanisms (see §Four) |
-| textcli-loader | Bypass | PyPI SDK, lightweight consumer (see §Five) |
-| textcli-core | Bypass | npm SDK, JavaScript isomorphic implementation (see §Five) |
-| CloudBase SCF | Bypass | Tencent Cloud cloud function, Node.js (see §Five) |
-| Cloudflare Workers | Bypass | Edge computing gateway, protocol parsing + route dispatch (see §Five) |
+| Form | Type | Deployment | Description |
+|------|------|------|------|
+| Python standard runtime | Standard | Self-hosted | Full 9 mechanisms (see §Four) |
+| textcli-loader | Bypass | In-process (`pip install`) | PyPI SDK, lightweight consumer (see §Five) |
+| textcli-core | Bypass | In-process (`npm install`) | npm SDK, JavaScript isomorphic implementation (see §Five) |
+| base_nocode | Bypass | Local single-file service | Pure-stdlib script, zero-code form (see §Five) |
+| CloudBase SCF | Bypass | Self-deployed cloud function | Tencent Cloud cloud function, Node.js (see §Five) |
+| Cloudflare Workers | Bypass | Self-deployed edge node | D1 multi-function edge runtime — restricted execution (see §Five) |
+| dsh-tc-runtime | Bypass | Cordis plugin assembly | 15 `runtime-*` packages, covers full 9-mechanism set (see §Five) |
+| tc-js-skeleton | — | Not a runtime form | Generic JS logic-layer source of truth, reused by cloudflare / dsh (see §Five) |
 
 ---
 
@@ -204,7 +209,7 @@ The Skill does not directly hold HTTP calls — all network operations go throug
 
 #### Dual-file Source of Truth
 
-(`src/skeleton/base/A1-skill/config/`)
+(`src/skeleton/base/A1-skill/skill/config/`)
 
 | File | Role | Has Token | Maintenance |
 |------|------|:---:|------|
@@ -250,7 +255,7 @@ Different from the §Four server-side aggregate degradation, consumer-side degra
 
 #### Compile Path: Fabricating Directives
 
-(`src/skeleton/base/A1-skill/python/cli.py` — `register()` at :36, `generate_schema()` at :129)
+(`src/skeleton/base/A1-skill/skill/python/cli.py` — `register()` at :36, `generate_schema()` at :155)
 
 ```python
 from cli import register, generate_schema
@@ -267,7 +272,7 @@ The compile path is only responsible for directive registration and Schema gener
 
 #### Consume Path: Calling Directives
 
-(`src/skeleton/base/A1-skill/python/skill.py` — `Skill` class at :103, `Skill.run()` at :201, `@skill` decorator at :211)
+(`src/skeleton/base/A1-skill/skill/python/skill.py` — `Skill` class at :105, `Skill.run()` at :203, `@skill` decorator at :213)
 
 ```python
 from skill import Skill, skill
@@ -287,7 +292,7 @@ Skill.run() walks the full scheduling chain internally: query capability list �
 
 #### Cold-path Sync
 
-Endpoint capability aggregation is not inside the Agent reasoning loop — `aggregation.py` (`src/skeleton/base/A1-skill/python/aggregation.py`) acts as a cold-path tool, executed periodically or on demand:
+Endpoint capability aggregation is not inside the Agent reasoning loop — `aggregation.py` (`src/skeleton/base/A1-skill/skill/python/aggregation.py`) acts as a cold-path tool, executed periodically or on demand:
 
 ```python
 from aggregation import sync_endpoints
@@ -316,9 +321,9 @@ Agent wakes → /health → text-cli;query → lacks translation capability
   → "check weather → clothing advice" recurs → text-cli;pro → publish as a path
 ```
 
-Agent's accompanying System Prompt templates (`src/skeleton/base/A1-skill/prompts/` directory): core scheduling protocol (`SKILL.md`, `text-cli-core_zh.md`), sync Skill concept design (`text-cli-sync-skill.md`), aggregate schema example (`agent-text-cli-schema.example.json`) — guiding Agents to correctly use the SDK and Skill layer.
+Agent's accompanying System Prompt templates (`src/skeleton/base/A1-skill/skill/prompts/` directory): core scheduling protocol (`SKILL.md`, `text-cli-core_zh.md`), sync Skill concept design (`text-cli-sync-skill.md`), aggregate schema example (`agent-text-cli-schema.example.json`) — guiding Agents to correctly use the SDK and Skill layer.
 
-In addition, the skill scheduling layer can be installed as an OpenClaw Skill (entry: `src/skeleton/base/A1-skill/SKILL.md`) — after loading, the Agent automatically learns to use `call()` / `discover()` / `Skill.run()`, no manual route configuration needed.
+In addition, the skill scheduling layer can be installed as an OpenClaw Skill (entry: `src/skeleton/base/A1-skill/skill/SKILL.md`) — after loading, the Agent automatically learns to use `call()` / `discover()` / `Skill.run()`, no manual route configuration needed.
 
 ---
 
@@ -352,7 +357,7 @@ The three components have strict responsibility boundaries and security isolatio
 | copilot | 127.0.0.1:20260 | Package mount / filesystem / shell / operations | Local-reachable only |
 | service | 0.0.0.0:28050 | Package mount / orchestrate / aggregate / MCP / SQL | Intranet-reachable, public controlled access |
 | endpoint | 0.0.0.0:29050 | Access Token auth / route forward / accounting | Holds no directives, executes no logic |
-| service-mcp | 0.0.0.0:9020 | Default Token | Reverse-expose directive service as MCP service, serving in MCP posture |
+| service-mcp | 0.0.0.0:9020 | Outbound MCP bridge — reverse-expose registered directives as MCP tools | Exposure surface controlled by the `public_directives` whitelist in `service_manifest.json` (same source as `/skills`) |
 
 ### 4.2 Progressive Layering System
 
@@ -373,7 +378,7 @@ Built cumulatively layer by layer from A0–A9, each layer a complete endpoint:
 
 > Note: A8/A9 definitions are unified with other docs — A8 aggregate entry, A9 facade abstraction + full endpoint.
 
-**Accumulation rule**: A3 automatically includes all of A2 + service body. A9 includes all of A2–A8. Later-layer same-name files override earlier layers. A5 endpoint and bypass runtimes (CloudBase/PyPI/npm/Cloudflare) do not participate in the accumulation chain — horizontally independently distributed.
+**Accumulation rule**: A3 automatically includes all of A2 + service body. A9 includes all of A2–A8. Later-layer same-name files override earlier layers. A5 endpoint and bypass runtimes (CloudBase/PyPI/npm/Cloudflare/base_nocode/dsh-tc-runtime) do not participate in the accumulation chain — horizontally independently distributed.
 
 **Build chain**: `src/skeleton/` (sole edit entry) → `build-all.py` (accumulate/passthrough) → `deploy/` (intermediate artifacts) → distribution scripts → `.zip/.tar.gz/Docker`. `deploy/` is auto-generated by build and should not be edited manually.
 
@@ -730,25 +735,16 @@ Caller ──Access Token──> Endpoint ──passthrough Service Token──>
 
 Do not participate in the A2→A9 accumulation chain, but interoperate with the standard runtime through the unified protocol.
 
-Bypass runtimes only need to support a subset of protocol mechanisms — unlike the standard runtime's full 9-item requirement.
+Per SPEC §6.1, bypass implements **any mechanism subset** above the mandatory baseline — **including the full set**; the full set is not required. Coverage spans widely across the sequence: from the two loaders (2–3 mechanisms) to `dsh-tc-runtime` (full 9-mechanism set).
 
-### Cloud Platform
-#### CloudBase SCF
+> **Identity is self-declared by the implementer; the project does not adjudicate**: `dsh-tc-runtime` covers the full set but self-describes as a bypass form — this is its own positioning, not an inference from coverage. Callers are unaffected — the one-dimensional contract guarantees runtime identity is invisible to the caller.
 
-Tencent Cloud cloud function runtime (Node.js), deploys directive packages as independent cloud functions, routed via gateway. Core files: `config.js` + `index.js`.
+Five forms by deployment, plus one shared logic layer reused across them.
 
-**Architecture**:
-```
-HTTP trigger → index.js exports.main
-  → parse prompt → query config.js routeTable[domain] → cloud function name
-    → cloud.callFunction(name, {prompt}) → handler(params) → return envelope
-```
+### In-process SDK (Lightweight Loaders)
 
-Supports HTTP POST `/cli` and SDK call (`action=get_schema`) dual mode. `GET /health` returns health status.
+In-process loaders deploy no service — they install the "execute directive package" capability into your existing environment.
 
-**Extend new directive**: deploy directive cloud function → register `domain → function name` in `config.js` `routeTable` → register package id in `packages` array (for `text-cli;query` aggregation). Adding a package needs no skeleton code change, only gateway-side config change.
-
-### Lightweight SDK
 #### textcli-loader (PyPI)
 
 `pip install textcli-loader` lets you directly load and execute Python directive packages that need no extra keys in any Python environment — no dependency on any text-cli service, zero extra dependencies. Core files: `loader.py` + `registry.py` + `envelope.py`.
@@ -788,26 +784,102 @@ loadPackage("./my-package/");
 
 **Core modules**: `parser.js` (supports `AI:`/`指令:` dual prefix, bracket depth tracking), `registry.js` (`register`/`dispatch`/`unregister`/`getRegistered`, supports sync/async handler), `envelope.js` (`ok`/`err`, error code whitelist validation), `alias.js` (alias mapping, case-insensitive), `loader.js` (core load interface independent of IO), `loader.node.js` (Node.js platform adapter — `fs` + `require` load from disk).
 
-**Key difference from Python loader**: loader and platform adapter separated — `loader.js` is pure logic, does not depend on `fs`/`require`; `loader.node.js` is the Node.js adapter. This separation lets non-Node.js environments like Cloudflare Workers directly reuse `parser.js` + `registry.js` + `envelope.js` + `alias.js` + `loader.js` pure logic modules, only needing to provide their own platform adapter.
+**Key difference from Python loader**: loader and platform adapter separated — `loader.js` is pure logic, does not depend on `fs`/`require`; `loader.node.js` is the Node.js adapter. This separation lets non-Node.js environments like Cloudflare Workers directly reuse the pure logic modules, only needing to provide their own platform adapter — an idea later solidified as `tc-js-skeleton` (see "Shared Logic Layer" below).
 
-### Cloudflare Workers (Edge Gateway)
+### Zero-code Single File
 
-Cloudflare Workers is a **pure gateway** — only does protocol parsing + route dispatch + envelope encapsulation, no execution. It reuses textcli-core's pure logic modules (parser, registry, envelope, alias, loader), replacing file IO with Workers KV Store.
+#### base_nocode
+
+A pure-stdlib single script: `markdown_converter_zh.py` plus one structured Markdown experience document starts a complete HTTP directive service — no framework, no third-party dependency.
+
+- Endpoints: `POST /text-cli/cli` (directive execution; `AI:text-cli;query` returns the capability list via the same endpoint), `GET /text-cli/schema` (package schema), `GET /text-cli/health` (health check)
+- Document format: `## Directive` (declares domain / action / triggers / params; optional `Source` / `Verified` / `Stale After` / `Status`) + `## Knowledge` (experience content, supports `鉴别` / `教训` convention fields)
+- Source: `src/text_cli/base_text-cli/template/base_nocode/zh/`
+
+This is the smallest realization of "if you can speak, you can propagate" — no code, no runtime deployment; experience text becomes a service callable via `AI:domain;action`.
+
+### Cloud Platform
+#### CloudBase SCF
+
+Tencent Cloud cloud function runtime (Node.js), deploys directive packages as independent cloud functions, routed via gateway. Core files: `config.js` + `index.js`.
+
+**Architecture**:
+```
+HTTP trigger → index.js exports.main
+  → parse prompt → query config.js routeTable[domain] → cloud function name
+    → cloud.callFunction(name, {prompt}) → handler(params) → return envelope
+```
+
+Supports HTTP POST `/cli` and SDK call (`action=get_schema`) dual mode. `GET /health` returns health status.
+
+**Extend new directive**: deploy directive cloud function → register `domain → function name` in `config.js` `routeTable` → register package id in `packages` array (for `text-cli;query` aggregation). Adding a package needs no skeleton code change, only gateway-side config change.
+
+#### Cloudflare Workers (D1 Edge Runtime)
+
+Cloudflare Workers **D1 multi-function edition** — **not a pure gateway; it has restricted execution capability** (the earlier version was a pure gateway + KV Store that only registered metadata and delegated execution to the backend). It shares `tc-js-skeleton` logic components (`textcli-core` + `contract`) with three platform adapters; executable packages are stored in **D1** (not KV) and executed under restriction in a graded sandbox inside Workers.
 
 ```
-Cloudflare Workers (edge node)
+Cloudflare Workers (D1 multi-function edition)
   │
-  ├── POST /text-cli/cli → gateway.js
-  │     ├── parse prompt → domain;action,params
-  │     ├── load package from KV Store (schema.json)
-  │     ├── register handler (metadata mode — handler is null)
-  │     ├── dispatch → on match delegate backend Node.js runtime execution
-  │     └── encapsulate envelope (ok / err)
+  ├── POST /text-cli/cli → src/index.js
+  │     ├── auth (src/token.js single Service-token closed loop)
+  │     ├── parse prompt → domain;action,params (src/endpoints.js + src/runtime.js)
+  │     ├── D1 load executable package + metadata (src/d1-storage.js + src/meta.js)
+  │     ├── restricted execution (src/executor.js graded sandbox) or mesh forward (src/mesh.js)
+  │     ├── key-as-directive credentials (src/key.js, AES-GCM)
+  │     ├── async task 5-state + restart reconciliation (src/tasks.js)
+  │     └── per-caller counting / quota degradation (src/usage.js)
   │
-  └── GET /health → {status: "ok", service: "text-cli-cloudflare-gateway"}
+  ├── GET /text-cli/health | /schema | /tasks/{id} | /packets/... (endpoint surface)
+  └── init: schema.sql (create D1 tables)
 ```
 
-**Comparison with endpoint**: endpoint is an HTTP-layer pure pipeline (auth → route → passthrough), gateway is a protocol-layer pure gateway (protocol parse → package load → route dispatch → envelope encapsulate). Both share the pure-pipeline principle — hold no directives, execute no logic, parse no response content.
+Protocol-wise identical to text-cli / dsh-tc-runtime: reuses the `textcli-core` envelope + the `contract` 6-code closed set, async task 5-state, quota `status:"stop"` degradation, mesh loop-guard routing.
+
+### Plugin Host
+
+#### dsh-tc-runtime
+
+A bypass runtime hosted by the dsh (Cordis) ecosystem — a plugin set external to dsh (15 `runtime-*` packages) that bridges tc directive capability into dsh. It **covers the full 9-mechanism capability set, but self-describes as a bypass form and does not claim standard-runtime identity** (identity is self-declared, not inferred from coverage — see §2.1).
+
+```
+runtime-inbound      Inbound HTTP (six-segment pipeline + reserved-domain interception)
+runtime-mapper       Directive mapping (tc directive ↔ ctx.tools)
+runtime-sandbox      Sandbox execution host (restricted subprocess + layered policy guardrails)
+runtime-credentials  Per-package credential isolation
+runtime-audit        Audit channel (append-only JSONL)
+runtime-meta         text-cli;* meta directives (install/query/path/...)
+runtime-quota        Period window + atomic check+consume
+runtime-approval     Approval answerer (HMAC + fail-closed)
+runtime-host         Host directives
+runtime-path         path engine (declaration-layer interpreter + workflow compilation)
+runtime-aggregate    Async task bridging (5-state) + aggregate degradation
+runtime-mesh         mesh forwarding (route table / loop guard / backoff)
+runtime-bridge       Protocol bridge (mcp-client → mcp__<server>__<tool>)
+runtime-pro          Facade registry (short name → path/aggregate)
+runtime-contract     Global acceptance (canonical envelope + 16-line mapping contract)
+```
+
+**Red lines (7)**: no intrusion into the dsh core; credential plaintext never enters the JS execution environment; sandbox denies by default; protocol closed set; reserved-domain meta directive interception; approval ownership filtering; tc audit kept as independent JSONL.
+
+### Shared Logic Layer (Not a Runtime Form)
+
+#### tc-js-skeleton
+
+The bypass **generic JS logic-layer source of truth** — an onion-layered component family around the `textcli-core` thin core (12 packages), platform-agnostic, reused by cloudflare / dsh / other JS hosts. **It is not a runtime and occupies no runtime slot.**
+
+```
+Skeleton/facade: compose                       ← assembly + package lifecycle + multi-package consumption
+Interaction (outermost): mesh / approval / credentials  ← binds external capability, deps injected
+Guardrail layer: quota / audit                 ← intercept/record before dispatch
+Orchestration layer: path / aggregate / contract ← declaration-layer logic, built-in path:/agg: loop check
+Core guard (innermost): guard                  ← native loop detection
+Core (thin, invariant): textcli-core           ← parser/envelope/alias/registry/loader
+```
+
+Components: `textcli-core` (thin core), `-compose` (assembly + package lifecycle), `-contract` (canonical envelope + 6-code closed set), `-guard` (loop detection), `-path` (declaration-layer path engine), `-aggregate` (try-in-order degradation), `-quota` / `-audit` (quota guardrail / audit), `-storage` (storage substrate: memory / file / D1), `-auth` / `-approval` / `-credentials` / `-mesh`. Tests 91/91.
+
+See `src/skeleton/bypass-service/docs/INDEX_en.md` for details.
 
 ---
 
@@ -877,8 +949,8 @@ Converter-produced scaffolding needs business logic and error handling supplemen
 
 ### 6.5 Directive Package Dev Guide Entries per Runtime
 
-| Runtime || Runtime | Dev guide |
-|------|------|------|------|
+| Category | Runtime | Dev guide |
+|------|------|------|
 | Standard | Python runtime | [package-python-dev-guide_zh.md](../../src/text_cli/base_text-cli/docs/package-python-dev-guide_zh.md) |
 | Standard | JS runtime | [package-js-dev-guide_zh.md](../../src/text_cli/base_text-cli/docs/package-js-dev-guide_zh.md) |
 | Other | nocode (cross-runtime) | [package-nocode-guide_zh.md](../../src/text_cli/base_text-cli/docs/package-nocode-guide_zh.md) |
@@ -902,7 +974,7 @@ Agents gradually shift from caller to manager — no need for humans to configur
 
 ## Standard Runtime Mechanism Cross-Reference
 
-The Python standard runtime implements the protocol's 9 required mechanisms (the table below is labeled by **real implementation location** — each mechanism's owning layer and implementation file have been verified against source code, consistent with "where the mechanism was first introduced"; the aggregate degradation declaration file is in A8, but execution logic is in the A3 dispatch pipeline; facade abstraction implementation is in A3 not A9, A9 only provides config and registry):
+The Python standard runtime implements the protocol's 9 required mechanisms (the table below is labeled by **real implementation location** — each mechanism's owning layer and implementation file have been verified against source code, consistent with "where the mechanism was first introduced"; the aggregate degradation declaration file is in A8, but execution logic is in the A3 dispatch pipeline; facade abstraction implementation and its config/registry are both in A9):
 
 | Required mechanism | Implementation layer | Implementation location |
 |------|:---:|------|
@@ -927,15 +999,15 @@ The Python standard runtime implements the protocol's 9 required mechanisms (the
 - `src/skeleton/base/A0-protocol/shell/call.ps1` — PowerShell CLI
 
 ### AI Skill Scheduling
-- `src/skeleton/base/A1-skill/python/cli.py` — Compile path: register() + generate_schema()
-- `src/skeleton/base/A1-skill/python/skill.py` — Consume path: Skill class + Skill.run() + degradation chain
-- `src/skeleton/base/A1-skill/python/aggregation.py` — sync_endpoints endpoint capability aggregation
-- `src/skeleton/base/A1-skill/config/agent-endpoints.json` — Endpoint registry (has token, manually maintained)
-- `src/skeleton/base/A1-skill/config/agent-text-cli-schema.json` — Capability aggregate list (sync generated)
-- `src/skeleton/base/A1-skill/prompts/SKILL.md` — Agent scheduling System Prompt
-- `src/skeleton/base/A1-skill/prompts/text-cli-core_zh.md` — Core scheduling v2.0
-- `src/skeleton/base/A1-skill/prompts/text-cli-sync-skill.md` — Sync Skill concept design
-- `src/skeleton/base/A1-skill/prompts/agent-text-cli-schema.example.json` — Aggregate Schema example
+- `src/skeleton/base/A1-skill/skill/python/cli.py` — Compile path: register() + generate_schema()
+- `src/skeleton/base/A1-skill/skill/python/skill.py` — Consume path: Skill class + Skill.run() + degradation chain
+- `src/skeleton/base/A1-skill/skill/python/aggregation.py` — sync_endpoints endpoint capability aggregation
+- `src/skeleton/base/A1-skill/skill/config/agent-endpoints.json` — Endpoint registry (has token, manually maintained)
+- `src/skeleton/base/A1-skill/skill/config/agent-text-cli-schema.json` — Capability aggregate list (sync generated)
+- `src/skeleton/base/A1-skill/skill/prompts/SKILL.md` — Agent scheduling System Prompt
+- `src/skeleton/base/A1-skill/skill/prompts/text-cli-core_zh.md` — Core scheduling v2.0
+- `src/skeleton/base/A1-skill/skill/prompts/text-cli-sync-skill.md` — Sync Skill concept design
+- `src/skeleton/base/A1-skill/skill/prompts/agent-text-cli-schema.example.json` — Aggregate Schema example
 
 ### copilot
 - `src/skeleton/copilot/A2-copilot/copilot/core.py` — Directive engine
@@ -987,9 +1059,18 @@ The Python standard runtime implements the protocol's 9 required mechanisms (the
 - `src/skeleton/bypass-service/npm/textcli-core/registry.js` — register/dispatch registry
 - `src/skeleton/bypass-service/npm/textcli-core/loader.node.js` — Node.js platform adapter
 - `src/skeleton/bypass-service/npm/textcli-core/package.json` — npm package config (zero external dependency)
+- `src/text_cli/base_text-cli/template/base_nocode/zh/markdown_converter_zh.py` — Zero-code single-file service (pure stdlib)
 - `src/skeleton/bypass-service/cloudbase/config.js` — CloudBase gateway route
 - `src/skeleton/bypass-service/cloudbase/index.js` — CloudBase entry
-- `src/skeleton/bypass-service/cloudflare/workers/gateway.js` — Cloudflare Workers gateway (pure gateway, reuses textcli-core pure logic modules)
+- `src/skeleton/bypass-service/cloudflare/workers/src/index.js` — Cloudflare Workers entry (D1 multi-function edition; the old `gateway.js` has been removed)
+- `src/skeleton/bypass-service/cloudflare/workers/src/executor.js` — Restricted execution (graded sandbox)
+- `src/skeleton/bypass-service/cloudflare/workers/src/d1-storage.js` — D1 → StorageKV adapter
+- `src/skeleton/bypass-service/cloudflare/workers/src/tasks.js` — Async task 5-state + restart reconciliation
+- `src/skeleton/bypass-service/cloudflare/workers/schema.sql` — D1 table creation script
+- `src/skeleton/bypass-service/tc-js-skeleton/packages/` — Generic JS logic-layer source of truth (12 components, onion layering)
+- `src/skeleton/bypass-service/dsh/dsh-tc-runtime/` — dsh bypass runtime (15 `runtime-*` Cordis packages)
+- `src/skeleton/bypass-service/dsh/dsh-tc-bridge/` — Capability-seam plugin for dsh-agent consuming the tc ecosystem (not a runtime)
+- `src/skeleton/bypass-service/docs/INDEX_en.md` — Bypass runtime index (per-form build modes, differences vs service)
 
 ### Build & Deploy
 - `scripts/build-all.py` — Full build
@@ -998,9 +1079,6 @@ The Python standard runtime implements the protocol's 9 required mechanisms (the
 - `scripts/release/ubuntu/build.py` — Linux artifact distribution
 
 ### Base Tools
-- `src/skeleton/base/A1-skill/skill/cli.py` — Compile path
-- `src/skeleton/base/A1-skill/skill/skill.py` — Consume path
-- `src/skeleton/base/A1-skill/nocode/markdown_converter.py` — NoCode path
+- `src/text_cli/base_text-cli/template/base_nocode/zh/markdown_converter_zh.py` — NoCode path (plus the `template/base_nocode/` no-code template, with an `en/` edition)
 - `src/text_cli/base_text-cli/converter/postman_to_pkg_python.py` — Postman converter
-- `src/text_cli/base_text-cli/converter/readme_to_pkg_python.py` — Markdown converter
 - `src/text_cli/base_text-cli/converter/mcp_to_pkg.py` — MCP converter

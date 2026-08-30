@@ -1,0 +1,9 @@
+{
+  "name": "textcli-core-mesh",
+  "version": "0.1.1",
+  "description": "mesh 转发：本地不命中→路由表→防环→跳数上限→指数退避→脱敏→凭证前向开关（算法复用 runtime-mesh，remote 注入）",
+  "type": "module",
+  "main": "index.js",
+  "files": ["index.js"],
+  "license": "MIT"
+}

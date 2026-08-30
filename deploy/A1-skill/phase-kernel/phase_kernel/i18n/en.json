@@ -1,0 +1,22 @@
+{
+  "plan_confirm": "Phase plan ({total} phases):\n{summary}\n\nPlease confirm (send action=confirm) or suggest changes (action=reject/regenerate).",
+  "pipeline_missing": "Pipeline not found or expired. Please start a new phase request.",
+  "pipeline_aborted": "Pipeline aborted.",
+  "unknown_action": "Unknown action: {action}",
+  "all_phases_completed": "All phases completed!",
+  "state_cannot_confirm": "Cannot confirm in current state.",
+  "rejected_retry": "Rejected, feedback: {feedback}.\nPlease confirm to re-run (confirm) or abort (abort).",
+  "replanned_confirm": "Replanned ({total} phases):\n{summary}\n\nPlease confirm (action=confirm) or keep editing (action=reject/regenerate).",
+  "phase_path_prompt": "Phase {i}/{total} \"{name}\" path:\n{path}\n\nConfirm to run (confirm) / reject with feedback (reject + note) / abort (abort).",
+  "phase_exec_failed": "Phase execution failed (backend unreachable): {error}",
+  "phase_submitted_async": "Phase \"{name}\" submitted for async execution, task_id={task_id}. Query result by sending action=check_result.",
+  "no_active_phase": "No active phase to query.",
+  "no_pending_task": "Current phase has no pending async task.",
+  "poll_failed": "Polling failed: {error}",
+  "task_still_pending": "Task still in progress, please send check_result later.",
+  "phase_done_await_approval": "Phase \"{name}\" completed, awaiting human approval (confirm/reject).",
+  "phase_rollback_retry": "Phase \"{name}\" entered phase-internal rollback retry ({count}/{max}).\nPlease confirm to retry (confirm) or abort (abort).",
+  "verification_phase_abort": "Verification phase \"{name}\" exceeded rollback limit, shallow-terminating the whole tree. {reason}",
+  "phase_settled_next": "Phase \"{name}\" exceeded rollback limit, accepted stable output and released (settled).\n\n{content}",
+  "phase_settled_all_done": "Phase \"{name}\" exceeded rollback limit, accepted stable output and released (settled); all phases completed."
+}

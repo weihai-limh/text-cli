@@ -102,7 +102,7 @@ curl -X POST http://localhost:8000/text-cli/cli \
   -d '{"prompt": "AI:家庭园艺;盆栽急救,绿萝,叶片发黄"}'
 ```
 
-token 不匹配返回 `ACCESS_DENIED`。`AuthEnabled=False`（默认）则全放行。
+token 不匹配返回 `SERVICE_DENIED`。`AuthEnabled=False`（默认）则全放行。
 
 ## 更新经验内容
 

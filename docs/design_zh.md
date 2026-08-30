@@ -1,6 +1,6 @@
 # text-cli 设计文档
 
-> **文档类型**：技术设计 | **关联文档**：[SPEC_zh.md](./SPEC_zh.md) | **修订**：2026-07-31
+> **文档类型**：技术设计 | **关联文档**：[SPEC_zh.md](./SPEC_zh.md) | **修订**：2026-08-29
 > **适用范围**：text-cli 全项目
 >
 > 本文档描述 text-cli 的工程机制。§一~§三描述协议和运行时体系的通用设计，§四以 Python 标准运行时为主线展开实现细节。
@@ -58,10 +58,12 @@ AI:域;动作,参数1,参数2,...
 
 ### 2.1 运行时分类
 
-text-cli 按能力覆盖度将运行时分为两类：
+text-cli 按能力覆盖度将运行时定位在**同一条梯度**上（SPEC §6.1）——三者（最小合规 / 旁路 / 标准）是位置，不是等级：
 
 - **标准运行时**：完整实现协议要求的全部机制。标准运行时是能力定义，不特指某一语言——任何能完整承载协议机制集的实现都是标准运行时。当前标准运行时基于 Python 实现（见 §四）。
-- **旁路运行时**：只需支持协议机制的子集即可，不要求全量。按形态分云平台（CloudBase SCF / Cloudflare Workers）和多语言 SDK（textcli-loader / textcli-core）。约束示例：textcli-loader（PyPI）和 textcli-core（npm）不支持联邦 Mesh 和路径编排机制；Cloudflare Workers 为纯网关，不做执行。
+- **旁路运行时**：在强制基线之上实现**任意机制子集**（含全集），不要求全量。按形态分多语言 SDK（textcli-loader / textcli-core）、零代码单文件（base_nocode）、云平台（CloudBase SCF / Cloudflare Workers）与插件宿主（dsh-tc-runtime）。约束示例：textcli-loader（PyPI）和 textcli-core（npm）不支持联邦 Mesh 和路径编排机制。
+
+> **身份由实现方自述，项目不裁定**：`dsh-tc-runtime` 覆盖 9 机制全集，但自述为旁路形态——覆盖度不推导身份。调用方不受影响：一维契约保证执行方身份对调用方不可见。
 
 ### 2.2 标准运行时必备机制
 
@@ -83,13 +85,16 @@ text-cli 按能力覆盖度将运行时分为两类：
 
 ### 2.3 当前运行时形态
 
-| 形态 | 类型 | 说明 |
-|------|------|------|
-| Python 标准运行时 | 标准 | 自拥部署，完整 9 项机制（见 §四） |
-| textcli-loader | 旁路 | PyPI SDK，轻量消费端（见 §五） |
-| textcli-core | 旁路 | npm SDK，JavaScript 同构实现（见 §五） |
-| CloudBase SCF | 旁路 | 腾讯云云函数，Node.js（见 §五） |
-| Cloudflare Workers | 旁路 | 边缘计算网关，协议解析 + 路由分发（见 §五） |
+| 形态 | 类型 | 部署 | 说明 |
+|------|------|------|------|
+| Python 标准运行时 | 标准 | 自拥部署 | 完整 9 项机制（见 §四） |
+| textcli-loader | 旁路 | 进程内（`pip install`） | PyPI SDK，轻量消费端（见 §五） |
+| textcli-core | 旁路 | 进程内（`npm install`） | npm SDK，JavaScript 同构实现（见 §五） |
+| base_nocode | 旁路 | 本地单文件起服务 | 纯标准库脚本，零代码形态（见 §五） |
+| CloudBase SCF | 旁路 | 云函数自行部署 | 腾讯云云函数，Node.js（见 §五） |
+| Cloudflare Workers | 旁路 | 边缘节点自行部署 | D1 多功能版边缘运行时——受限执行（见 §五） |
+| dsh-tc-runtime | 旁路 | Cordis 插件装配 | 15 个 `runtime-*` 包，覆盖 9 机制全集（见 §五） |
+| tc-js-skeleton | — | 非运行时形态 | 通用 JS 逻辑层真源，被 cloudflare / dsh 复用（见 §五） |
 
 ---
 
@@ -204,7 +209,7 @@ Skill 不直接持有 HTTP 调用——所有网络操作经由 SDK。Skill 层�
 
 #### 双文件真相源
 
-（`src/skeleton/base/A1-skill/config/`）
+（`src/skeleton/base/A1-skill/skill/config/`）
 
 | 文件 | 角色 | 含 Token | 维护方式 |
 |------|------|:---:|------|
@@ -250,7 +255,7 @@ Token 支持 `${ENV_VAR}`（环境变量引用）或裸字符串。`auth: "singl
 
 #### 编译路径：造指令
 
-（`src/skeleton/base/A1-skill/python/cli.py`——`register()` at :36, `generate_schema()` at :129）
+（`src/skeleton/base/A1-skill/skill/python/cli.py`——`register()` at :36, `generate_schema()` at :155）
 
 ```python
 from cli import register, generate_schema
@@ -267,7 +272,7 @@ schema = generate_schema("my-weather")
 
 #### 消费路径：调指令
 
-（`src/skeleton/base/A1-skill/python/skill.py`——`Skill` 类 at :103, `Skill.run()` at :201, `@skill` 装饰器 at :211）
+（`src/skeleton/base/A1-skill/skill/python/skill.py`——`Skill` 类 at :105, `Skill.run()` at :203, `@skill` 装饰器 at :213）
 
 ```python
 from skill import Skill, skill
@@ -287,7 +292,7 @@ Skill.run() 内部走完整调度链：查能力清单 → 取 token → SDK 调
 
 #### 冷路径同步
 
-端点能力聚合不在 Agent 推理循环内——`aggregation.py`（`src/skeleton/base/A1-skill/python/aggregation.py`）作为冷路径工具，定期或按需执行：
+端点能力聚合不在 Agent 推理循环内——`aggregation.py`（`src/skeleton/base/A1-skill/skill/python/aggregation.py`）作为冷路径工具，定期或按需执行：
 
 ```python
 from aggregation import sync_endpoints
@@ -316,9 +321,9 @@ Agent 醒来 → /health → text-cli;query → 缺翻译能力
   → "查天气→穿衣建议"反复出现 → text-cli;pro → 发布为路径
 ```
 
-Agent 配套 System Prompt 模板（`src/skeleton/base/A1-skill/prompts/` 目录）：核心调度协议（`SKILL.md`、`text-cli-core_zh.md`）、同步 Skill 概念设计（`text-cli-sync-skill.md`）、聚合 schema 示例（`agent-text-cli-schema.example.json`）——指导 Agent 正确使用 SDK 和 Skill 层。
+Agent 配套 System Prompt 模板（`src/skeleton/base/A1-skill/skill/prompts/` 目录）：核心调度协议（`SKILL.md`、`text-cli-core_zh.md`）、同步 Skill 概念设计（`text-cli-sync-skill.md`）、聚合 schema 示例（`agent-text-cli-schema.example.json`）——指导 Agent 正确使用 SDK 和 Skill 层。
 
-此外，技能调度层可作为 OpenClaw Skill 安装（入口：`src/skeleton/base/A1-skill/SKILL.md`）——Agent 加载后自动学会使用 `call()` / `discover()` / `Skill.run()`，无需人工配置路由。
+此外，技能调度层可作为 OpenClaw Skill 安装（入口：`src/skeleton/base/A1-skill/skill/SKILL.md`）——Agent 加载后自动学会使用 `call()` / `discover()` / `Skill.run()`，无需人工配置路由。
 
 ---
 
@@ -352,7 +357,7 @@ Agent 配套 System Prompt 模板（`src/skeleton/base/A1-skill/prompts/` 目录
 | copilot | 127.0.0.1:20260 | 指令包挂载/文件系统/shell/操作 | 仅本机可达 |
 | service | 0.0.0.0:28050 | 指令包挂载/编排/聚合/MCP/SQL | 内网可达,公网控制访问 |
 | endpoint | 0.0.0.0:29050 | Access Token 鉴权/路由转发/记账 | 不持有指令，不执行逻辑 |
-| service-mcp | 0.0.0.0:9020 | 默认Token  | 指令服务反向暴露为MCP服务,以MCP的姿态对外提供服务 |
+| service-mcp | 0.0.0.0:9020 | 出向 MCP 桥——已注册指令反向暴露为 MCP tools | 暴露面受 `service_manifest.json` 的 `public_directives` 白名单控制（与 `/skills` 同源） |
 
 ### 4.2 渐进分层体系
 
@@ -373,7 +378,7 @@ Agent 配套 System Prompt 模板（`src/skeleton/base/A1-skill/prompts/` 目录
 
 > 注：A8/A9 的定义与其他文档统一——A8 聚合入口、A9 门面抽象+全量终点。
 
-**累积规则**：A3 自动包含 A2 的全部 + service 本体。A9 包含 A2-A8 的全部。后层同名文件覆盖前层。A5 endpoint 和旁路运行时（CloudBase/PyPI/npm/Cloudflare）不参与累积链——水平独立分发。
+**累积规则**：A3 自动包含 A2 的全部 + service 本体。A9 包含 A2-A8 的全部。后层同名文件覆盖前层。A5 endpoint 和旁路运行时（CloudBase/PyPI/npm/Cloudflare/base_nocode/dsh-tc-runtime）不参与累积链——水平独立分发。
 
 **构建链路**：`src/skeleton/`（唯一编辑入口）→ `build-all.py`（累积/直通）→ `deploy/`（中间产物）→ 分发脚本 → `.zip/.tar.gz/Docker`。`deploy/` 由构建自动生成，不应手动编辑。
 
@@ -729,25 +734,16 @@ endpoint 不区分后端运行时形态——标准 Python service、Docker 部�
 
 不参与 A2→A9 累积链，但通过统一协议与标准运行时互通。
 
-旁路运行时只需支持协议机制的子集即可——不同于标准运行时的 9 项全量要求。
+按 SPEC §6.1，旁路在强制基线之上实现**任意机制子集**——**含全集**，不要求全量。序列覆盖度跨度极大：从两个加载器（覆盖 2–3 项）到 `dsh-tc-runtime`（覆盖 9 机制全集）。
 
-### 云平台
-#### CloudBase SCF
+> **身份由实现方自述，项目不裁定**：`dsh-tc-runtime` 覆盖全集但自述为旁路形态，这是它的自我定位，不是覆盖度的推论。调用方不受影响——一维契约保证执行方身份对调用方不可见。
 
-腾讯云云函数运行时（Node.js），将指令包部署为独立云函数，经网关路由转发。核心文件：`config.js` + `index.js`。
+按部署形态分五类，另有一个被各类复用的共享逻辑层。
 
-**架构**：
-```
-HTTP 触发器 → index.js exports.main
-  → 解析 prompt → 查 config.js routeTable[domain] → 云函数名
-    → cloud.callFunction(name, {prompt}) → handler(params) → 返回信封
-```
+### 进程内 SDK（轻量加载器）
 
-支持 HTTP POST `/cli` 和 SDK 调用（`action=get_schema`）双模式。`GET /health` 返回健康状态。
+进程内加载器不部署任何服务——把"执行指令包"的能力装进你已有的环境。
 
-**扩展新指令**：部署指令云函数 → 在 `config.js` 的 `routeTable` 中登记 `domain → 函数名` → 在 `packages` 数组中登记包 id（用于 `text-cli;query` 聚合）。新增包时无需改骨架代码，仅改网关侧配置。
-
-### 轻量SDK
 #### textcli-loader（PyPI）
 
 `pip install textcli-loader` 即可在任何 Python 环境直接加载和执行不需要额外密钥的以python语言实现的指令包——不依赖任何 text-cli 服务，零额外依赖。核心文件：`loader.py` + `registry.py` + `envelope.py`。
@@ -787,26 +783,102 @@ loadPackage("./my-package/");
 
 **核心模块**：`parser.js`（支持 `AI:`/`指令:` 双前缀、括号深度追踪）、`registry.js`（`register`/`dispatch`/`unregister`/`getRegistered`，支持 sync/async handler）、`envelope.js`（`ok`/`err`，错误码白名单校验）、`alias.js`（别名映射，大小写不敏感）、`loader.js`（不依赖 IO 的核心加载接口）、`loader.node.js`（Node.js 平台适配器——`fs` + `require` 从磁盘加载）。
 
-**与 Python loader 的关键差异**：loader 和平台适配器分离——`loader.js` 是纯逻辑，不依赖 `fs`/`require`；`loader.node.js` 是 Node.js 适配器。这种分离使得 Cloudflare Workers 等非 Node.js 环境可以直接复用 `parser.js` + `registry.js` + `envelope.js` + `alias.js` + `loader.js` 的纯逻辑模块，只需提供自己的平台适配器。
+**与 Python loader 的关键差异**：loader 和平台适配器分离——`loader.js` 是纯逻辑，不依赖 `fs`/`require`；`loader.node.js` 是 Node.js 适配器。这种分离使得 Cloudflare Workers 等非 Node.js 环境可以直接复用纯逻辑模块，只需提供自己的平台适配器——这一思路后来固化为 `tc-js-skeleton`（见下文「共享逻辑层」）。
 
-### Cloudflare Workers（边缘网关）
+### 零代码单文件
 
-Cloudflare Workers 是一个**纯网关**——只做协议解析 + 路由分发 + 信封封装，不做执行。它复用了 textcli-core 的纯逻辑模块（parser、registry、envelope、alias、loader），把文件 IO 替换为 Workers KV Store。
+#### base_nocode
+
+纯标准库单脚本：`markdown_converter_zh.py` + 一份结构化 Markdown 经验文档，即起一个完整的 HTTP 指令服务——无需任何框架与第三方依赖。
+
+- 端点：`POST /text-cli/cli`（指令执行，`AI:text-cli;query` 经同一端点返回能力清单）、`GET /text-cli/schema`（包 schema）、`GET /text-cli/health`（健康检查）
+- 文档格式：`## Directive`（声明 domain / action / triggers / params，可选 `Source` / `Verified` / `Stale After` / `Status`）+ `## Knowledge`（经验内容，支持 `鉴别` / `教训` 约定字段）
+- 源码：`src/text_cli/base_text-cli/template/base_nocode/zh/`
+
+这是"会说话即能繁殖"的最小兑现——不写代码、不部署运行时，经验文本直接变成可被 `AI:域;动作` 调用的服务。
+
+### 云平台
+#### CloudBase SCF
+
+腾讯云云函数运行时（Node.js），将指令包部署为独立云函数，经网关路由转发。核心文件：`config.js` + `index.js`。
+
+**架构**：
+```
+HTTP 触发器 → index.js exports.main
+  → 解析 prompt → 查 config.js routeTable[domain] → 云函数名
+    → cloud.callFunction(name, {prompt}) → handler(params) → 返回信封
+```
+
+支持 HTTP POST `/cli` 和 SDK 调用（`action=get_schema`）双模式。`GET /health` 返回健康状态。
+
+**扩展新指令**：部署指令云函数 → 在 `config.js` 的 `routeTable` 中登记 `domain → 函数名` → 在 `packages` 数组中登记包 id（用于 `text-cli;query` 聚合）。新增包时无需改骨架代码，仅改网关侧配置。
+
+#### Cloudflare Workers（D1 边缘运行时）
+
+Cloudflare Workers **D1 多功能版**——**不是纯网关，具备受限执行能力**（早期版本为纯网关 + KV Store，仅注册元数据并委派后端执行）。它共享 `tc-js-skeleton` 的逻辑组件（`textcli-core` + `contract`）并配三个平台适配器；可执行包存 **D1**（非 KV），在 Workers 内分级 sandbox 受限执行。
 
 ```
-Cloudflare Workers（边缘节点）
+Cloudflare Workers（D1 多功能版）
   │
-  ├── POST /text-cli/cli → gateway.js
-  │     ├── 解析 prompt → domain;action,params
-  │     ├── 从 KV Store 加载包（schema.json）
-  │     ├── 注册 handler（元数据模式——handler 为 null）
-  │     ├── dispatch → 匹配成功则委托后端 Node.js 运行时执行
-  │     └── 封装信封（ok / err）
+  ├── POST /text-cli/cli → src/index.js
+  │     ├── 鉴权（src/token.js 单 Service-token 闭环）
+  │     ├── 解析 prompt → domain;action,params（src/endpoints.js + src/runtime.js）
+  │     ├── D1 加载可执行包 + 元数据（src/d1-storage.js + src/meta.js）
+  │     ├── 受限执行（src/executor.js 分级 sandbox）或 mesh 转发（src/mesh.js）
+  │     ├── key 指令化凭据（src/key.js，AES-GCM）
+  │     ├── 异步任务五态 + 重启对账（src/tasks.js）
+  │     └── 请求方计次 / 配额降级（src/usage.js）
   │
-  └── GET /health → {status: "ok", service: "text-cli-cloudflare-gateway"}
+  ├── GET /text-cli/health | /schema | /tasks/{id} | /packets/...（端点面）
+  └── 初始化：schema.sql（建 D1 表）
 ```
 
-**与 endpoint 的对比**：endpoint 是 HTTP 层面的纯管道（鉴权 → 路由 → 透传），gateway 是协议层面的纯网关（协议解析 → 包加载 → 路由分发 → 信封封装）。两者共享纯管道原则——不持有指令、不执行逻辑、不解析响应内容。
+协议与 text-cli / dsh-tc-runtime 完全一致：复用 `textcli-core` 信封 + `contract` 6 码闭集，异步任务五态、配额 `status:"stop"` 降级、mesh 路由防环。
+
+### 插件宿主
+
+#### dsh-tc-runtime
+
+dsh（Cordis）生态承载的旁路运行时——外挂于 dsh 的插件集（15 个 `runtime-*` 包），把 tc 指令能力桥接进 dsh，**覆盖 9 机制能力全集，但自述为旁路形态、不宣称标准运行时身份**（身份自述，非覆盖度推论，见 §2.1）。
+
+```
+runtime-inbound      入站 HTTP（六段管道 + 保留域拦截）
+runtime-mapper       指令映射（tc 指令 ↔ ctx.tools）
+runtime-sandbox      沙箱执行宿主（受限子进程 + policy 分层护栏）
+runtime-credentials  凭据按包隔离
+runtime-audit        审计通道（append-only JSONL）
+runtime-meta         text-cli;* 元指令（install/query/path/...）
+runtime-quota        周期窗口 + 原子 check+consume
+runtime-approval     审批 answerer（HMAC + fail-closed）
+runtime-host         宿主指令
+runtime-path         path 引擎（声明层解释器 + workflow 编译）
+runtime-aggregate    异步任务桥接（五态）+ 聚合降级
+runtime-mesh         mesh 转发（路由表 / 防环 / 退避）
+runtime-bridge       协议桥（mcp-client → mcp__<server>__<tool>）
+runtime-pro          门面注册表（简名 → path/aggregate）
+runtime-contract     全局验收（规范信封 + 16 行映射契约）
+```
+
+**红线（7 条）**：不侵入 dsh 内核、凭据明文不进 JS 执行环境、沙箱默认拒绝、协议闭集、保留域元指令拦截、审批归属过滤、tc 审计独立 JSONL。
+
+### 共享逻辑层（非运行时形态）
+
+#### tc-js-skeleton
+
+旁路**通用 JS 逻辑层真源**——`textcli-core` 薄核心的洋葱分层组件家族（12 个包），与平台无关，供 cloudflare / dsh / 其他 JS 承载复用。**它不是运行时，不占运行时席位。**
+
+```
+骨架/门面：compose                          ← 装配 + 包生命周期 + 多包消费
+交互层(最外)：mesh / approval / credentials  ← 绑外部能力，deps 注入
+护栏层：quota / audit                        ← dispatch 前拦/记
+编排层：path / aggregate / contract          ← 声明层逻辑，内部自带 path:/agg: 环检
+核心守卫(最内)：guard                        ← native 环检测
+核心(不变薄)：textcli-core                   ← parser/envelope/alias/registry/loader
+```
+
+组件：`textcli-core`（薄核心）、`-compose`（装配 + 包生命周期）、`-contract`（规范信封 + 6 码闭集）、`-guard`（环检测）、`-path`（声明层 path 引擎）、`-aggregate`（try-in-order 降级）、`-quota` / `-audit`（配额护栏 / 审计）、`-storage`（存储地基：内存 / 文件 / D1）、`-auth` / `-approval` / `-credentials` / `-mesh`。测试 91/91。
+
+详见 `src/skeleton/bypass-service/docs/INDEX_zh.md`。
 
 ---
 
@@ -876,9 +948,9 @@ text-cli 的基本调度单位是**指令**：一行 `AI:域;动作,参数` 对�
 
 ### 6.5 各运行时的指令包的开发指南入口
 
-| 运行时 || 运行时 | 开发指南 |
+| 类别 | 运行时 | 开发指南 |
 |------|------|------|
-| 标准| Python 运行时 | [package-python-dev-guide_zh.md](../src/text_cli/base_text-cli/docs/package-python-dev-guide_zh.md) |
+| 标准 | Python 运行时 | [package-python-dev-guide_zh.md](../src/text_cli/base_text-cli/docs/package-python-dev-guide_zh.md) |
 | 标准| JS 运行时 | [package-js-dev-guide_zh.md](../src/text_cli/base_text-cli/docs/package-js-dev-guide_zh.md) |
 | 其他| nocode（跨运行时） | [package-nocode-guide_zh.md](../src/text_cli/base_text-cli/docs/package-nocode-guide_zh.md) |
 | 其他| 既有服务转化脚手架 | [package-scaffolding-converter-guide_zh.md](../src/text_cli/base_text-cli/docs/package-scaffolding-converter-guide_zh.md) |
@@ -902,7 +974,7 @@ Agent 从调用者逐步变为管理者——不需要人配置路由、写部�
 
 ## 标准运行时机制对照
 
-Python 标准运行时实现了协议要求的 9 项必备机制（下表按**真实实现位置**标注——各机制的归属层与实现文件已经过源码核实，与"该机制最初在哪一层引入"一致；聚合降级的声明文件在 A8，但执行逻辑在 A3 dispatch 管道；门面抽象实现位于 A3 而非 A9，A9 仅提供配置与注册表）：
+Python 标准运行时实现了协议要求的 9 项必备机制（下表按**真实实现位置**标注——各机制的归属层与实现文件已经过源码核实，与"该机制最初在哪一层引入"一致；聚合降级的声明文件在 A8，但执行逻辑在 A3 dispatch 管道；门面抽象的实现与配置注册表均在 A9）：
 
 | 必备机制 | 实现层 | 实现位置 |
 |------|:---:|------|
@@ -927,15 +999,15 @@ Python 标准运行时实现了协议要求的 9 项必备机制（下表按**�
 - `src/skeleton/base/A0-protocol/shell/call.ps1` — PowerShell CLI
 
 ### AI 技能调度
-- `src/skeleton/base/A1-skill/python/cli.py` — 编译路径：register() + generate_schema()
-- `src/skeleton/base/A1-skill/python/skill.py` — 消费路径：Skill 类 + Skill.run() + 降级链
-- `src/skeleton/base/A1-skill/python/aggregation.py` — sync_endpoints 端点能力聚合
-- `src/skeleton/base/A1-skill/config/agent-endpoints.json` — 端点注册表（含 token，手动维护）
-- `src/skeleton/base/A1-skill/config/agent-text-cli-schema.json` — 能力聚合清单（sync 生成）
-- `src/skeleton/base/A1-skill/prompts/SKILL.md` — Agent 调度 System Prompt
-- `src/skeleton/base/A1-skill/prompts/text-cli-core_zh.md` — 核心调度 v2.0
-- `src/skeleton/base/A1-skill/prompts/text-cli-sync-skill.md` — 同步 Skill 概念设计
-- `src/skeleton/base/A1-skill/prompts/agent-text-cli-schema.example.json` — 聚合 Schema 示例
+- `src/skeleton/base/A1-skill/skill/python/cli.py` — 编译路径：register() + generate_schema()
+- `src/skeleton/base/A1-skill/skill/python/skill.py` — 消费路径：Skill 类 + Skill.run() + 降级链
+- `src/skeleton/base/A1-skill/skill/python/aggregation.py` — sync_endpoints 端点能力聚合
+- `src/skeleton/base/A1-skill/skill/config/agent-endpoints.json` — 端点注册表（含 token，手动维护）
+- `src/skeleton/base/A1-skill/skill/config/agent-text-cli-schema.json` — 能力聚合清单（sync 生成）
+- `src/skeleton/base/A1-skill/skill/prompts/SKILL.md` — Agent 调度 System Prompt
+- `src/skeleton/base/A1-skill/skill/prompts/text-cli-core_zh.md` — 核心调度 v2.0
+- `src/skeleton/base/A1-skill/skill/prompts/text-cli-sync-skill.md` — 同步 Skill 概念设计
+- `src/skeleton/base/A1-skill/skill/prompts/agent-text-cli-schema.example.json` — 聚合 Schema 示例
 
 
 
@@ -989,9 +1061,18 @@ Python 标准运行时实现了协议要求的 9 项必备机制（下表按**�
 - `src/skeleton/bypass-service/npm/textcli-core/registry.js` — register/dispatch 注册表
 - `src/skeleton/bypass-service/npm/textcli-core/loader.node.js` — Node.js 平台适配器
 - `src/skeleton/bypass-service/npm/textcli-core/package.json` — npm 包配置（零外部依赖）
+- `src/text_cli/base_text-cli/template/base_nocode/zh/markdown_converter_zh.py` — 零代码单文件服务（纯标准库）
 - `src/skeleton/bypass-service/cloudbase/config.js` — CloudBase 网关路由
 - `src/skeleton/bypass-service/cloudbase/index.js` — CloudBase 入口
-- `src/skeleton/bypass-service/cloudflare/workers/gateway.js` — Cloudflare Workers 网关（纯网关，复用 textcli-core 纯逻辑模块）
+- `src/skeleton/bypass-service/cloudflare/workers/src/index.js` — Cloudflare Workers 入口（D1 多功能版；旧版为 `gateway.js`，已移除）
+- `src/skeleton/bypass-service/cloudflare/workers/src/executor.js` — 受限执行（分级 sandbox）
+- `src/skeleton/bypass-service/cloudflare/workers/src/d1-storage.js` — D1 → StorageKV 适配器
+- `src/skeleton/bypass-service/cloudflare/workers/src/tasks.js` — 异步任务五态 + 重启对账
+- `src/skeleton/bypass-service/cloudflare/workers/schema.sql` — D1 建表脚本
+- `src/skeleton/bypass-service/tc-js-skeleton/packages/` — 通用 JS 逻辑层真源（12 个组件，洋葱分层）
+- `src/skeleton/bypass-service/dsh/dsh-tc-runtime/` — dsh 旁路运行时（15 个 `runtime-*` Cordis 包）
+- `src/skeleton/bypass-service/dsh/dsh-tc-bridge/` — dsh-agent 消费 tc 生态的能力缝插件（非运行时）
+- `src/skeleton/bypass-service/docs/INDEX_zh.md` — 旁路运行时索引（各形态构建模式、与 service 的差异对照）
 
 ### 构建与部署
 - `scripts/build-all.py` — 全量构建
@@ -1000,9 +1081,6 @@ Python 标准运行时实现了协议要求的 9 项必备机制（下表按**�
 - `scripts/release/ubuntu/build.py` — Linux 制品分发
 
 ### 基础工具
-- `src/skeleton/base/A1-skill/skill/cli.py` — 编译路径
-- `src/skeleton/base/A1-skill/skill/skill.py` — 消费路径
-- `src/skeleton/base/A1-skill/nocode/markdown_converter.py` — NoCode 路径
+- `src/text_cli/base_text-cli/template/base_nocode/zh/markdown_converter_zh.py` — NoCode 路径（另有无代码模板 `template/base_nocode/`，含 `en/` 版）
 - `src/text_cli/base_text-cli/converter/postman_to_pkg_python.py` — Postman 转化器
-- `src/text_cli/base_text-cli/converter/readme_to_pkg_python.py` — Markdown 转化器
 - `src/text_cli/base_text-cli/converter/mcp_to_pkg.py` — MCP 转化器

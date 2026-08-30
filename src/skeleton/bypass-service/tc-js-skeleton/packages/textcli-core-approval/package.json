@@ -1,0 +1,9 @@
+{
+  "name": "textcli-core-approval",
+  "version": "0.1.1",
+  "description": "审批 answerer：归属过滤 + 防重放 + HMAC 双向签名 + fail-closed（算法复用 runtime-approval，dsh seam → 注入 httpPost/hmacSign）",
+  "type": "module",
+  "main": "index.js",
+  "files": ["index.js"],
+  "license": "MIT"
+}

@@ -1,6 +1,6 @@
 {
   "name": "textcli-core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Zero-dependency JS instruction package one-shot executor for text-cli protocol",
   "main": "index.js",
   "files": [
