@@ -1,0 +1,9 @@
+{
+  "name": "textcli-core-path",
+  "version": "0.1.1",
+  "description": "path 声明层解释器：8 类步骤（call/sequence/parallel/map/if/http_dispatch/delegated）+ 插值 + 条件 + 降级（搬运自 runtime-path/executor.ts，路径 B deps 重绑定）",
+  "type": "module",
+  "main": "index.js",
+  "files": ["index.js"],
+  "license": "MIT"
+}

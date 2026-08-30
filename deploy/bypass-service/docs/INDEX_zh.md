@@ -2,32 +2,50 @@
 
 ## 定位
 
-bypass-service 分组下的骨架层绑定 **旁路运行时**——不走标准 `text-cli;install` 管线、不参与 A2→A9 骨架累积链的非 Python 运行时。它们由独立的云平台网关承载，经 `build-all.py` 直通模式同步到 `deploy/bypass-service/`。
+bypass-service 分组下的骨架层绑定 **旁路运行时**——不参与 A2→A9 骨架累积链的非 Python 运行时。它们由独立的云平台网关 / 通用 JS 逻辑层 / dsh 承载，经 `build-all.py` 直通模式同步到 `deploy/bypass-service/`。
 
-与 service 分组的关系：**平行、不累积、不继承**。旁路运行时和标准 runtime 通过统一的 `AI:域;动作,参数` 协议互通——调用方不感知执行方是标准服务还是云函数。
+与 service 分组的关系：**平行、不累积、不继承**。旁路运行时和标准 runtime 通过统一的 `AI:域;动作,参数` 协议互通。
+
+## 目录结构
+
+```
+bypass-service/
+├── pypi/                # 本地 pip 包加载器（textcli-loader，Python）
+├── npm/                 # 本地 npm 薄核心（textcli-core，JavaScript）
+├── tc-js-skeleton/      # 通用 JS 逻辑层真源（12 个 textcli-core-* 组件家族，洋葱分层）
+├── cloudbase/           # 腾讯云 SCF 云函数网关
+├── cloudflare/          # Cloudflare Workers 边缘网关（D1 多功能版）
+├── dsh/
+│   ├── dsh-tc-runtime/  # dsh 作为 tc 运行时（Cordis 插件集，15 个 runtime-* 包）
+│   └── dsh-tc-bridge/   # dsh 消费 tc 指令生态的能力缝插件（五闭集工具）
+└── docs/                # 本 INDEX
+```
 
 ## 当前运行时
 
-旁路运行时覆盖三种部署形态：本地包加载器（Python / JavaScript）、云函数网关（CloudBase）、边缘计算网关（Cloudflare Workers）。
+旁路运行时覆盖五种形态：本地包加载器（Python / JavaScript）、云函数网关（CloudBase）、边缘计算网关（Cloudflare Workers D1）、通用 JS 逻辑层（tc-js-skeleton）、dsh 承载（dsh-tc-runtime / dsh-tc-bridge）。
 
 | 运行时 | 平台 | 语言 | 文件 | 说明 |
 |------|------|------|------|------|
 | pypi | PyPI | Python | `src/textcli_loader/` + `pyproject.toml` | pip 可安装的零依赖包加载器——任何 Python 环境直接加载和执行指令包 |
-| npm | npm | JavaScript | `textcli-core/` + `package.json` | npm 可安装的零依赖运行时——Node.js 环境直接加载和执行指令包，与 Python loader 同构 |
+| npm | npm | JavaScript | `textcli-core/` + `package.json` | npm 可安装的零依赖薄核心——Node.js 环境直接加载和执行指令包，与 Python loader 同构 |
+| tc-js-skeleton | 通用 JS | JavaScript | `packages/` 12 个组件 | 旁路通用 JS 逻辑层真源（薄核心 + compose/guard/contract 等洋葱分层组件） |
 | cloudbase | CloudBase SCF | Node.js | `config.js` + `index.js` + `package.json` | 腾讯云无服务器函数——网关路由 + 指令分发 |
-| cloudflare | Cloudflare Workers | JavaScript | `workers/gateway.js` | 边缘计算网关——从 KV Store 加载包，协议解析 + 路由分发 + 信封封装 |
+| cloudflare | Cloudflare Workers | JavaScript | `workers/src/` 11 个模块 + `schema.sql` | 边缘计算网关（D1 多功能版）——可执行包存 D1 + 受限执行 + 单 Service-token 闭环 |
+| dsh-tc-runtime | dsh（Cordis） | TypeScript | `dsh/dsh-tc-runtime/` 15 个 runtime-* 包 | dsh 作为 tc 运行时——9 机制能力全集，外挂于 dsh 的 Cordis 插件集 |
+
 
 ## 与 service 的差异
 
-| 维度 | service（标准运行时） | pypi（pip 包） | npm（npm 包） | cloudbase（云函数） | cloudflare（边缘网关） |
-|------|------|------|------|------|------|
-| 部署 | `text-cli;install` / `co-install` | `pip install textcli-loader` | `npm install textcli-core` | 云函数控制台 / CLI 部署 | Workers CLI / Dashboard 部署 |
-| handler 注册 | `handler_inits` + `@directive` | `@directive` 装饰器（动态 import） | `register()` 函数 | 网关路由表（`domain → 云函数名`） | 元数据模式（handler 为 null，委托后端执行） |
-| 依赖管理 | `requires.pip` / `requires.npm` 自动安装 | handler.py 自身的 import（用户自行安装） | handler.js 自身的 require（用户自行安装） | 云函数 `package.json` / 平台层管理 | KV Store / 平台层管理 |
-| 发现 | `text-cli;query` 聚合 | `get_registered()` API | `get_registered()` API | 网关 `get_schema` 协议端点 | 同 textcli-core `get_registered()` |
-| 端口 | `0.0.0.0:28050` | 无——纯函数调用 | 无——纯函数调用 | 无——云平台自动分配 | 无——边缘节点自动分配 |
-| 协议 | HTTP POST `/text-cli/cli` | Python 函数调用 | JavaScript 函数调用 | SDK 调用 + HTTP 双模式 | HTTP POST + Workers fetch |
-| 骨架构建 | A2→A9 累积链 | `build-all.py` 直通模式（BYPASS） | `build-all.py` 直通模式（BYPASS） | `build-all.py` 直通模式（BYPASS） | `build-all.py` 直通模式（BYPASS） |
+| 维度 | service（标准运行时） | pypi（pip 包） | npm（npm 包） | cloudbase（云函数） | cloudflare（D1 多功能网关） | dsh-tc-runtime（dsh Cordis） |
+|------|------|------|------|------|------|------|
+| 部署 | `text-cli;install` / `co-install` | `pip install textcli-loader` | `npm install textcli-core` | 云函数控制台 / CLI 部署 | Workers CLI / Dashboard 部署 + `schema.sql` 初始化 D1 | Cordis 插件装配（外挂 dsh，15 runtime-* 包） |
+| handler 注册 | `handler_inits` + `@directive` | `@directive` 装饰器（动态 import） | `register()` 函数 | 网关路由表（`domain → 云函数名`） | 可执行包存 D1，executor 受限执行 + 元数据注册 | runtime-mapper 指令映射（tc 指令 ↔ ctx.tools） |
+| 依赖管理 | `requires.pip` / `requires.npm` 自动安装 | handler.py 自身的 import（用户自行安装） | handler.js 自身的 require（用户自行安装） | 云函数 `package.json` / 平台层管理 | D1 / 平台层管理 | pnpm workspace（各 runtime-* 包自管依赖） |
+| 发现 | `text-cli;query` 聚合 | `get_registered()` API | `get_registered()` API | 网关 `get_schema` 协议端点 | 同 textcli-core `get_registered()` | runtime-meta `text-cli;query` 元指令 |
+| 端口 | `0.0.0.0:28050` | 无——纯函数调用 | 无——纯函数调用 | 无——云平台自动分配 | 无——边缘节点自动分配 | 入站 HTTP（runtime-inbound，`POST /text-cli/cli`） |
+| 协议 | HTTP POST `/text-cli/cli` | Python 函数调用 | JavaScript 函数调用 | SDK 调用 + HTTP 双模式 | HTTP POST + Workers fetch | HTTP POST + dsh 生态（信封三字段闭集） |
+| 骨架构建 | A2→A9 累积链 | `build-all.py` 直通模式（BYPASS） | `build-all.py` 直通模式（BYPASS） | `build-all.py` 直通模式（BYPASS） | `build-all.py` 直通模式（BYPASS） | `build-all.py` 直通模式（BYPASS） |
 
 ## pypi（pypi/）
 
@@ -88,30 +106,46 @@ loadPackage("./my-package/");
 
 ## Cloudflare（cloudflare/）
 
-Cloudflare Workers 边缘计算网关。只使用 textcli-core 的纯逻辑模块（parser、envelope、alias、registry），把文件 IO 替换为 Workers KV Store。
+Cloudflare Workers **D1 多功能版**边缘网关。**不是 tc-js-skeleton 的移植，也不是第二份实现**——是「共享同一套逻辑组件（textcli-core + contract）+ 三个平台适配器」的 Cloudflare 安装版。可执行包存 **D1**（非 KV），受限执行 + 单 Service-token 闭环。
 
 ### 架构
 
 ```
-Cloudflare Workers（边缘节点）
+Cloudflare Workers（D1 多功能版）
   │
-  ├── POST /text-cli/cli → gateway.js
-  │     ├── 解析 prompt → domain;action,params
-  │     ├── 从 KV Store 加载包（schema.json）
-  │     ├── 注册 handler（元数据模式——handler 为 null）
-  │     ├── dispatch → 匹配成功则委托后端 Node.js 运行时执行
-  │     └── 封装信封（ok / err）
+  ├── POST /text-cli/cli → src/index.js
+  │     ├── 鉴权（src/token.js 单 Service-token 闭环）
+  │     ├── 解析 prompt → domain;action,params（src/endpoints.js + src/runtime.js）
+  │     ├── D1 加载可执行包 + 元数据（src/d1-storage.js + src/meta.js）
+  │     ├── 受限执行（src/executor.js 分级 sandbox）或 mesh 转发（src/mesh.js）
+  │     ├── key 指令化凭据（src/key.js，AES-GCM）
+  │     ├── 异步任务五态 + 重启对账（src/tasks.js）
+  │     └── 请求方计次 / 配额降级（src/usage.js）
   │
-  └── GET /health → {status: "ok", service: "text-cli-cloudflare-gateway"}
+  ├── GET /text-cli/health | /schema | /tasks/{id} | /packets/...（端点面）
+  └── 初始化：schema.sql（建 D1 表）
 ```
 
-gateway 是纯网关——不做执行，只做协议解析 + 路由 + 信封封装。和 endpoint 的纯管道原则一致，但 endpoint 是 HTTP 层面的转发，gateway 是协议层面的分发。
+协议与 text-cli / dsh-tc-runtime 完全一致：复用 `textcli-core` 信封 + contract 的 6 码闭集，异步任务五态、配额 `status:"stop"` 降级、mesh 路由防环。
 
 ### 文件
 
 | 文件 | 说明 |
 |------|------|
-| `workers/gateway.js` | Workers 入口——协议解析 + KV 包加载 + 路由分发 + 信封封装 |
+| `workers/src/index.js` | Worker 入口（`export default { fetch }`） |
+| `workers/src/endpoints.js` | 端点表面——HTTP 状态码 + 三字段信封错误构造 |
+| `workers/src/runtime.js` | 运行时拼装——指令注册 + run |
+| `workers/src/d1-storage.js` | D1 → StorageKV 适配器 |
+| `workers/src/executor.js` | 受限执行（分级 sandbox） |
+| `workers/src/meta.js` | 包生命周期（install/uninstall/query） |
+| `workers/src/token.js` | Service-token 闭环 |
+| `workers/src/key.js` | key 指令化凭据（AES-GCM） |
+| `workers/src/usage.js` | 请求方计次（配额降级） |
+| `workers/src/tasks.js` | 异步任务五态 + 重启对账 |
+| `workers/src/mesh.js` | mesh 代理（peer/route，防环） |
+| `workers/schema.sql` | D1 建表脚本 |
+| `workers/package.json` | Worker 依赖声明 |
+| `workers/docs/` | design_zh.md + README.md + user-manual_zh.md |
 
 ## CloudBase（cloudbase/）
 
@@ -147,16 +181,88 @@ gateway 是纯网关——不做执行，只做协议解析 + 路由 + 信封封
 
 新增包时无需改骨架——仅改网关侧配置。
 
+## tc-js-skeleton（tc-js-skeleton/）
+
+旁路**通用 JS 逻辑层真源**——textcli-core 薄核心的洋葱分层组件家族（12 个包），与平台无关，供 cloudflare / dsh / 其他 JS 承载复用。
+
+```
+骨架/门面：compose        ← 装配 + 包生命周期（install/uninstall + JSON 索引）+ 多包消费
+交互层(最外)：mesh / approval / credentials   ← 绑外部能力，deps 注入
+护栏层：quota / audit                          ← dispatch 前拦/记
+编排层：path / aggregate / contract            ← 声明层逻辑，内部自带 path:/agg: 环检
+核心守卫(最内)：guard                          ← native 环检测
+核心(不变薄)：textcli-core                     ← parser/envelope/alias/registry/loader
+```
+
+| 组件 | 来源 | 说明 |
+|------|------|------|
+| `textcli-core` | 薄核心 | parser/envelope/alias/registry/loader，原样搬入 |
+| `textcli-core-compose` | 内建 | 装配 + 包生命周期 + 多包消费（懒加载） |
+| `textcli-core-contract` | runtime-contract | 规范信封 + 6 码闭集，纯函数零 deps |
+| `textcli-core-guard` | runtime-sandbox | 环检测（共享 ancestorChain） |
+| `textcli-core-path` | runtime-path | 声明层 path 引擎（instruction 模板形态） |
+| `textcli-core-aggregate` | runtime-aggregate | 聚合 + try-in-order 降级 |
+| `textcli-core-quota` / `audit` | runtime-* | 配额护栏 / 审计通道 |
+| `textcli-core-storage` | 内建 | 存储地基（内存 / 文件 / D1） |
+| `textcli-core-auth` / `approval` / `credentials` / `mesh` | runtime-* | 鉴权 / 人闸 / 凭据 / mesh 转发 |
+
+> 明确不抽象（留母本）：runtime-mapper / runtime-meta 装配面 / runtime-host / runtime-bridge。
+> 测试 91/91，作为旁路通用 JS 逻辑层真源。
+
+## dsh（dsh/）
+
+dsh 生态承载的旁路运行时，分两个插件：
+
+### dsh-tc-runtime（dsh/dsh-tc-runtime/）
+
+**dsh 作为 tc 运行时（JS 版）**——外挂于 dsh 的 Cordis 插件集（15 个 `runtime-*` 包），把 text-cli / tc 指令能力桥接进 dsh，提供旁路运行时形态（9 机制能力全集，不宣称标准运行时身份）。
+
+```
+runtime-inbound      入站 HTTP（六段管道 + 保留域拦截）
+runtime-mapper       指令映射（tc 指令 ↔ ctx.tools）
+runtime-sandbox      沙箱执行宿主（受限子进程 + policy 分层护栏）
+runtime-credentials  凭据按包隔离
+runtime-audit        审计通道（append-only JSONL）
+runtime-meta         text-cli;* 元指令（install/query/path/...）
+runtime-quota        dsh-quota（周期窗口 + 原子 check+consume）
+runtime-approval     审批 answerer（HMAC + fail-closed）
+runtime-host         宿主指令
+runtime-path         path 引擎（声明层解释器 + workflow 编译）
+runtime-aggregate    异步任务桥接（五态）+ 聚合降级
+runtime-mesh         mesh 转发（路由表 / 防环 / 退避）
+runtime-bridge       协议桥（mcp-client → mcp__<server>__<tool>）
+runtime-pro          门面注册表（简名 → path/aggregate）
+runtime-contract     全局验收（规范信封 + 16 行映射契约）
+```
+
+红线（7 条）：不侵入 dsh 内核、凭据明文不进 JS 执行环境、沙箱默认拒绝、协议闭集、保留域元指令拦截、审批归属过滤、tc 审计独立 JSONL。
+
+### dsh-tc-bridge（dsh/dsh-tc-bridge/）
+
+**dsh 消费 tc 指令生态的能力缝插件**——把 tc 指令生态（远程 tc 端点 + 本地 textcli-core JS 引擎）与 dsh 自身/mcp tool 统一到一个调度平面，对 dsh agent 暴露五个闭集工具，让 LLM 以 `AI:<域>;<动作>,<参数>` 原语消费 tc 能力。
+
+| 工具 | 用途 |
+|------|------|
+| `call_tc` | 调 tc 指令（桥接模式走远端 / 混合模式短路 tc__ 工具） |
+| `wait_tc` | 异步长任务轮询（指数退避） |
+| `run_tc_js` | 进程内零网络执行本地 textcli-core JS 包 |
+| `tool_avatar` | 同进程代理 dsh 自身 tool（含 mcp tool），省 token |
+| `find_tc` | 桥内能力统一发现面（白名单 + 前缀映射） |
+
+三种运行形态：桥接模式（dsh 无 tc runtime）/ 服务模式（dsh 仅作 tc runtime）/ 混合模式（dsh 同时 agent + runtime）。
+
 ## 扩展规划
 
-以下云函数运行时已预留扩展入口，按需追加：
+以下运行时已落地或预留扩展入口：
 
 | 平台 | 状态 | 备注 |
 |------|:--:|------|
 | PyPI（textcli-loader） | ✅ 已发布 | pip 包运行时——`pip install textcli-loader` |
-| npm（textcli-core） | ✅ 已实现 | npm 包运行时——`npm install textcli-core`，与 Python loader 同构 |
+| npm（textcli-core） | ✅ 已实现 | npm 薄核心运行时——与 Python loader 同构 |
+| tc-js-skeleton | ✅ 已实现 | 通用 JS 逻辑层真源（12 组件洋葱分层） |
 | CloudBase SCF | ✅ 已实现 | 腾讯云云函数运行时 |
-| Cloudflare Workers | ✅ 已实现 | 边缘计算网关——从 KV Store 加载包，协议解析 + 路由分发 |
+| Cloudflare Workers（D1） | ✅ 已实现 | 边缘网关 D1 多功能版——可执行包存 D1 + 受限执行 + 单 Service-token 闭环 |
+| dsh-tc-runtime | ✅ 已实现 | dsh 作为 tc 运行时（Cordis 插件集，15 runtime-* 包） |
 | AWS Lambda | ⏳ 预留 | 结构参照 CloudBase 模式 |
 | 阿里云函数计算 | ⏳ 预留 | 结构参照 CloudBase 模式 |
 

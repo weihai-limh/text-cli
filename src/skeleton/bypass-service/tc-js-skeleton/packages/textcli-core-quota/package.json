@@ -1,0 +1,9 @@
+{
+  "name": "textcli-core-quota",
+  "version": "0.1.1",
+  "description": "配额 store：周期窗口（day/week/month/year/forever）+ 原子 check+consume + 超限 status:stop（搬运自 runtime-quota，store 注入）",
+  "type": "module",
+  "main": "index.js",
+  "files": ["index.js"],
+  "license": "MIT"
+}

@@ -1,0 +1,38 @@
+{
+  "name": "dsh-tc-runtime",
+  "private": true,
+  "version": "0.1.1",
+  "type": "module",
+  "workspaces": [
+    "runtime-inbound",
+    "runtime-mapper",
+    "runtime-sandbox",
+    "runtime-credentials",
+    "runtime-meta",
+    "runtime-quota",
+    "runtime-approval",
+    "runtime-host",
+    "runtime-path",
+    "runtime-aggregate",
+    "runtime-mesh",
+    "runtime-audit",
+    "runtime-bridge",
+    "runtime-pro",
+    "runtime-contract"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "textcli-core": "file:../../npm/textcli-core"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0",
+    "vitest": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

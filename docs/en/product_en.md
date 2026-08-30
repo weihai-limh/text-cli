@@ -132,7 +132,7 @@ When the same capability has multiple providers (e.g. multiple map APIs), the ag
 
 > These four capabilities go from thin to thick. **Most users stop at ① and that is completely enough**; the higher you go, the closer you are to "provider" even "service provider", but no step is mandatory.
 >
-> **Another "thinnest" approach: bypass runtime** — you don't need to deploy a standard runtime, nor point to a remote endpoint. `pip install textcli-loader` (Python) or `npm install textcli-core` (JavaScript), load a directive package and execute locally. Suitable for when you only want to run a few directives locally and don't want to maintain a service. See [bypass runtime index](src/skeleton/bypass-service/docs/INDEX_en.md).
+> **Another "thinnest" approach: bypass runtime (in-process loader form)** — you don't need to deploy a standard runtime, nor point to a remote endpoint. `pip install textcli-loader` (Python) or `npm install textcli-core` (JavaScript), load a directive package and execute locally. Suitable for when you only want to run a few directives locally and don't want to maintain a service. **Cloud-platform and plugin-host forms (CloudBase / Cloudflare / dsh) require self-deployment.** See [bypass runtime index](../../src/skeleton/bypass-service/docs/INDEX_en.md).
 
 ---
 
@@ -190,16 +190,19 @@ Expose the orchestrated capability via the `/skills` endpoint — other AIs and 
 
 ### Multiple Implementations of the Protocol
 
-> The above is the standard runtime (Python-defined). Besides the standard runtime, there is a bypass runtime sequence — consumer-side form; you deploy nothing, only install the "execute directive package" capability into your existing environment:
+> The above is the standard runtime (Python-defined). Besides the standard runtime, there is a bypass runtime sequence — **their forms differ: in-process loaders install into your existing environment and you deploy nothing; cloud-platform and plugin-host forms require self-deployment, in exchange for more complete mechanism coverage**:
 
-| Sequence member | Carrier | Status | Capability boundary |
-|---|---|---|---|
-| `textcli-loader` | pip / PyPI | Published v0.1.1 | Loads **tool-type (native-python)** directive packages and executes directives within; does not include MCP packages, Copilot packages, path engine, aggregate routing |
-| `textcli-core` | npm | Implemented | Loads **tool-type (native-js)** directive packages and executes directives within — isomorphic with Python loader; does not include MCP packages, Copilot packages, path engine, aggregate routing |
-| `cloudbase` | cloudbase (JS) | Source in repo, deploy yourself | Tool calling in the 'software engineering artifact' direction |
-| `cloudflare` | Cloudflare Workers (JS) | Implemented | Edge computing gateway — protocol parsing + route dispatch + envelope encapsulation, pure gateway does no execution |
+| Sequence member | Carrier | Status | Deployment | Capability boundary |
+|---|---|---|---|---|
+| `textcli-loader` | PyPI (Python) | Published v0.1.1 | `pip install`, in-process | Loads **tool-type (native-python)** directive packages and executes directives within; does not include MCP packages, Copilot packages, path engine, aggregate routing |
+| `textcli-core` | npm (JavaScript) | Implemented | `npm install`, in-process | Loads **tool-type (native-js)** directive packages and executes directives within — isomorphic with Python loader; does not include MCP packages, Copilot packages, path engine, aggregate routing |
+| `base_nocode` | pure-stdlib single script (Python) | Implemented | local service (no-code form) | Single-file Markdown → knowledge/experience service conversion |
+| `cloudbase` | CloudBase SCF (Node.js) | Implemented | deploy yourself via cloud-function console / CLI | Gateway routing + directive dispatch: routes by `domain` to an independent cloud function for execution |
+| `cloudflare` | Cloudflare Workers (D1) | Implemented | deploy yourself via Workers CLI / Dashboard | Edge runtime — executable packages stored in D1 + **restricted execution** (graded sandbox in `executor.js`) + async task 5-state + quota degradation + mesh loop-guard forwarding |
+| `dsh-tc-runtime` | dsh / Cordis (TypeScript) | Implemented | Cordis plugin assembly (15 `runtime-*` packages) | Covers the full 9-mechanism capability set; **does not claim standard-runtime identity** |
+| `tc-js-skeleton` | generic JS (platform-agnostic) | Implemented (tests 91/91) | not a runtime form — reused by cloudflare / dsh etc. | Bypass generic JS **logic-layer source of truth**: 12 components in onion layering |
 
-Bypass runtimes let directive packages authored for 'tool-type' run unmodified across multiple AI Agent platforms — distribute once, audience extends to all environments that can `pip install` / `npm install`. The sequence already covers the two major language ecosystems Python and JavaScript, plus two deployment forms cloud function (CloudBase) and edge computing (Cloudflare Workers). See [bypass runtime index](src/skeleton/bypass-service/docs/INDEX_en.md).
+Bypass runtimes let directive packages authored for 'tool-type' run unmodified across multiple AI Agent platforms — distribute once, audience extends to all environments that can `pip install` / `npm install`. The sequence already covers the two major language ecosystems Python and JavaScript, and spans several deployment forms: in-process SDK, cloud function (CloudBase), edge runtime (Cloudflare Workers D1), plugin host (dsh / Cordis), and the zero-code local single-file form. See [bypass runtime index](../../src/skeleton/bypass-service/docs/INDEX_en.md).
 
 ---
 
@@ -348,13 +351,6 @@ cd text-cli-A9-v*
 
 The artifact already contains: runtime + directive package source + Protocol SDK (`protocol/` directory).
 
-Another zero-deployment path: `pip install textcli-loader` (Python) or `npm install textcli-core` (JavaScript), load any **tool-type directive package of the respective language** and execute immediately — no service deployment needed.
+Another zero-deployment path: **bypass runtime (in-process loader form)** — `pip install textcli-loader` (Python) or `npm install textcli-core` (JavaScript), load any **tool-type directive package of the respective language** and execute immediately — no service deployment needed, and no dependency on the full runtime (does not support mesh and path).
 
-**Bypass runtime:**
-
-| Runtime | Platform | Description |
-|:---|:---|:---|
-| **textcli-loader** | PyPI | Lightweight consumer SDK, does not depend on full runtime (does not support mesh and path) |
-| **textcli-core** | npm | JavaScript isomorphic implementation, consistent API with Python loader |
-| **CloudBase SCF** | Tencent Cloud cloud function | Deployable cloud function directive package |
-| **Cloudflare Workers** | Cloudflare edge computing | Pure gateway — protocol parsing + route dispatch + envelope encapsulation |
+> The full bypass sequence (including the `base_nocode` zero-code form, plus the self-deployed CloudBase SCF, Cloudflare Workers D1 edge runtime, and dsh-tc-runtime plugin host) is in [§Multiple Implementations of the Protocol](#multiple-implementations-of-the-protocol) and the [bypass runtime index](../../src/skeleton/bypass-service/docs/INDEX_en.md).

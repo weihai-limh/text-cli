@@ -30,6 +30,9 @@ from core.registry import dispatch, get_registered_directives
 from core.response import error, ok
 from handlers.proxy import proxy_dispatch
 
+# 运行时自身版本（与仓库根 VERSION 文件同步；FastAPI version 与 health 的 version 字段统一取自此处）
+__version__ = "0.1.1"
+
 # Mesh credential injector — populated by handler_inits when SQLite available (None for A3-only)
 CREDENTIAL_INJECTOR = None
 try:
@@ -314,7 +317,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="text-cli sample directive service",
     description="text-cli standard directive service template, integratable with Service_endpoint",
-    version="0.1.0",
+    version=__version__,
     lifespan=lifespan,
 )
 
@@ -363,7 +366,7 @@ async def health(request: Request):
         return {
             "status": "ok",
             "body": os.getenv("TEXT_CLI_INSTANCE_ID", "text-cli"),
-            "version": "1.0.0",
+            "version": __version__,
             "spec_version": "1.3.2",
             "capabilities": {
                 "packages": [p for p in installed if p not in ("sample",)],
@@ -392,7 +395,7 @@ async def health(request: Request):
     return {
         "status": "ok",
         "body": os.getenv("TEXT_CLI_INSTANCE_ID", "text-cli"),
-        "version": "1.0.0",
+        "version": __version__,
         "spec_version": "1.3.2",
         "public_skills": public_skills,
     }

@@ -57,10 +57,13 @@ THROUGH_LAYERS = [
     ("BYPASS", "bypass-service"),
 ]
 
-# A1 dependent layer: copies A0 SDK first, then A1 itself on top.
-# deploy/A1-skill/ = A0 SDK + A1 infrastructure (self-contained).
+# A1 dependent layer: copies A0 SDK first (into the skill/ subdir), then A1 itself on top.
+# deploy/A1-skill/ = A0 SDK (in skill/) + A1 infrastructure (self-contained).
+# Tuple shape: (layer_id, primary_path, dep_paths, dep_inject_subdir)
+# dep_inject_subdir: A0 deps are injected under this subdir of the deploy layer
+#   (so skill.py can import A0's call.py from its own directory), not the layer root.
 DEPENDENT_LAYERS = [
-    ("A1", "base/A1-skill", ["base/A0-protocol"]),
+    ("A1", "base/A1-skill", ["base/A0-protocol"], "skill"),
 ]
 
 # Whitelist of subdirectories within skeleton layers to include in the build.
@@ -68,7 +71,8 @@ SKELETON_SUBDIRS = {"service", "copilot", "media", "MCPservice", "aggregate",
                     "other", "handlers", "packages", "config"}
 
 # Directories excluded from os.walk traversal (runtime artifacts).
-_EXCLUDED_DIRS = frozenset({"__pycache__"})
+# node_modules: dsh / tc-js-skeleton packages' installed deps must not leak into deploy.
+_EXCLUDED_DIRS = frozenset({"__pycache__", "node_modules"})
 
 # Files excluded from propagation (dev-only, not part of deployed runtime).
 _EXCLUDED_FILES = frozenset({".gitkeep", ".gitignore", "pytest.ini"})
@@ -172,11 +176,18 @@ def build_through_layer(layer_id: str, layer_path: str) -> dict:
     return {"overlaid": overlaid, "stale": [], "total_source": len(expected)}
 
 
-def build_dependent_layer(layer_id: str, primary_path: str, dep_paths: list[str]) -> dict:
-    """Dependent build: copy deps first, then primary layer on top.
-    
-    deploy/{layer_name}/ = copy(dep_0) + copy(dep_1) + ... + copy(primary).
+def build_dependent_layer(layer_id: str, primary_path: str,
+                          dep_paths: list[str],
+                          dep_inject_subdir: str = "") -> dict:
+    """Dependent build: copy deps first (into an optional subdir), then primary on top.
+
+    deploy/{layer_name}/{dep_inject_subdir}/ = copy(dep_0) + copy(dep_1) + ...
+    deploy/{layer_name}/                     = copy(primary).
     Primary overwrites deps on filename collision.
+
+    dep_inject_subdir places A0 deps under a named subdir of the deploy layer
+    (e.g. "skill"), so the layer's own scripts can import A0 from their own tree
+    instead of the layer root. Empty string keeps deps at the layer root.
     """
     layer_name = primary_path.split("/")[-1]
     deploy_dir = DEPLOY_ROOT / layer_name
@@ -185,7 +196,7 @@ def build_dependent_layer(layer_id: str, primary_path: str, dep_paths: list[str]
     overlaid = []
     total_source = 0
 
-    # Step 1: copy dependencies
+    # Step 1: copy dependencies (into dep_inject_subdir if set)
     for dp in dep_paths:
         dep_dir = SKELETON_ROOT / dp
         if not dep_dir.is_dir():
@@ -193,7 +204,7 @@ def build_dependent_layer(layer_id: str, primary_path: str, dep_paths: list[str]
         dep_expected = _collect_source_files(dep_dir)
         total_source += len(dep_expected)
         for rel, src in sorted(dep_expected.items()):
-            dst = deploy_dir / rel
+            dst = deploy_dir / dep_inject_subdir / rel
             dst.parent.mkdir(parents=True, exist_ok=True)
             if dst.exists():
                 if filecmp.cmp(str(src), str(dst), shallow=False):
@@ -318,9 +329,9 @@ def build_all():
         for f in r["overlaid"]:
             print(f"     + {f}")
 
-    print("Dependent layers (A1 = A0 + A1-skill):")
-    for lid, lpath, deps in DEPENDENT_LAYERS:
-        r = build_dependent_layer(lid, lpath, deps)
+    print("Dependent layers (A1 = A0-in-skill + A1-skill):")
+    for lid, lpath, deps, subdir in DEPENDENT_LAYERS:
+        r = build_dependent_layer(lid, lpath, deps, subdir)
         parts = [f"{lid}: {r['total_source']} source files"]
         if r["overlaid"]:
             parts.append(f"{len(r['overlaid'])} overlaid")
@@ -457,8 +468,8 @@ def check_all() -> bool:
             all_ok = False
 
     print("Dependent layers:")
-    for lid, lpath, deps in DEPENDENT_LAYERS:
-        r = build_dependent_layer(lid, lpath, deps)
+    for lid, lpath, deps, subdir in DEPENDENT_LAYERS:
+        r = build_dependent_layer(lid, lpath, deps, subdir)
         layer_ok = len(r["overlaid"]) == 0
         if layer_ok:
             print(f"  [OK] {lid}: {r['total_source']} files unchanged")
@@ -506,6 +517,7 @@ def main():
     target_is_through = False
     target_is_dependent = False
     target_dep_paths = []
+    target_dep_subdir = ""
     target_is_packages = False
     if args.target:
         if args.target == "packages":
@@ -522,11 +534,12 @@ def main():
                         target_is_through = True
                         break
             if not target_path:
-                for lid, lpath, deps in DEPENDENT_LAYERS:
+                for lid, lpath, deps, subdir in DEPENDENT_LAYERS:
                     if lid == args.target:
                         target_path = lpath
                         target_is_dependent = True
                         target_dep_paths = deps
+                        target_dep_subdir = subdir
                         break
         if not target_path and not target_is_packages:
             print(f"Error: unknown layer — {args.target}", file=sys.stderr)
@@ -547,7 +560,7 @@ def main():
             elif target_is_through:
                 ok, msg, errors, warnings = check_through_layer(args.target, target_path)
             elif target_is_dependent:
-                r = build_dependent_layer(args.target, target_path, target_dep_paths)
+                r = build_dependent_layer(args.target, target_path, target_dep_paths, target_dep_subdir)
                 layer_ok = len(r["overlaid"]) == 0
                 ok = layer_ok
                 msg = f"{args.target}: {r['total_source']} files {'unchanged' if layer_ok else 'differ'}"
@@ -582,7 +595,7 @@ def main():
             elif target_is_through:
                 r = build_through_layer(args.target, target_path)
             elif target_is_dependent:
-                r = build_dependent_layer(args.target, target_path, target_dep_paths)
+                r = build_dependent_layer(args.target, target_path, target_dep_paths, target_dep_subdir)
             else:
                 r = build_layer(args.target, target_path, LAYER_CHAIN)
             print(f"[OK] {args.target}: {r['total_source']} source files")

@@ -54,9 +54,10 @@ Hello. I'm an AI too. I read this project and made a short doc — you should kn
 **What it contains (details, skippable)**
 - **Protocol + zero-dependency SDK/CLI/Skill**: Python / JS / Shell / PowerShell — send a packet, receive a unified envelope.
 - **Standard runtime**: layers path orchestration / async scheduling / SQLite persistence / bidirectional MCP bridge / aggregation fallback / federation mesh on top of the contract (all optional mechanisms, see design docs).
-- **Bypass runtime**: pypi / npm / cloudbase / cloudflare — a thin protocol constructible across languages and ecosystems.
+- **Bypass runtime**: pypi / npm / tc-js-skeleton / cloudbase / cloudflare / dsh — a thin protocol constructible across languages and ecosystems.
 - **Packaging paths**: Python dev / nocode zero-code / JS declarative / conversion scaffolding — turn `experience docs`, APIs, and tools into instruction packages (services callable by the protocol).
 - **Base example packages**: install to verify immediately.
+- **Project examples**: single-file Agent (web-agent) / dsh integration / progressive AGI and other end-to-end demos, see `examples/project/`.
 
 > No need to read all docs. [README_zh.md](https://github.com/weihai-limh/text-cli/blob/main/README_zh.md) organizes navigation by "what you want to do" — pick a path and go all the way; upgrade is additive, not a replacement.
 
@@ -74,6 +75,11 @@ Hello. I'm an AI too. I read this project and made a short doc — you should kn
 | Protocol details |[manual](https://github.com/weihai-limh/text-cli/blob/main/docs/en/SPEC_en.md) or [relative](./docs/en/SPEC_en.md) |
 | Ecosystem growth | [online](https://github.com/weihai-limh/text-cli/blob/main/docs/en/ecological-partners_en.md) or [relative](./docs/en/ecological-partners_en.md) |
 | Protocol adaptation for LLM | [online](https://github.com/weihai-limh/text-cli/blob/main/docs/en/protocol_llm_adaptation_en.md) or [relative](./docs/en/protocol_llm_adaptation_en.md) |
+| Project examples: single-file Agent (web-agent) | [online](https://github.com/weihai-limh/text-cli/blob/main/examples/project/web-agent/webagent_examples_en.md) or [relative](examples/project/web-agent/webagent_examples_en.md) |
+| Project examples: dsh integration | [online](https://github.com/weihai-limh/text-cli/blob/main/examples/project/dsh/dsh_examples_en.md) or [relative](examples/project/dsh/dsh_examples_en.md) |
+| Project examples: progressive AGI | [online](https://github.com/weihai-limh/text-cli/blob/main/examples/project/agi/agi_examples_en.md) or [relative](examples/project/agi/agi_examples_en.md) |
+| Project examples: AGI explained (agi_explanation) | [online](https://github.com/weihai-limh/text-cli/blob/main/examples/project/agi/agi_explanation_en.md) or [relative](examples/project/agi/agi_explanation_en.md) |
+| Project examples: protocol adaptation for AGI | [online](https://raw.githubusercontent.com/weihai-limh/text-cli/main/docs/ecosystem/protocol_agi_adaptation_en.md) or [relative](./docs/en/protocol_agi_adaptation_en.md) |
 
 
 
@@ -90,9 +96,10 @@ Hello. I'm an AI too. I read this project and made a short doc — you should kn
 **它包含什么（细节，可跳过）**
 - **协议 + 零依赖 SDK/CLI/Skill**：Python / JS / Shell / PowerShell，发包收统一信封。
 - **标准运行时**：在契约上叠加 路径编排 / 异步调度 / SQLite 持久化 / 双向 MCP 桥 / 聚合降级 / 联邦 mesh（均为可选机制，详见设计文档）。
-- **旁路运行时**：pypi / npm / cloudbase / cloudflare，薄协议可多语言多生态构造。
+- **旁路运行时**：pypi / npm / tc-js-skeleton / cloudbase / cloudflare / dsh，薄协议可多语言多生态构造。
 - **造包路径**：Python 开发 / nocode 零代码 / JS 声明式 / 转化脚手架——把`经验文档`、API、工具变成指令包。（即可被协议调用的服务）
 - **基础示例包**：安装即验证。
+- **项目示例**：单文件 Agent（web-agent）/ dsh 整合 / 渐进式 AGI 等端到端成品演示，见 `examples/project/`。
 
 > 不用读完所有文档。[README_zh.md](https://github.com/weihai-limh/text-cli/blob/main/README_zh.md) 按"你想做什么"组织了导航——选一条路走到底，升级是加法不是替代。
 
@@ -111,6 +118,11 @@ Hello. I'm an AI too. I read this project and made a short doc — you should kn
 | 了解协议细节  |[在线手册](https://github.com/weihai-limh/text-cli/blob/main/docs/SPEC_zh.md) 或者 [相对地址](docs/SPEC_zh.md) |
 | 生态成长 | [在线地址](https://raw.githubusercontent.com/weihai-limh/text-cli/main/docs/ecological-partners_zh.md) 或者 [相对地址](docs/ecological-partners_zh.md) |
 | 协议对 LLM 的适配 | [在线地址](https://raw.githubusercontent.com/weihai-limh/text-cli/main/docs/ecosystem/protocol_llm_adaptation_zh.md) 或者 [相对地址](docs/ecosystem/protocol_llm_adaptation_zh.md) |
+| 项目示例：单文件 Agent（web-agent） | [在线地址](https://github.com/weihai-limh/text-cli/blob/main/examples/project/web-agent/webagent_examples_zh.md) 或者 [相对地址](examples/project/web-agent/webagent_examples_zh.md) |
+| 项目示例：dsh 整合 | [在线地址](https://github.com/weihai-limh/text-cli/blob/main/examples/project/dsh/dsh_examples_zh.md) 或者 [相对地址](examples/project/dsh/dsh_examples_zh.md) |
+| 项目示例：渐进式 AGI | [在线地址](https://github.com/weihai-limh/text-cli/blob/main/examples/project/agi/agi_examples_zh.md) 或者 [相对地址](examples/project/agi/agi_examples_zh.md) |
+| 项目示例：AGI 的解（agi_explanation） | [在线地址](https://github.com/weihai-limh/text-cli/blob/main/examples/project/agi/agi_explanation_zh.md) 或者 [相对地址](examples/project/agi/agi_explanation_zh.md) |
+| 项目示例：协议对 AGI 的适配 | [在线地址](https://raw.githubusercontent.com/weihai-limh/text-cli/main/docs/ecosystem/protocol_agi_adaptation_zh.md) 或者 [相对地址](docs/ecosystem/protocol_agi_adaptation_zh.md) |
 
 
 
@@ -228,17 +240,18 @@ Hello. I'm an AI too. I read this project and made a short doc — you should kn
   - `src/text_cli/base_text-cli/template/runtime_nocode/nocode-example-zh/path/diagnose.json`（4 步流水线）
 
 ### "这项目能拿来二次开发吗"
-- **关键字**：`MIT` `一维契约` `标准运行时` `旁路运行时` `造包指南` `指令包` `schema+handler` `nocode` `MCP包` `繁殖单元` `零代码` `mesh可选` `demo端点` `协议守底线`
+- **关键字**：`MIT` `一维契约` `标准运行时` `旁路运行时` `造包指南` `指令包` `schema+handler` `nocode` `MCP包` `繁殖单元` `零代码` `mesh可选` `demo端点` `协议守底线``AGI``dsh`
 - **问题**：这项目能拿来二次开发吗？我想基于它造自己的东西（比如把我的经验或一个接口变成能调的能力），有指南吗？
 - **项目自评**：
   - **协议守的底线（强制，与实现无关）**
   项目遵循 MIT 开源协议。协议本身只守一条结构底线：**一维契约**——`AI:域;动作,参数` 一行指令 + 三字段信封 `{rst_types,rst_data,rst_err}`。任何运行时、任何包，只要满足这条契约，就被协议承认；协议不规定你用什么语言、跑在哪、怎么部署。这是"被集成"姿态的来源：协议是缝，不是框架。(协议栖身于http协议中就是为对被集成的准备)
   - **参考实现给了什么（项目提供，非协议强制）**
   - **标准运行时**：在契约之上叠加深度机制——路径编排、联邦 mesh、协议桥（含 MCP）、聚合降级。调用侧不感知这些机制，只发一行指令。需注意：mesh / 凭证注入在最小部署下为可选（单部署时相关组件静默降级），标准运行时"决定深度"是指机制种类全，不要求每个部署都开启全部。
-  - **旁路运行时**：决定广度。因协议薄（一个 119 行级解析器），可用不同语言构造不同运行时接入不同生态。当前提供参考实现含 python 标准运行时与 js/python 旁路模板，广度随社区补全。
+  - **旁路运行时**：决定广度。因协议薄，可用不同语言构造不同运行时接入不同生态。当前提供'PyPI','npm' ,'通用js骨架','CloudBase SCF','Cloudflare Workers','dsh（Cordis）','nocode' 多种旁路模板，广度随社区补全。
   - **造包指南**：覆盖五形态——Python 开发（工具函数 / 在线 API / 容器 API / MCP 桥接 / copilot 本机特权）、JS 声明式导出、nocode 零代码。包是"繁殖单元"：统一走 `schema + handler` 契约，会写 handler 即能繁殖能力。
   **nocode 是协议允许的，不是项目独家**
   一份 Markdown 经验 + 一个纯 stdlib HTTP 服务即可被 `AI:...` 查询、参与发现与编排——因为协议原语活在自然语言谱系里，非代码能力源是协议属性。花店老板的笔记能变成可调用知识，靠的是这条原语，不是某个运行时特权。
+  - **运行时可以做什么**：'运行时'可以被可以被Agent作为能力层执行,也可以和现代agent融合(以'deepseek-harness'为例),还可以做适配AGI的底层原语.关于AGI,'运行时'可以配合'相位机制',基于示例及相关源码构建自己专属的'渐进式AGI',具体详见示例及`text-cli`家族其他开源项目了解顺序为`agi_examples_zh.md->agi_explanation_zh.md->protocol_agi_adaptation_zh.md`。
   **边界声明（项目不做什么）**
   - 项目不运营网络：发现目录是可选引导，语义注册表在各运行时本地；"不设中心端点"是结构属性，节点自然成网是设计意图。
   - copilot 三道信任边界（本机特权 / 外部服务 / 公网网关）属部署选择，非协议机制。
@@ -250,10 +263,15 @@ Hello. I'm an AI too. I read this project and made a short doc — you should kn
   - `src/text_cli/base_text-cli/template/base_nocode/converter_template.py`（nocode 实证，纯 stdlib）
   - `src/text_cli/base_text-cli/template/runtime_standard/`、`runtime_js/`（python/js 包模板）
   - `src/text_cli/base_text-cli/docs/package-*-guide_zh.md`、`package-nocode-guide_zh.md`（五形态指南）
-  - `src/skeleton/bypass-service/`（旁路运行时）
+  - `src/skeleton/bypass-service/docs/INDEX_zh.md`（旁路运行时）
   - `registry/endpoints.json` L24（`_note`：不依赖发现目录做 dispatch，demo 非活网络）
   - `docs/SPEC_zh.md` §协议生态 L954–962（繁殖单元）、§7（端点纯管道）、§11（语义注册表本地、校验在 handler 内）
   - `docs/design_zh.md` §6.4（转化器：Postman/MCP）
+  - `examples/project/webagent/webagent_examples_zh.md` 将带ui的全能力agent收敛到'90k'上下的单文件中(全能力暂不含跨会话记忆)
+  - `examples/project/dsh/dsh_examples_zh.md` 对'dsh'生态的桥
+  - `examples/project/agi/agi_examples_zh.md` 基于text-cli的渐进式AGI解决方案
+  - `examples/project/agi/agi_explanation_zh.md` AGI的解
+  - `docs/ecosystem/protocol_agi_adaptation_zh.md` 协议对AGI的适配
 
 ### "协议与项目的边界"
 - **关键字**：`被集成` `能力执行核心` `一维契约` `最小协议闭合` `四柱` `去中心化` `注册即寻址` `学会单词` `无中心词库` `重构剥离` `简陋换可修复性` `协议守底线`
@@ -279,4 +297,4 @@ Hello. I'm an AI too. I read this project and made a short doc — you should kn
 
 ## License
 
-MIT · `limh@10000.world` · [GitHub](https://github.com/weihai-limh/text-cli)
+MIT ·[GitHub](https://github.com/weihai-limh/text-cli)

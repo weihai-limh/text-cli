@@ -1,0 +1,13 @@
+{
+  "name": "tc-js-skeleton",
+  "version": "0.1.1",
+  "private": true,
+  "description": "textcli-core 可插拔骨架：从 dsh-tc-runtime 抽象出的洋葱式 npm 能力组件（去 dsh 化）",
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}

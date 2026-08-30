@@ -24,13 +24,17 @@ text-cli 采用渐进式部署——从零依赖的协议层到全量技能即�
 
 ## 旁路服务
 
-非 Python 运行时，与层级导航平行但独立部署，不参与 A2→A9 累积链。
+非 Python 运行时，与层级导航平行但独立部署，不参与 A2→A9 累积链。`bypass-service/` 由 `build-all.py` 直通模式同步，覆盖五种形态：本地包加载器（pypi / npm）、云函数网关（cloudbase）、边缘计算网关（cloudflare D1）、通用 JS 逻辑层（tc-js-skeleton）、dsh 承载（dsh-tc-runtime / dsh-tc-bridge）。
 
 | 层级 | 平台 | 目录 | 运行时 | 说明 |
 |:---:|------|------|------|------|
-| BYPASS | cloudbase | `bypass-service/` | 云函数 | text-cli 路由 + 指令分发（Node.js / wx-server-sdk） |
+| BYPASS | cloudbase | `bypass-service/cloudbase/` | 云函数 | 腾讯云 SCF——网关路由 + 指令分发（Node.js / wx-server-sdk） |
+| BYPASS | cloudflare | `bypass-service/cloudflare/` | 边缘计算 | Cloudflare Workers D1 多功能版——可执行包存 D1 + 受限执行 + 单 Service-token 闭环 |
+| BYPASS | dsh | `bypass-service/dsh/` | dsh 承载 | dsh-tc-runtime（Cordis 插件集）/ dsh-tc-bridge（tc 指令消费能力缝） |
+| BYPASS | tc-js | `bypass-service/tc-js-skeleton/` | 通用 JS | 通用 JS 逻辑层真源（12 个 textcli-core-* 组件，洋葱分层） |
+| BYPASS | pypi / npm | `bypass-service/pypi/` `bypass-service/npm/` | 包加载器 | pip / npm 零依赖指令包加载器——任意 Python / Node.js 环境直接加载执行 |
 
-> 后续云函数平台（Cloudflare Workers / AWS Lambda / 阿里云函数计算）按需追加。
+> AWS Lambda / 阿里云函数计算等云函数平台按需追加；Cloudflare 已以 D1 多功能版落地。详见 `bypass-service/docs/INDEX_zh.md`。
 
 ## 标准运行时(基于python)典型分发目录
 

@@ -87,7 +87,7 @@ def test_smoke_load_and_execute():
     h = health()
     assert h["status"] == "ok"
     assert h["body"] == "textcli-loader"
-    assert h["version"] == "0.1.2"
+    assert h["version"] == "0.1.1"
     assert h["spec_version"] == "1.3.2"
     assert h["runtime"] == "python"
 

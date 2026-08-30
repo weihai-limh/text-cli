@@ -1,0 +1,22 @@
+{
+  "plan_confirm": "相位规划如下（共 {total} 个相位）：\n{summary}\n\n请确认（回传 action=confirm）或提出修改意见（action=reject/regenerate）。",
+  "pipeline_missing": "管道不存在或已过期，请重新发起相位请求。",
+  "pipeline_aborted": "管道已中止。",
+  "unknown_action": "未知 action: {action}",
+  "all_phases_completed": "所有相位已完成！",
+  "state_cannot_confirm": "当前状态无法 confirm。",
+  "rejected_retry": "已驳回，反馈：{feedback}。\n请确认重新执行（confirm）或中止（abort）。",
+  "replanned_confirm": "已重新规划（共 {total} 个相位）：\n{summary}\n\n请确认（action=confirm）或继续修改（action=reject/regenerate）。",
+  "phase_path_prompt": "相位 {i}/{total}「{name}」的 path 如下：\n{path}\n\n确认执行（confirm）/ 驳回修改（reject + 意见）/ 中止（abort）。",
+  "phase_exec_failed": "相位执行失败（后端不可达）：{error}",
+  "phase_submitted_async": "相位「{name}」已提交异步执行，task_id={task_id}。查询结果请回传 action=check_result。",
+  "no_active_phase": "无活动相位可查询。",
+  "no_pending_task": "当前相位无待查询的异步任务。",
+  "poll_failed": "轮询失败：{error}",
+  "task_still_pending": "任务仍在执行中，请稍后回传 check_result。",
+  "phase_done_await_approval": "相位「{name}」执行完成，等待人工审批（confirm/reject）。",
+  "phase_rollback_retry": "相位「{name}」进入相位内回退重试（{count}/{max}）。\n请确认重试（confirm）或中止（abort）。",
+  "verification_phase_abort": "首相位验证点「{name}」回退超限，整树最浅终止。{reason}",
+  "phase_settled_next": "相位「{name}」回退超限，接受稳定产出放行（settled）。\n\n{content}",
+  "phase_settled_all_done": "相位「{name}」回退超限，接受稳定产出放行（settled），所有相位完成。"
+}

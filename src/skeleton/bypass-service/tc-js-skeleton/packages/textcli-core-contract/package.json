@@ -1,0 +1,12 @@
+{
+  "name": "textcli-core-contract",
+  "version": "0.1.1",
+  "description": "协议语义组件：信封 + 6 错误码闭集 + dsh→协议信号映射（复用 textcli-core 信封原语）",
+  "type": "module",
+  "main": "index.js",
+  "files": ["index.js"],
+  "peerDependencies": {
+    "textcli-core": "0.1.0"
+  },
+  "license": "MIT"
+}

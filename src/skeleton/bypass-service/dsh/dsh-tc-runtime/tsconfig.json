@@ -1,0 +1,53 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "declaration": true,
+    "sourceMap": true,
+    "types": ["node"],
+    "typeRoots": ["./types", "./node_modules/@types"],
+    "baseUrl": ".",
+    "paths": {
+      "@dsh-tc/runtime-inbound": ["runtime-inbound/src/index.ts"],
+      "@dsh-tc/runtime-mapper": ["runtime-mapper/src/index.ts"],
+      "@dsh-tc/runtime-sandbox": ["runtime-sandbox/src/index.ts"],
+      "@dsh-tc/runtime-credentials": ["runtime-credentials/src/index.ts"],
+      "@dsh-tc/runtime-meta": ["runtime-meta/src/index.ts"],
+      "@dsh-tc/runtime-quota": ["runtime-quota/src/index.ts"],
+      "@dsh-tc/runtime-approval": ["runtime-approval/src/index.ts"],
+      "@dsh-tc/runtime-host": ["runtime-host/src/index.ts"],
+      "@dsh-tc/runtime-path": ["runtime-path/src/index.ts"],
+      "@dsh-tc/runtime-aggregate": ["runtime-aggregate/src/index.ts"],
+      "@dsh-tc/runtime-mesh": ["runtime-mesh/src/index.ts"],
+      "@dsh-tc/runtime-audit": ["runtime-audit/src/index.ts"],
+      "@dsh-tc/runtime-bridge": ["runtime-bridge/src/index.ts"],
+      "@dsh-tc/runtime-pro": ["runtime-pro/src/index.ts"],
+      "@dsh-tc/runtime-contract": ["runtime-contract/src/index.ts"]
+    }
+  },
+  "include": [
+    "runtime-inbound/src/**/*.ts",
+    "runtime-mapper/src/**/*.ts",
+    "runtime-sandbox/src/**/*.ts",
+    "runtime-credentials/src/**/*.ts",
+    "runtime-meta/src/**/*.ts",
+    "runtime-quota/src/**/*.ts",
+    "runtime-approval/src/**/*.ts",
+    "runtime-host/src/**/*.ts",
+    "runtime-path/src/**/*.ts",
+    "runtime-aggregate/src/**/*.ts",
+    "runtime-mesh/src/**/*.ts",
+    "runtime-audit/src/**/*.ts",
+    "runtime-bridge/src/**/*.ts",
+    "runtime-pro/src/**/*.ts",
+    "runtime-contract/src/**/*.ts",
+    "types/**/*.d.ts"
+  ]
+}

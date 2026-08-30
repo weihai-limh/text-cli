@@ -9,7 +9,7 @@ Usage:
     print(result["rst_data"]["result"])  # → "2026-01-31"
 
     all_dirs = discover()
-    h = health()  # → {"status": "ok", "body": "textcli-loader", "version": "0.1.2", ...}
+    h = health()  # → {"status": "ok", "body": "textcli-loader", "version": "0.1.1", ...}
 
 Design:
     - Zero external dependencies (stdlib only)
@@ -18,7 +18,7 @@ Design:
     - Loads schema.json + handler.py from a package directory
 """
 
-__version__ = "0.1.2"
+__version__ = "0.1.1"
 
 from textcli_loader.envelope import error, ok
 from textcli_loader.loader import LoadError, list_directives, load_package

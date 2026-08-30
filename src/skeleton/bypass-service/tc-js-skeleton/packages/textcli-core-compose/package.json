@@ -1,0 +1,12 @@
+{
+  "name": "textcli-core-compose",
+  "version": "0.1.1",
+  "description": "旁路运行时骨架/门面：内建装配 + 包生命周期(install/uninstall + JSON 索引) + 多包指令消费(懒加载)，用 compose(...) 一行拼出定制运行时",
+  "type": "module",
+  "main": "index.js",
+  "files": ["index.js"],
+  "dependencies": {
+    "textcli-core": "0.1.0"
+  },
+  "license": "MIT"
+}

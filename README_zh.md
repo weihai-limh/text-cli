@@ -189,17 +189,19 @@ AI:人工;预约,水管工,明天下午,厨房水槽漏水 → {"rst_types":"tex
 
 **旁路运行时序列**（不依赖标准运行时骨架、可独立接入各生态；部署形态混合——进程内 SDK 无需自建服务，云平台形态需自行部署）：
 
-| 序列成员 | 载体 | 状态 | 能力边界 |
-|---|---|---|---|
-| `textcli-loader` | pip / PyPI | 已发布 v0.1.1 | 加载**工具型（native-python）**指令包并执行其中指令；不含 MCP 包、Copilot 包、路径引擎、聚合路由 |
-| `textcli-core` | npm | 已实现 | 加载**工具型（native-python）**指令包并执行其中指令——与 Python loader 同构（parser/registry/envelope），不含 MCP 包、Copilot 包、路径引擎、聚合路由 |
-| `cloudbase` | cloudbase（JS） | 源码在仓库内请自行部署 | '软件工程制品'方向的工具调用 |
-| `cloudflare` | Cloudflare Workers（JS） | 已实现 | 边缘计算网关——协议解析 + 路由分发 + 信封封装，纯网关不做执行 |
-| `base_nocode` | 基础的非代码的辅助脚本（Python） | 源码在仓库内请自行部署 | 以单文件md做知识及经验的服务转化 |
+| 序列成员 | 载体 | 状态 | 部署 | 能力边界 |
+|---|---|---|---|---|
+| `textcli-loader` | PyPI（Python） | 已发布 v0.1.1 | `pip install`，进程内 | 加载**工具型（native-python）**指令包并执行其中指令；不含 MCP 包、Copilot 包、路径引擎、聚合路由 |
+| `textcli-core` | npm（JavaScript） | 已实现 | `npm install`，进程内 | 加载**工具型（native-js）**指令包并执行其中指令——与 Python loader 同构（parser/registry/envelope），不含 MCP 包、Copilot 包、路径引擎、聚合路由 |
+| `base_nocode` | 纯标准库单脚本（Python） | 已实现 | 本地起服务（零代码形态） | 单文件 Markdown → 知识与经验的服务转化 |
+| `cloudbase` | CloudBase SCF（Node.js） | 已实现 | 云函数控制台 / CLI 自行部署 | 网关路由 + 指令分发：按 `domain` 路由到独立云函数执行 |
+| `cloudflare` | Cloudflare Workers（D1） | 已实现 | Workers CLI / Dashboard 自行部署 | 边缘运行时——可执行包存 D1 + **受限执行**（`executor.js` 分级 sandbox）+ 异步任务五态 + 配额降级 + mesh 防环转发 |
+| `dsh-tc-runtime` | dsh / Cordis（TypeScript） | 已实现 | Cordis 插件装配（15 个 `runtime-*` 包） | 覆盖 9 机制能力全集；**不宣称标准运行时身份**（机制覆盖不等于身份声明，见 SPEC §6.1） |
+| `tc-js-skeleton` | 通用 JS（平台无关） | 已实现（测试 91/91） | 非运行时形态——被 cloudflare / dsh 等复用 | 旁路通用 JS **逻辑层真源**：12 组件洋葱分层（core / guard / path·aggregate·contract / quota·audit / mesh·approval·credentials / compose） |
 
-旁路运行时让'工具型'指令包的作者生成的包不做任何改动就能在多个 AI Agent 平台上运行——一次分发，受众扩展到所有能 `pip install` / `npm install` 的环境。序列已覆盖 Python（textcli-loader）和 JavaScript（textcli-core）两大语言生态，以及云函数（CloudBase）和边缘计算（Cloudflare Workers）两种部署形态。
+旁路运行时让'工具型'指令包的作者生成的包不做任何改动就能在多个 AI Agent 平台上运行——一次分发，受众扩展到所有能 `pip install` / `npm install` 的环境。序列已覆盖 Python（`textcli-loader`）与 JavaScript（`textcli-core`）两大语言生态，并铺开多种部署形态：进程内 SDK（无需自建服务）、云函数（CloudBase）、边缘运行时（Cloudflare Workers D1）、插件宿主（dsh / Cordis），以及零代码的本地单文件形态（`base_nocode`）。
 
-> 注：严格成立范围——经 `textcli-loader`(PyPI) 加载的 native-python 工具包，经 `textcli-core`(npm) 加载的 native-js 工具包；cloudbase / cloudflare 复用 textcli-core 的信封与解析（与标准 Python 信封同构），但执行模型不同：cloudbase 路由到独立云函数，cloudflare 为纯代理、仅注册元数据并委派后端执行（详见 `src/skeleton/bypass-service/`）。
+> 注：严格成立范围——经 `textcli-loader`(PyPI) 加载的 native-python 工具包，经 `textcli-core`(npm) 加载的 native-js 工具包。cloudbase / cloudflare / dsh-tc-runtime 复用 `textcli-core` 的信封与 `contract` 闭集（与标准 Python 信封同构），但执行模型不同：cloudbase 按 `domain` 路由到独立云函数；**cloudflare 在 Workers 内受限执行**（可执行包存 D1，非纯代理、不再仅注册元数据）；dsh-tc-runtime 经 `runtime-mapper` 映射 tc 指令与 `ctx.tools`（详见 `src/skeleton/bypass-service/docs/INDEX_zh.md`）。
 
 
 '软件工程制品到指令包的转化工具',让用户可以把既有的软件工程制品转化为指令包**脚手架**.当前提供以下转换器.
@@ -260,7 +262,7 @@ graph TD
 
 '运行时'是'text-cli'的执行器。运行时按"机制覆盖度"定位于同一条梯度上的不同位置——旁路运行时(仅承载强制基线"指令运行",此外可以在强制基线之上实现任意机制子集)、标准运行时(实现协议 全部机制);二者是同一梯度上的位置,并非等级高低。运行时另按"是否跨终端"区分:调用方与运行时同处一个 OS 信任域(进程内库、127.0.0.1)则不跨终端、无鉴权与声明义务,网络可达则跨终端、产生相应义务。标准与旁路都是协议定义的"机制层级",与开发所使用的语言无关。
 
-"标准"是一种机制界定,而非语言绑定:协议并未规定标准运行时只能用 `python`。本项目骨架演进以 `python` 定型,因此**本项目**的标准运行时实现为 `python` 版本——这是工程实践层面的取舍,不是协议约束。'标准运行时'与'旁路运行时'二者通过统一的 `AI:域;动作,参数` 协议互通——调用方不感知执行方是标准服务还是云函数。其部署形态含三类:进程内 SDK(`textcli-loader`/`textcli-core`,嵌入既有 Agent 环境、无需自建服务、不跨终端)、云平台网关(CloudBase 云函数、Cloudflare 边缘网关,网络可达、按跨终端关系承担鉴权与声明义务),以及最轻量的"无代码"形态(`base_nocode`:一份 Markdown 经验文本 + 纯标准库单脚本即起一个完整服务,提供"经验文本转化为服务",让无代码能力的人也能把自身经验封装为可被 `AI:域;动作` 调用的运行时)。
+"标准"是一种机制界定,而非语言绑定:协议并未规定标准运行时只能用 `python`。本项目骨架演进以 `python` 定型,因此**本项目**的标准运行时实现为 `python` 版本——这是工程实践层面的取舍,不是协议约束。'标准运行时'与'旁路运行时'二者通过统一的 `AI:域;动作,参数` 协议互通——调用方不感知执行方是标准服务还是云函数。其部署形态含四类:进程内 SDK(`textcli-loader`/`textcli-core`,嵌入既有 Agent 环境、无需自建服务、不跨终端)、云平台形态(CloudBase 云函数、Cloudflare Workers 边缘运行时——可执行包存 D1 并在 Workers 内受限执行;网络可达、按跨终端关系承担鉴权与声明义务)、插件宿主(`dsh-tc-runtime`,以 Cordis 插件装配进 dsh 生态),以及最轻量的"无代码"形态(`base_nocode`:一份 Markdown 经验文本 + 纯标准库单脚本即起一个完整服务,提供"经验文本转化为服务",让无代码能力的人也能把自身经验封装为可被 `AI:域;动作` 调用的运行时)。
 
 项目'渐进式'的特性即是'运行时'的特性:当前项目提供的标准运行时以 `python` 实现并承载 协议要求的 全部能力并分梯度提供,部署者可以根据自己的需要部署多种能力层级(A3,A4,A6,A7,A8,A9)的运行时。项目'标准运行时'通过将协议要求兑现的机制做了分层提供,让部署者可以更自由。
 

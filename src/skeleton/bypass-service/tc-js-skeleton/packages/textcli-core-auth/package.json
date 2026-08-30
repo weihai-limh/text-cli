@@ -1,0 +1,9 @@
+{
+  "name": "textcli-core-auth",
+  "version": "0.1.1",
+  "description": "Service-token 签发/校验（运行时=能力提供方，单 token 闭环，HMAC 零依赖）；tokenStore 注入：storage 模态或加密 JSON 模态；withAuth 中间件",
+  "type": "module",
+  "main": "index.js",
+  "files": ["index.js"],
+  "license": "MIT"
+}

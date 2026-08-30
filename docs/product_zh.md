@@ -136,7 +136,7 @@ directives = discover(search="weather")
 
 > 这四个能力由薄到厚。**大多数用户停在 ① 就完全够用**；越往上，你越接近"提供方"甚至"服务商"，但没有任何一步是强制的。
 >
-> **另一种"最薄"方式：旁路运行时**——你不需要部署标准运行时，也不需要指向远端端点。`pip install textcli-loader`（Python）或 `npm install textcli-core`（JavaScript），加载一个指令包就能在本地执行。适用于你只想在本地跑几条指令、不想维护服务的场景。详见 [旁路运行时索引](../src/skeleton/bypass-service/docs/INDEX_zh.md)。
+> **另一种"最薄"方式：旁路运行时（进程内加载器形态）**——你不需要部署标准运行时，也不需要指向远端端点。`pip install textcli-loader`（Python）或 `npm install textcli-core`（JavaScript），加载一个指令包就能在本地执行。适用于你只想在本地跑几条指令、不想维护服务的场景。**云平台与插件宿主形态（CloudBase / Cloudflare / dsh）需自行部署**，详见 [旁路运行时索引](../src/skeleton/bypass-service/docs/INDEX_zh.md)。
 
 ---
 
@@ -196,16 +196,19 @@ directives = discover(search="weather")
 
 ### 协议的多种实现
 
-> 以上是标准运行时（Python 定型）。除了标准运行时，还有旁路运行时序列——消费端形态，你不部署任何东西，只是把"执行指令包"的能力装进你已有的环境：
+> 以上是标准运行时（Python 定型）。除了标准运行时，还有旁路运行时序列——**它们形态不一：进程内加载器装进你已有的环境、不部署任何东西；云平台与插件宿主形态需自行部署，换来的是更完整的机制覆盖**：
 
-| 序列成员 | 载体 | 状态 | 能力边界 |
-|---|---|---|---|
-| `textcli-loader` | pip / PyPI | 已发布 v0.1.1 | 加载**工具型（native-python）**指令包并执行其中指令；不含 MCP 包、Copilot 包、路径引擎、聚合路由 |
-| `textcli-core` | npm | 已实现 | 加载**工具型（native-js）**指令包并执行其中指令——与 Python loader 同构；不含 MCP 包、Copilot 包、路径引擎、聚合路由 |
-| `cloudbase` | cloudbase（JS） | 源码在仓库内请自行部署 | '软件工程制品'方向的工具调用 |
-| `cloudflare` | Cloudflare Workers（JS） | 已实现 | 边缘计算网关——协议解析 + 路由分发 + 信封封装，纯网关不做执行 |
+| 序列成员 | 载体 | 状态 | 部署 | 能力边界 |
+|---|---|---|---|---|
+| `textcli-loader` | PyPI（Python） | 已发布 v0.1.1 | `pip install`，进程内 | 加载**工具型（native-python）**指令包并执行其中指令；不含 MCP 包、Copilot 包、路径引擎、聚合路由 |
+| `textcli-core` | npm（JavaScript） | 已实现 | `npm install`，进程内 | 加载**工具型（native-js）**指令包并执行其中指令——与 Python loader 同构；不含 MCP 包、Copilot 包、路径引擎、聚合路由 |
+| `base_nocode` | 纯标准库单脚本（Python） | 已实现 | 本地起服务（零代码形态） | 单文件 Markdown → 知识与经验的服务转化 |
+| `cloudbase` | CloudBase SCF（Node.js） | 已实现 | 云函数控制台 / CLI 自行部署 | 网关路由 + 指令分发：按 `domain` 路由到独立云函数执行 |
+| `cloudflare` | Cloudflare Workers（D1） | 已实现 | Workers CLI / Dashboard 自行部署 | 边缘运行时——可执行包存 D1 + **受限执行**（`executor.js` 分级 sandbox）+ 异步任务五态 + 配额降级 + mesh 防环转发 |
+| `dsh-tc-runtime` | dsh / Cordis（TypeScript） | 已实现 | Cordis 插件装配（15 个 `runtime-*` 包） | 覆盖 9 机制能力全集；**不宣称标准运行时身份** |
+| `tc-js-skeleton` | 通用 JS（平台无关） | 已实现（测试 91/91） | 非运行时形态——被 cloudflare / dsh 等复用 | 旁路通用 JS **逻辑层真源**：12 组件洋葱分层 |
 
-旁路运行时让'工具型'指令包的作者生成的包不做任何改动就能在多个 AI Agent 平台上运行——一次分发，受众扩展到所有能 `pip install` / `npm install` 的环境。序列已覆盖 Python 和 JavaScript 两大语言生态，以及云函数（CloudBase）和边缘计算（Cloudflare Workers）两种部署形态。详见 [旁路运行时索引](../src/skeleton/bypass-service/docs/INDEX_zh.md)。
+旁路运行时让'工具型'指令包的作者生成的包不做任何改动就能在多个 AI Agent 平台上运行——一次分发，受众扩展到所有能 `pip install` / `npm install` 的环境。序列已覆盖 Python 和 JavaScript 两大语言生态，并铺开多种部署形态：进程内 SDK、云函数（CloudBase）、边缘运行时（Cloudflare Workers D1）、插件宿主（dsh / Cordis），以及零代码的本地单文件形态。详见 [旁路运行时索引](../src/skeleton/bypass-service/docs/INDEX_zh.md)。
 
 
 
@@ -359,16 +362,9 @@ cd text-cli-A9-v*
 
 制品内已包含：运行时 + 指令包源 + Protocol SDK（`protocol/` 目录）。
 
-另一条零部署路径：`pip install textcli-loader`（Python）或 `npm install textcli-core`（JavaScript），加载任意**各自语言的工具型**指令包即刻执行——不需要部署任何服务。
+另一条零部署路径：**旁路运行时（进程内加载器形态）**——`pip install textcli-loader`（Python）或 `npm install textcli-core`（JavaScript），加载任意**各自语言的工具型**指令包即刻执行——不需要部署任何服务，也不依赖完整运行时（不支持 mesh 与 path）。
 
-**旁路运行时：**
-
-| 运行时 | 平台 | 说明 |
-|:---|:---|:---|
-| **textcli-loader** | PyPI | 轻量消费端 SDK，不依赖完整运行时（不支持 mesh 与 path） |
-| **textcli-core** | npm | JavaScript 同构实现，与 Python loader API 一致 |
-| **CloudBase SCF** | 腾讯云云函数 | 可部署云函数指令包 |
-| **Cloudflare Workers** | Cloudflare 边缘计算 | 纯网关——协议解析 + 路由分发 + 信封封装 |
+> 完整旁路序列（含 `base_nocode` 零代码形态，以及需自行部署的 CloudBase SCF、Cloudflare Workers D1 边缘运行时、dsh-tc-runtime 插件宿主）见 [§协议的多种实现](#协议的多种实现) 与 [旁路运行时索引](../src/skeleton/bypass-service/docs/INDEX_zh.md)。
 
 
 ---

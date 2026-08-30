@@ -1,0 +1,9 @@
+{
+  "name": "textcli-core-audit",
+  "version": "0.1.1",
+  "description": "审计 trace：TraceSession(traceId+seq) + AuditWriter（内存/JSONL 双实现）+ withAudit 中间件（搬运自 runtime-audit，writer 注入）",
+  "type": "module",
+  "main": "index.js",
+  "files": ["index.js"],
+  "license": "MIT"
+}
