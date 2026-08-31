@@ -105,24 +105,31 @@ def _load_and_wire(name: str, safe: str, init_fn_name: str, arg_key: str | None)
     import importlib
     import os
 
+    from . import degraded as _degraded
+
     mod_path = f"packages.{name}.handler"
     try:
         mod = importlib.import_module(mod_path)
     except Exception as e:
         logger.warning("Import failed for %s: %s (will need restart)", mod_path, e)
+        if name not in _degraded:
+            _degraded.append(name)
         return
+    if name in _degraded:
+        _degraded.remove(name)
 
     # Resolve init argument (mirrors main.py _ARG_MAP)
     from pathlib import Path
-    project_root = Path(os.environ.get("TEXT_CLI_HOME",
-                                       str(Path.home() / "text-cli")))
-    sqlite_dir = project_root / "service" / "text_cli_modules" / "sqlite"
+    home = Path(os.environ.get("TEXT_CLI_HOME",
+                               str(Path.home() / "text-cli")))          # 服务根
+    service_dir = home / "service"                                       # service 目录
+    sqlite_dir = home / "service" / "text_cli_modules" / "sqlite"
     sqlite_db = str(sqlite_dir / "token_registry.db")
     _arg_values = {
         "db": sqlite_db,
         "quota": str(sqlite_dir / "quota.db"),
         "db_dict": {"config": sqlite_db},
-        "project_root": str(project_root),
+        "project_root": str(service_dir),                                # 与 main.py 启动 init 一致
     }
 
     # Call init function

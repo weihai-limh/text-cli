@@ -378,6 +378,7 @@ async def health(request: Request):
                 "stct": "/text-cli/stct",
             },
             "sqlite": "enabled" if SQLITE_DB_PATH else None,
+            "degraded": list(__import__("handlers").degraded),
         }
 
     # Public: minimal info
@@ -743,8 +744,9 @@ async def _async_dispatch(parsed, prompt: str, task_id: str, auth, request: Requ
     try:
         task_manager_update(task_id, "running")
 
-        # 0. 聚合指令
-        agg_result = _aggregate_dispatch(parsed.domain, parsed.action, parsed.params)
+        # 0. 聚合指令（同步阻塞可能含 subprocess，移出 event loop）
+        agg_result = await asyncio.to_thread(
+            _aggregate_dispatch, parsed.domain, parsed.action, parsed.params)
         if agg_result is not None:
             try:
                 result_data = _json.loads(agg_result)
@@ -753,9 +755,10 @@ async def _async_dispatch(parsed, prompt: str, task_id: str, auth, request: Requ
             task_manager_complete(task_id, result_data)
             return
 
-        # 1-2. 本地 dispatch
+        # 1-2. 本地 dispatch（同步阻塞可能含 subprocess/pip，移出 event loop）
         from core.registry import dispatch as _local_dispatch
-        result = _local_dispatch(parsed.domain, parsed.action, parsed.params)
+        result = await asyncio.to_thread(
+            _local_dispatch, parsed.domain, parsed.action, parsed.params)
         if result:
             try:
                 rj = _json.loads(result)

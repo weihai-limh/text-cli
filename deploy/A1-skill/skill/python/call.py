@@ -181,11 +181,18 @@ def discover(
     search: str | None = None,
     lang: str = "auto",
     force_refresh: bool = False,
+    endpoint: str | None = None,
+    access_token: str | None = None,
+    service_token: str | None = None,
+    timeout: float | None = None,
 ) -> list[dict]:
     """Fetch available directives from the runtime.
 
     First call makes one HTTP request (AI:text-cli;query,json).
     Subsequent calls reuse the cached result unless force_refresh=True.
+
+    Per-call overrides: endpoint, access_token, service_token, timeout.
+    When omitted (None), fall back to global config / defaults.
     """
     global _discover_cache, _discover_lang
 
@@ -196,7 +203,13 @@ def discover(
 
     if cache_key not in _discover_cache:
         tail = f",{lang}" if lang != "auto" else ""
-        result = call(f"AI:text-cli;query,json{tail}")
+        result = call(
+            f"AI:text-cli;query,json{tail}",
+            endpoint=endpoint,
+            access_token=access_token,
+            service_token=service_token,
+            timeout=timeout if timeout is not None else 30.0,
+        )
         if not result.ok or not isinstance(result.data, dict):
             return []
         raw = result.data
@@ -229,12 +242,20 @@ def discover(
     return results
 
 
-def poll(task_id: str) -> DirectiveResult:
+def poll(task_id: str, endpoint: str | None = None,
+         access_token: str | None = None,
+         service_token: str | None = None,
+         timeout: float = 30.0) -> DirectiveResult:
     """Query task status once. Returns immediately.
 
     While task is pending/running, result.is_async stays True.
+
+    Per-call overrides: endpoint, access_token, service_token, timeout.
+    When omitted, fall back to global config / defaults.
     """
-    envelope = _request(f"AI:task;status,{task_id}")
+    envelope = _request(f"AI:task;status,{task_id}", endpoint=endpoint,
+                        access_token=access_token, service_token=service_token,
+                        timeout=timeout)
     result = _parse_envelope(envelope, directive=f"task;status,{task_id}")
 
     if not result.ok:
@@ -264,17 +285,24 @@ def wait(
     on_status: Callable[[dict], None] | None = None,
     max_wait: float = 60.0,
     interval: float = 2.0,
+    endpoint: str | None = None,
+    access_token: str | None = None,
+    service_token: str | None = None,
+    timeout: float = 30.0,
 ) -> DirectiveResult:
     """Wait for task completion with optional progress callbacks.
 
     Polls with exponential backoff: interval, interval*2, ... up to 30s max.
     Calls on_status(state_dict) after each poll.
+
+    Per-call overrides: endpoint, access_token, service_token, timeout.
     """
     elapsed = 0.0
     current_interval = min(interval, 30.0)
 
     while elapsed < max_wait:
-        result = poll(task_id)
+        result = poll(task_id, endpoint=endpoint, access_token=access_token,
+                      service_token=service_token, timeout=timeout)
 
         if on_status and isinstance(result.data, dict):
             on_status(result.data)

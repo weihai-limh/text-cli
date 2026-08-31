@@ -287,8 +287,8 @@ async function callBatch(directives, timeout = DEFAULT_TIMEOUT) {
  * @param {string} taskId - Task ID
  * @returns {Promise<DirectiveResult>}
  */
-async function poll(taskId) {
-  const result = await _request({ directive: `AI:task;status,${taskId}` });
+async function poll(taskId, { endpoint = null, accessToken = null, serviceToken = null, timeout = DEFAULT_TIMEOUT } = {}) {
+  const result = await _request({ directive: `AI:task;status,${taskId}`, endpoint, accessToken, serviceToken, timeout });
 
   if (!result.ok) {
     return result;
@@ -330,7 +330,7 @@ async function poll(taskId) {
  * @param {number}   [interval=2]          - 起始轮询间隔秒数
  * @returns {Promise<DirectiveResult>}
  */
-async function wait(taskId, onStatus, maxWait = 60, interval = 2) {
+async function wait(taskId, onStatus, maxWait = 60, interval = 2, opts = {}) {
   const startTime = Date.now();
   let attempt = 0;
   let currentInterval = interval;
@@ -351,7 +351,7 @@ async function wait(taskId, onStatus, maxWait = 60, interval = 2) {
       });
     }
 
-    const result = await poll(taskId);
+    const result = await poll(taskId, opts);
 
     if (typeof onStatus === 'function') {
       onStatus(result, elapsed, attempt);
@@ -387,15 +387,19 @@ let _discoverCacheLang = 'auto';
  * @param {string}  [opts.search]        - Keyword search across canonical fields
  * @param {string}  [opts.lang]          - Language for localized fields (zh/en/auto)
  * @param {boolean} [opts.forceRefresh]  - Bypass cache and re-fetch
+ * @param {string|null} [opts.endpoint]       - Override endpoint (null = global config)
+ * @param {string|null} [opts.accessToken]    - Override Access Token
+ * @param {string|null} [opts.serviceToken]   - Override Service Token
+ * @param {number}      [opts.timeout=30]     - Timeout seconds
  * @returns {Promise<Array>}
  */
-async function discover({ runtime, category, search, lang = 'auto', forceRefresh = false } = {}) {
+async function discover({ runtime, category, search, lang = 'auto', forceRefresh = false, endpoint = null, accessToken = null, serviceToken = null, timeout = DEFAULT_TIMEOUT } = {}) {
   const cacheKey = lang;
 
   if (forceRefresh || _discoverCacheLang !== lang || _discoverCache === null) {
     // Fetch full directive list with language parameter
     const query = lang !== 'auto' ? `AI:text-cli;query,json,${lang}` : 'AI:text-cli;query,json';
-    const result = await call(query);
+    const result = await call(query, { endpoint, accessToken, serviceToken, timeout });
 
     if (!result.ok) {
       throw new Error(`discover failed: ${result.err_code}`);
