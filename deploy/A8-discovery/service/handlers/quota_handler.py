@@ -183,23 +183,23 @@ def _next_reset(cycle_type: str, today: str) -> str:
 # ── Directives ──────────────────────────────────
 
 @directive("quota", "check", domain_alias="配额", action_aliases={"check": "检查"})
-def quota_check(params: list[str]) -> str:
+def quota_check(params: list[str]) -> dict:
     """Atomic check + consume quota units. quota;check,<target>[,<amount>]"""
     if not params:
-        return json.dumps({"status": "error", "reason": "Missing target"})
+        return ({"status": "error", "reason": "Missing target"})
     target = params[0]
     amount = int(params[1]) if len(params) > 1 else 1
     if amount < 1:
-        return json.dumps({"status": "error", "reason": "Amount must be >= 1"})
+        return ({"status": "error", "reason": "Amount must be >= 1"})
     result = check_and_update(target, amount)
-    return json.dumps(result, ensure_ascii=False)
+    return (result)
 
 
 @directive("quota", "register", domain_alias="配额", action_aliases={"register": "注册"})
-def quota_register(params: list[str]) -> str:
+def quota_register(params: list[str]) -> dict:
     """Register a new quota rule."""
     if len(params) < 3:
-        return json.dumps({
+        return ({
             "status": "error",
             "reason": "Usage: quota;register,<target>,<cycle>,<limit>"
         })
@@ -211,7 +211,7 @@ def quota_register(params: list[str]) -> str:
     cn_to_en = {"日": "day", "周": "week", "月": "month", "年": "year", "永久": "forever"}
     cycle = cn_to_en.get(cycle, cycle)
     if cycle not in {"day", "week", "month", "year", "forever"}:
-        return json.dumps({
+        return ({
             "status": "error",
             "reason": f"Invalid cycle: {cycle}. Use day/week/month/year/forever"
         })
@@ -222,13 +222,13 @@ def quota_register(params: list[str]) -> str:
         if limit < 1:
             raise ValueError
     except (ValueError, TypeError):
-        return json.dumps({
+        return ({
             "status": "error",
             "reason": f"Invalid limit: {limit_str}. Must be a positive integer"
         })
 
     if not DB_FILE:
-        return json.dumps({"status": "error", "reason": "quota-manage not initialised"})
+        return ({"status": "error", "reason": "quota-manage not initialised"})
 
     conn = _get_conn()
     try:
@@ -237,11 +237,11 @@ def quota_register(params: list[str]) -> str:
             (target, cycle, limit)
         )
         conn.commit()
-        return json.dumps({
+        return ({
             "status": "ok", "target": target, "cycle": cycle, "limit": limit
-        }, ensure_ascii=False)
+        })
     except sqlite3.IntegrityError:
-        return json.dumps({
+        return ({
             "status": "error",
             "reason": f"Target '{target}' already exists. Use quota;unregister first."
         })
@@ -250,10 +250,10 @@ def quota_register(params: list[str]) -> str:
 
 
 @directive("quota", "list", domain_alias="配额", action_aliases={"list": "列表"})
-def quota_list(params: list[str]) -> str:
+def quota_list(params: list[str]) -> dict:
     """List all quota rules with current usage."""
     if not DB_FILE:
-        return json.dumps({"status": "error", "reason": "quota-manage not initialised"})
+        return ({"status": "error", "reason": "quota-manage not initialised"})
 
     conn = _get_conn()
     try:
@@ -287,18 +287,18 @@ def quota_list(params: list[str]) -> str:
                 "registered_at": created_at,
             })
 
-        return json.dumps({"status": "ok", "count": len(items), "quotas": items}, ensure_ascii=False)
+        return ({"status": "ok", "count": len(items), "quotas": items})
     finally:
         conn.close()
 
 
 @directive("quota", "reset", domain_alias="配额", action_aliases={"reset": "重置"})
-def quota_reset(params: list[str]) -> str:
+def quota_reset(params: list[str]) -> dict:
     """Manually reset a quota counter."""
     if not params:
-        return json.dumps({"status": "error", "reason": "Missing target"})
+        return ({"status": "error", "reason": "Missing target"})
     if not DB_FILE:
-        return json.dumps({"status": "error", "reason": "quota-manage not initialised"})
+        return ({"status": "error", "reason": "quota-manage not initialised"})
 
     target = params[0]
     conn = _get_conn()
@@ -308,28 +308,28 @@ def quota_reset(params: list[str]) -> str:
             (target,)
         )
         if cur.rowcount == 0:
-            return json.dumps({"status": "not_found", "target": target})
+            return ({"status": "not_found", "target": target})
         conn.commit()
-        return json.dumps({"status": "ok", "target": target, "reset_at": _sqlite_date(conn)})
+        return ({"status": "ok", "target": target, "reset_at": _sqlite_date(conn)})
     finally:
         conn.close()
 
 
 @directive("quota", "unregister", domain_alias="配额", action_aliases={"unregister": "注销"})
-def quota_unregister(params: list[str]) -> str:
+def quota_unregister(params: list[str]) -> dict:
     """Remove a quota rule."""
     if not params:
-        return json.dumps({"status": "error", "reason": "Missing target"})
+        return ({"status": "error", "reason": "Missing target"})
     if not DB_FILE:
-        return json.dumps({"status": "error", "reason": "quota-manage not initialised"})
+        return ({"status": "error", "reason": "quota-manage not initialised"})
 
     target = params[0]
     conn = _get_conn()
     try:
         cur = conn.execute("DELETE FROM quota WHERE func_name = ?", (target,))
         if cur.rowcount == 0:
-            return json.dumps({"status": "not_found", "target": target})
+            return ({"status": "not_found", "target": target})
         conn.commit()
-        return json.dumps({"status": "ok", "target": target})
+        return ({"status": "ok", "target": target})
     finally:
         conn.close()

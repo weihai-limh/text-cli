@@ -93,7 +93,7 @@ def complete(task_id: str, result: dict):
     """Mark task done and store result."""
     result_path = str(RESULTS_DIR / f"{task_id}.json")
     RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    Path(result_path).write_text(json.dumps(result, ensure_ascii=False))
+    Path(result_path).write_text(json.dumps(result))
 
     db = _get_db()
     db.execute(
@@ -217,22 +217,22 @@ from core.registry import directive
 
 
 @directive("task", "status", domain_alias="任务", action_aliases={"status": "状态"})
-def task_status(params: list[str]) -> str:
+def task_status(params: list[str]) -> dict:
     if not params:
-        return json.dumps({"status": "error", "reason": "Usage: task;status,<task_id>"})
+        return ({"status": "error", "reason": "Usage: task;status,<task_id>"})
     task = get(params[0])
     if task is None:
-        return json.dumps({"status": "error", "reason": f"Task not found: {params[0]}"})
+        return ({"status": "error", "reason": f"Task not found: {params[0]}"})
 
     # Tracked mode: real-time poll on status query
     task_params = task.get("params", {})
     if isinstance(task_params, dict) and task_params.get("mode") == "tracked":
         if _dispatch_fn is None:
-            return json.dumps({"status": "ok", "task": task}, ensure_ascii=False)
+            return ({"status": "ok", "task": task})
         poll = task_params["poll"]
         result = _dispatch_fn(poll["domain"], poll["action"], poll["params"])
         if result is None:
-            return json.dumps({"status": "ok", "task": task}, ensure_ascii=False)
+            return ({"status": "ok", "task": task})
         poll_status = result.get("status", "pending")
         if poll_status == "ok":
             update(params[0], "done")
@@ -246,32 +246,32 @@ def task_status(params: list[str]) -> str:
             update(params[0], "error", error=result.get("reason", "unknown"))
             task = get(params[0])
 
-    return json.dumps({"status": "ok", "task": task}, ensure_ascii=False)
+    return ({"status": "ok", "task": task})
 
 
 @directive("task", "result", domain_alias="任务", action_aliases={"result": "结果"})
-def task_result(params: list[str]) -> str:
+def task_result(params: list[str]) -> dict:
     if not params:
-        return json.dumps({"status": "error", "reason": "Usage: task;result,<task_id>"})
+        return ({"status": "error", "reason": "Usage: task;result,<task_id>"})
     task = get(params[0])
     if task is None:
-        return json.dumps({"status": "error", "reason": f"Task not found: {params[0]}"})
+        return ({"status": "error", "reason": f"Task not found: {params[0]}"})
     if task["state"] != "done":
-        return json.dumps({"status": "error", "reason": f"Task not done (state={task['state']})"})
-    return json.dumps({"status": "ok", "result": task.get("result", {})}, ensure_ascii=False)
+        return ({"status": "error", "reason": f"Task not done (state={task['state']})"})
+    return ({"status": "ok", "result": task.get("result", {})})
 
 
 @directive("task", "list", domain_alias="任务", action_aliases={"list": "列表"})
-def task_list(params: list[str]) -> str:
+def task_list(params: list[str]) -> dict:
     tasks = list_tasks()
-    return json.dumps({"status": "ok", "tasks": tasks}, ensure_ascii=False)
+    return ({"status": "ok", "tasks": tasks})
 
 
 @directive("task", "track", domain_alias="任务", action_aliases={"track": "追踪"})
-def task_track(params: list[str]) -> str:
+def task_track(params: list[str]) -> dict:
     """Register a tracked task. task;track,<task_id>,<domain>,<action>,<param1>[,<param2>...]"""
     if len(params) < 4:
-        return json.dumps({
+        return ({
             "status": "error",
             "reason": "Usage: task;track,<task_id>,<domain>,<action>,<param1>[,<param2>...]"
         })
@@ -281,17 +281,17 @@ def task_track(params: list[str]) -> str:
     poll_params = params[3:]
     try:
         track_task(task_id, domain, action, poll_params)
-        return json.dumps({"status": "ok", "task_id": task_id, "mode": "tracked"})
+        return ({"status": "ok", "task_id": task_id, "mode": "tracked"})
     except sqlite3.IntegrityError:
-        return json.dumps({"status": "error", "reason": f"Task '{task_id}' already exists"})
+        return ({"status": "error", "reason": f"Task '{task_id}' already exists"})
 
 
 @directive("task", "cancel", domain_alias="任务", action_aliases={"cancel": "取消"})
-def task_cancel(params: list[str]) -> str:
+def task_cancel(params: list[str]) -> dict:
     if not params:
-        return json.dumps({"status": "error", "reason": "Usage: task;cancel,<task_id>"})
+        return ({"status": "error", "reason": "Usage: task;cancel,<task_id>"})
     ok = cancel(params[0])
-    return json.dumps({"status": "ok" if ok else "error", "cancelled": ok})
+    return ({"status": "ok" if ok else "error", "cancelled": ok})
 
 
 def init_task_manager(sqlite_db_cfg):

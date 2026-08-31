@@ -43,7 +43,7 @@ if SQLITE_ENABLED:
     from core.registry import directive
 
     @directive("key", "register", domain_alias="密钥", action_aliases={"register": "注册"})
-    def key_register(params: list[str]) -> str:
+    def key_register(params: list[str]) -> dict:
         """
         key;register,<service>,<value1>[,<value2>],<key_type>
 
@@ -51,48 +51,39 @@ if SQLITE_ENABLED:
         双凭据: key;register,tx,secret_id,secret_key,tencent_cloud
         """
         if len(params) < 2:
-            return 'Missing params: key;register,<service>,<value1>[,<value2>],<key_type>'
+            return {"status": "error", "reason": "Missing params: key;register,<service>,<value1>[,<value2>],<key_type>"}
 
         service = params[0]
         key_type = params[-1]  # last param is always key_type
         values = tuple(params[1:-1])  # everything between service and key_type
 
         if not values:
-            return 'Missing key value(s)'
+            return {"status": "error", "reason": "Missing key value(s)"}
 
         r = _reg(DB_PATH, service, *values, key_type=key_type)
         if r.get('ok'):
             cc = r.get('cred_count', 1)
-            return f'Key registered: {service} (type={key_type}, cred_count={cc})'
-        return f'Registration failed: {r.get("detail", r.get("error", "?"))}'
+            return {"status": "ok", "service": service, "key_type": key_type, "cred_count": cc}
+        return {"status": "error", "reason": f"Registration failed: {r.get('detail', r.get('error', '?'))}"}
 
     @directive("key", "revoke", domain_alias="密钥", action_aliases={"revoke": "撤销"})
-    def key_revoke(params: list[str]) -> str:
+    def key_revoke(params: list[str]) -> dict:
         if not params:
-            return 'Missing params: key;revoke,<service>'
+            return {"status": "error", "reason": "Missing params: key;revoke,<service>"}
         r = _rev(DB_PATH, params[0])
         if r.get('ok'):
-            return f'Key revoked: {params[0]}'
-        return f'Revocation failed: {r.get("detail", r.get("error", "?"))}'
+            return {"status": "ok", "service": params[0]}
+        return {"status": "error", "reason": f"Revocation failed: {r.get('detail', r.get('error', '?'))}"}
 
     @directive("key", "list", domain_alias="密钥", action_aliases={"list": "列表"})
-    def key_list(params: list[str]) -> str:
+    def key_list(params: list[str]) -> dict:
         keys = _list(DB_PATH)
         if not keys:
-            return 'Registered keys: (empty)'
-        lines = [f'Registered keys: {len(keys)}']
-        for k in keys:
-            cc = k.get('cred_count', 1)
-            qt = k.get('quota_track')
-            qt_str = f' [tracking: {",".join(qt)}]' if qt else ''
-            lines.append(
-                f'  {k["service"]} ({k["key_type"]}, '
-                f'cred_count={cc}) — {k["registered_at"]}{qt_str}'
-            )
-        return '\n'.join(lines)
+            return {"status": "ok", "keys": []}
+        return {"status": "ok", "keys": keys}
 
     @directive("key", "quota-track", domain_alias="密钥", action_aliases={"quota-track": "配额追踪"})
-    def key_quota_track(params: list[str]) -> str:
+    def key_quota_track(params: list[str]) -> dict:
         """
         key;quota-track,<service>[,<target1>,<target2>,...]
 
@@ -100,7 +91,7 @@ if SQLITE_ENABLED:
         清除: key;quota-track,zhipu
         """
         if not params:
-            return 'Missing params: key;quota-track,<service>[,<target1>,...]'
+            return {"status": "error", "reason": "Missing params: key;quota-track,<service>[,<target1>,...]"}
 
         service = params[0]
         targets = params[1:] if len(params) > 1 else None
@@ -108,6 +99,6 @@ if SQLITE_ENABLED:
         r = _set_qt(DB_PATH, service, targets)
         if r.get('ok'):
             if targets:
-                return f'Quota tracking set for {service}: {", ".join(targets)}'
-            return f'Quota tracking cleared for {service}'
-        return f'Failed: {r.get("detail", r.get("error", "?"))}'
+                return {"status": "ok", "service": service, "targets": targets}
+            return {"status": "ok", "service": service, "targets": None}
+        return {"status": "error", "reason": f"Failed: {r.get('detail', r.get('error', '?'))}"}

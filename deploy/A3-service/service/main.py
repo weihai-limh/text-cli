@@ -465,7 +465,7 @@ async def handle_directive(request: Request):
             )
         task_id = task_manager_register(parsed.domain, parsed.action, parsed.params)
         asyncio.create_task(_async_dispatch(parsed, prompt, task_id, auth, request, _req_start))
-        response = ok(json.dumps({"status": "pending", "task_id": task_id}, ensure_ascii=False))
+        response = ok({"status": "pending", "task_id": task_id})
         _write_call_log(request, auth, parsed, _req_start, True)
         return response
 
@@ -496,7 +496,7 @@ async def handle_directive(request: Request):
             if quota_block:
                 return JSONResponse(
                     status_code=429,
-                    content=ok(json.dumps({"status": "quota_exceeded", **quota_block}, ensure_ascii=False)),
+                    content=ok({"status": "quota_exceeded", **quota_block}),
                 )
             try:
                 from handlers.mcp_handler import call_mcp_tool, format_mcp_result
@@ -553,7 +553,7 @@ async def handle_directive(request: Request):
         if quota_block:
             return JSONResponse(
                 status_code=429,
-                content=ok(json.dumps({"status": "quota_exceeded", **quota_block}, ensure_ascii=False)),
+                content=ok({"status": "quota_exceeded", **quota_block}),
             )
         # Fallback: user-installed MCP handler package (optional — silently skipped if not installed).
         # Primary MCP dispatch is via handlers.mcp_handler (imported above at line ~436).
