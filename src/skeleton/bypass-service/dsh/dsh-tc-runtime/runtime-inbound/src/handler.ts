@@ -95,6 +95,9 @@ export async function handlePrompt(
   }
 
   // ⑤ 信封（复用 envelope.js；pray_rst_types 提升 + 6 码闭集）
+  if (typeof result === "string") {
+    result = { status: "ok", result };
+  }
   const env = tc.ok(result);
   await audit("tool-exec", { tool: mapped.input.name, status: (env.rst_data as { status?: unknown })?.status });
   await audit("envelope", { rst_types: env.rst_types, rst_err: env.rst_err });

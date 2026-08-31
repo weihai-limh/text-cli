@@ -7,13 +7,18 @@ the skeleton promotes it to `rst_types` and strips it from `rst_data`.
 """
 
 
-def ok(data: dict, rst_type: str = "text") -> dict:
+def ok(data, rst_type: str = "text") -> dict:
     """Construct a success envelope.
 
     data: the handler's return dict — placed directly into rst_data.
     rst_type: response type, "text" by default. If data contains pray_rst_types,
               that value takes precedence and is stripped from rst_data.
     """
+    # Defensive guard (aligns with copilot's ok()): handlers must return a dict.
+    # If a non-dict (e.g. legacy str from missed json.dumps) slips through, wrap
+    # it into an object envelope instead of crashing on data.pop (issues_list §4.3).
+    if not isinstance(data, dict):
+        data = {"status": "ok", "result": data}
     pray = data.pop("pray_rst_types", None)
     if pray and rst_type == "text":
         rst_type = pray
