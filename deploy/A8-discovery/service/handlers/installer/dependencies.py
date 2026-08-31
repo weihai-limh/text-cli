@@ -12,6 +12,18 @@ import sys
 
 _PROJECT = pathlib.Path(os.environ.get("TEXT_CLI_HOME", str(pathlib.Path.home() / "text-cli")))
 
+# pip 包名 → 导入模块名 映射（pip 名与模块名不一致的已知项）。
+# 探测"已装"时必须用真实模块名，否则已装依赖被误判缺失 → 重复 pip install。
+_PIP_MODULE_MAP = {
+    "Pillow": "PIL",
+    "opencv-python": "cv2",
+    "opencv-python-headless": "cv2",
+    "opencv-contrib-python": "cv2",
+    "PyYAML": "yaml",
+    "beautifulsoup4": "bs4",
+    "scikit-learn": "sklearn",
+}
+
 
 def install_deps(req_path: str | None, name: str, requires: dict | None = None) -> tuple[bool, str]:
     """Install dependencies from requirements.txt and/or schema requires field.
@@ -23,8 +35,11 @@ def install_deps(req_path: str | None, name: str, requires: dict | None = None) 
     # New: requires.pip from schema.json
     if requires and requires.get("pip"):
         import importlib
+        import re as _re
         for pkg in requires["pip"]:
-            import_name = pkg.replace("-", "_")
+            # Strip version constraints (e.g. "requests>=2.28") before probing.
+            bare = _re.split(r"[<>=!~]", pkg)[0].strip()
+            import_name = _PIP_MODULE_MAP.get(bare, bare.replace("-", "_"))
             try:
                 importlib.import_module(import_name)
             except ImportError:

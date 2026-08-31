@@ -283,7 +283,10 @@ def image_convert(params: list[str]) -> dict:
     if len(params) < 2:
         return {"status": "error", "reason": "Usage: image;convert,<in_path>,<out_format>[,<quality>[,json]]"}
 
-    in_path = pathlib.Path(params[0])
+    p, err = _check_path(params[0])
+    if err:
+        return {"status": "error", "reason": err}
+    in_path = p
     out_fmt = _normalise_format(params[1].lower())
     quality = int(params[2]) if len(params) > 2 and params[2] else 85
 
@@ -340,7 +343,10 @@ def image_resize(params: list[str]) -> dict:
     if len(params) < 3:
         return {"status": "error", "reason": "Usage: image;resize,<in_path>,<width>,<height>[,json]"}
 
-    in_path = pathlib.Path(params[0])
+    p, err = _check_path(params[0])
+    if err:
+        return {"status": "error", "reason": err}
+    in_path = p
     try:
         width = int(params[1])
         height = int(params[2])
