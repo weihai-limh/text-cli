@@ -252,7 +252,7 @@ class CopilotCore:
                 continue
             # 从方法名反推 op_id: _handle_tc_ubuntu_resolution → tc-ubuntu;resolution
             op_id = attr_name[8:]  # 去掉 '_handle_'
-            op_id = op_id.replace('_', '-', 1) if op_id.startswith(('tc_','ai_','bd_','tx_')) else op_id
+            op_id = op_id.replace('_', '-', 1) if op_id.startswith(('tc_','ai_','bd_','tx_','tcco_','skill_','comcp_','openclaw_','nocode_')) else op_id
             # 第一个 _ 替换为 ; , 后续 _ 替换为 -
             parts = op_id.split('_', 1)
             if len(parts) == 2:

@@ -96,12 +96,25 @@ def install_npm_deps(npm_dir: str) -> tuple[bool, str]:
     pkg_json = pkg_dir / "package.json"
     if not pkg_json.is_file():
         return True, "no package.json, skip npm"
+    import shutil
+    import sys
+    if not shutil.which("npm"):
+        return False, "npm unavailable (please install Node.js)"
     try:
-        result = subprocess.run(
-            ["npm", "install", "--no-audit", "--no-fund"],
-            cwd=str(pkg_dir),
-            capture_output=True, text=True, timeout=120, check=False,
-        )
+        if sys.platform.startswith("win"):
+            # Windows 上 npm 是 npm.cmd（批处理脚本），CreateProcess 无法直接执行，
+            # 需经 cmd.exe /c 包装。npm install 参数固定（--no-audit --no-fund），
+            # pkg_dir 为安装器受控部署目录，无注入面。
+            result = subprocess.run(
+                f'cd /d "{pkg_dir}" && npm install --no-audit --no-fund',
+                shell=True, capture_output=True, text=True, timeout=120, check=False,
+            )
+        else:
+            result = subprocess.run(
+                ["npm", "install", "--no-audit", "--no-fund"],
+                cwd=str(pkg_dir),
+                capture_output=True, text=True, timeout=120, check=False,
+            )
         if result.returncode != 0:
             last_err = result.stderr.strip().splitlines()[-1] if result.stderr else f"exit={result.returncode}"
             return False, f"npm install failed: {last_err}"
