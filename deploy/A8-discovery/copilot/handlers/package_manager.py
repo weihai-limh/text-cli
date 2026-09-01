@@ -219,6 +219,8 @@ class PackageManagerHandlers:
         handler_wired = self._wire_package_handlers(pkg_id, mod)
         self._register_handlers()
         return handler_wired
+
+    def _wire_package_handlers(self, pkg_id: str, mod):
         """Dynamically attach _handle_* methods from a *Handlers mixin class.
 
         For immediate use after co-install (before restart).

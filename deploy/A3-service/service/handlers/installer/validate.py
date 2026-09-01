@@ -10,7 +10,7 @@ import pathlib
 logger = logging.getLogger(__name__)
 
 # Accepted runtime values from schema.json
-ACCEPTED_RUNTIMES = frozenset({"python", "node", "js", "mcp", "cmd"})
+ACCEPTED_RUNTIMES = frozenset({"python", "js", "mcp", "cmd"})
 
 # Domains that MUST NOT be installed as packages (system reserved)
 SYSTEM_DOMAINS = frozenset({"text-cli"})
@@ -90,14 +90,14 @@ def validate_package(name: str, source_dirs: list[pathlib.Path] | None = None) -
     # 4. Check runtime
     runtime = schema.get("runtime", "")
     if runtime not in ACCEPTED_RUNTIMES:
-        return False, f"Unsupported runtime \"{runtime}\"（Accepted: python/node/mcp/cmd）", None
+        return False, f"Unsupported runtime \"{runtime}\"（Accepted: python/js/mcp/cmd）", None
 
     # 4a. Check entry_runtimes (SPEC v1.3: multi-runtime environment declaration)
     entry_runtimes = schema.get("entry_runtimes", [])
     if entry_runtimes:
         invalid = [r for r in entry_runtimes if r not in ACCEPTED_RUNTIMES]
         if invalid:
-            return False, f"entry_runtimes contains unsupported runtime(s): {', '.join(invalid)} (Accepted: python/node/mcp/cmd)", None
+            return False, f"entry_runtimes contains unsupported runtime(s): {', '.join(invalid)} (Accepted: python/js/mcp/cmd)", None
 
     # 5. Check system domain protection
     pkg_id = schema.get("id", "")
@@ -129,6 +129,11 @@ def validate_package(name: str, source_dirs: list[pathlib.Path] | None = None) -
         req_path = pkg_dir / "requirements.txt"
         if req_path.is_file():
             meta["req_path"] = str(req_path)
+        # 双环境包（Python 薄壳 + JS 引擎）：entry_runtimes 含 js 且 package.json 存在 → npm_dir
+        if "js" in entry_runtimes:
+            pkg_json = pkg_dir / "package.json"
+            if pkg_json.is_file():
+                meta["npm_dir"] = str(pkg_dir)
 
     elif runtime == "mcp":
         # MCP packages require service-descriptor.json and mcporter config
@@ -175,8 +180,5 @@ def validate_package(name: str, source_dirs: list[pathlib.Path] | None = None) -
             return False, "whitelist.json missing tool/commands field", None
         meta["whitelist_path"] = str(wl_path)
         meta["whitelist"] = wl
-
-    elif runtime == "js":
-        return False, "JS runtime not yet supported"
 
     return True, "ok", meta

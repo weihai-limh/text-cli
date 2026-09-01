@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import pathlib
 import shutil
+import subprocess
 
 
 def _resolve_project_root() -> pathlib.Path:
@@ -69,7 +70,7 @@ def install_files(name: str, meta: dict, runtime: str = "python", force: bool = 
         shutil.copy2(schema_src, str(pkg_dst / "schema.json"))
         lines.append(f"MCP package deployed: packages/{name}/ (schema + service-descriptor)")
 
-    elif runtime == "node":
+    elif runtime == "js":
         handler_src = pathlib.Path(meta["handler_path"])
         handler_dst = HANDLERS_DIR / f"{safe}.js"
         if handler_dst.exists() and not force:
@@ -77,6 +78,10 @@ def install_files(name: str, meta: dict, runtime: str = "python", force: bool = 
         try:
             shutil.copy2(handler_src, handler_dst)
             shutil.copy2(schema_src, schema_dst)
+            # Deploy package.json for npm dependency resolution
+            pkg_json_src = handler_src.parent / "package.json"
+            if pkg_json_src.is_file():
+                shutil.copy2(str(pkg_json_src), str(HANDLERS_DIR / f"{safe}_package.json"))
         except OSError as e:
             return False, f"file copy failed: {e}"
         lines.append(f"file deployed: {name}.js + {name}_schema.json")
@@ -110,7 +115,7 @@ def install_files(name: str, meta: dict, runtime: str = "python", force: bool = 
             lines.append(mod_msg)
 
         # Deploy auxiliary files
-        _, aux_msg = _deploy_aux_files(pkg_dir, name, runtime)
+        _, aux_msg = _deploy_aux_files(pkg_dir, name, runtime, meta.get("entry_runtimes", []))
         if aux_msg:
             lines.append(aux_msg)
 
@@ -159,18 +164,38 @@ def _deploy_runtime_modules(pkg_dir: pathlib.Path, name: str) -> tuple[bool, str
     return True, ""
 
 
-def _deploy_aux_files(pkg_dir: pathlib.Path, name: str, runtime: str) -> tuple[bool, str]:
-    """Deploy auxiliary files (binaries, JS files with non-standard names)."""
+def _deploy_aux_files(pkg_dir: pathlib.Path, name: str, runtime: str,
+                      entry_runtimes: list | None = None) -> tuple[bool, str]:
+    """Deploy auxiliary files (binaries, JS files with non-standard names).
+
+    双环境包（Python 薄壳 + JS 引擎）：runtime=python 且 entry_runtimes 含 "js"
+    时，把包内 *.js + package.json 复制到 packages/<name>/，使引擎文件与
+    handler.py 同目录（node_modules 就地 npm install 后相对 require 成立）。
+    """
     pkg_dir = pathlib.Path(pkg_dir)
+    entry_runtimes = entry_runtimes or []
     extra = []
 
-    if runtime == "node":
+    if runtime == "js":
         for js_file in sorted(pkg_dir.glob("*.js")):
             handler_name = f"{name}.js"
             if js_file.name != handler_name:
                 dst = HANDLERS_DIR / js_file.name
                 shutil.copy2(str(js_file), str(dst))
                 extra.append(js_file.name)
+
+    elif runtime == "python" and "js" in entry_runtimes:
+        # 双环境包：JS 引擎文件 + package.json 部署到 packages/<name>/（与 handler.py 同目录）
+        pkg_dst = _PROJECT / "service" / "packages" / name
+        pkg_dst.mkdir(parents=True, exist_ok=True)
+        for js_file in sorted(pkg_dir.glob("*.js")):
+            dst = pkg_dst / js_file.name
+            shutil.copy2(str(js_file), str(dst))
+            extra.append(js_file.name)
+        pkg_json = pkg_dir / "package.json"
+        if pkg_json.is_file():
+            shutil.copy2(str(pkg_json), str(pkg_dst / "package.json"))
+            extra.append("package.json")
 
     if runtime == "python":
         for py_file in sorted(pkg_dir.glob("*.py")):
@@ -280,42 +305,85 @@ def _deploy_aggregate_resources(pkg_dir: pathlib.Path, name: str, lines: list[st
 
 
 def _check_binary(pkg_dir: pathlib.Path, meta: dict) -> tuple[bool, str]:
-    """Check binary dependencies declared in schema.requires.binary."""
-    import stat
+    """Check binary dependencies declared in schema.requires.binaries.
+
+    SPEC v1.3 format:
+        "binaries": {"<name>": {"source": "system"|"package"|"npm-global", "min_version": "..."}}
+    """
+    import shutil
+
     schema = meta.get("schema", {})
     requires = schema.get("requires", {})
-    binaries = requires.get("binary", {})
+    binaries = requires.get("binaries", {})
     if not binaries:
         return True, ""
 
     warnings = []
-    for bin_name in binaries:
-        bin_path = pkg_dir / bin_name
-        if not bin_path.is_file():
-            warnings.append(f"{bin_name}: not found")
-            continue
-        if not (bin_path.stat().st_mode & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)):
-            warnings.append(f"{bin_name}: not executable")
+    for bin_name, bin_info in binaries.items():
+        source = bin_info.get("source", "system")
+
+        if source == "system":
+            if not shutil.which(bin_name):
+                warnings.append(f"{bin_name}: system not installed")
+        elif source == "package":
+            bin_path = pkg_dir / bin_name
+            if not bin_path.is_file():
+                warnings.append(f"{bin_name}: file missing")
+            else:
+                import stat
+                if not (bin_path.stat().st_mode & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)):
+                    warnings.append(f"{bin_name}: not executable")
+        elif source == "npm-global":
+            try:
+                result = subprocess.run(
+                    ["npm", "bin", "-g"], capture_output=True, text=True, timeout=10, check=False,
+                )
+                if result.returncode != 0:
+                    warnings.append(f"{bin_name}: npm global path query failed")
+                else:
+                    npm_bin = pathlib.Path(result.stdout.strip())
+                    if not (npm_bin / bin_name).exists():
+                        warnings.append(f"{bin_name}: npm global not installed")
+            except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+                warnings.append(f"{bin_name}: npm unavailable, cannot check global install")
 
     if warnings:
-        return True, f"  ⚠ binary: {'; '.join(warnings)}"
-    return True, "  ✓ binaries ok"
+        return True, "  [WARN] binary: " + "; ".join(warnings)
+    return True, "  [OK] binaries"
 
 
 def remove_files(name: str) -> tuple[bool, str]:
     """Remove handler files and packages directory for a package.
 
-    Cleans up packages/<name>/ (current install target) and
-    legacy handlers/<safe>.py (old install target).
+    Cleans up packages/<name>/ (current install target),
+    legacy handlers/<safe>.py (old install target), and
+    text_cli_modules/ runtime modules (declared via requires.modules).
+
     Uses runtime-resolved project root to support test environments.
 
     Returns (ok, message).
     """
+    import json as _json
+
     safe = _safe_name(name)
     project = _resolve_project_root()
     pkg_dir = project / "service" / "packages" / name
     handler_path = project / "service" / "handlers" / f"{safe}.py"
     schema_path = project / "service" / "handlers" / "schema" / f"{safe}_schema.json"
+
+    # 收集 text_cli_modules/ 回收目标（在删 schema 前读 requires.modules 声明）
+    modules_to_remove: list[str] = []
+    try:
+        if schema_path.is_file():
+            schema_data = _json.loads(schema_path.read_text(encoding="utf-8"))
+            declared = schema_data.get("requires", {}).get("modules", [])
+            if isinstance(declared, list):
+                modules_to_remove = [m for m in declared if isinstance(m, str)]
+    except Exception:
+        pass
+    # 兜底：按包目录名（下划线 safe + 原名）回收，兼容未声明 requires.modules 的包
+    modules_to_remove.append(f"text_cli_modules/{safe}")
+    modules_to_remove.append(f"text_cli_modules/{name}")
 
     removed = []
 
@@ -330,6 +398,22 @@ def remove_files(name: str) -> tuple[bool, str]:
     if schema_path.exists():
         schema_path.unlink()
         removed.append(f"handlers/schema/{safe}_schema.json")
+
+    # 回收 text_cli_modules/ 运行时模块（去重）
+    modules_dir = project / "service" / "text_cli_modules"
+    seen: set[str] = set()
+    for m in modules_to_remove:
+        rel = m.removeprefix("text_cli_modules/")
+        if not rel or rel in seen:
+            continue
+        seen.add(rel)
+        target = modules_dir / rel
+        if target.exists():
+            if target.is_dir():
+                shutil.rmtree(target)
+            else:
+                target.unlink()
+            removed.append(f"text_cli_modules/{rel}/")
 
     if not removed:
         return False, f"package \"{name}\" not installed"

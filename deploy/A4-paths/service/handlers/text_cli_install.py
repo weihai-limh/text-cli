@@ -184,18 +184,21 @@ def text_cli_install(params: list[str]) -> dict:
     secrets_warnings = _check_secrets(schema, skip_check="--skip-secrets-check" in params)
 
     # 4. Install dependencies
+    # pip 与 npm 分别装（两个独立 if——python+js 双环境包两者都要执行）
     requires = schema.get("requires", {})
     entry_runtimes = meta.get("entry_runtimes", [])
+    ok_deps, dep_msg = True, "no dependencies"
     if runtime == "python" or "python" in entry_runtimes:
-        ok_deps, dep_msg = install_deps(meta.get("req_path"), name, requires=requires)
-    elif runtime == "js" or "js" in entry_runtimes:
+        ok_pip, pip_msg = install_deps(meta.get("req_path"), name, requires=requires)
+        ok_deps, dep_msg = ok_pip, pip_msg
+    if runtime == "js" or "js" in entry_runtimes:
         npm_dir = meta.get("npm_dir")
         if npm_dir:
-            ok_deps, dep_msg = install_npm_deps(npm_dir)
-        else:
-            ok_deps, dep_msg = True, "no package.json, skip npm"
-    else:
-        ok_deps, dep_msg = True, "no dependencies"
+            ok_npm, npm_msg = install_npm_deps(npm_dir)
+            ok_deps = ok_deps and ok_npm
+            dep_msg = dep_msg if ok_npm else npm_msg
+        elif not ok_deps:
+            dep_msg = "no package.json, skip npm"
 
     # 4. Format result
     directives = schema.get("directives", [])
