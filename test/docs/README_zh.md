@@ -251,7 +251,7 @@ text-cli 的日常测试文件存放在内部研发环境中，不进入公共�
 | `hello-world-standard` | `python` | schema.json + handler.py | service-A3 / service-A9 / pypi |
 | `hello-world-cmd` | `python` | schema.json + handler.py + whitelists/ | copilot |
 | `hello-world-fail` | `python` | schema.json + handler.py | service-A9（降级递补链） |
-| `hello-world-js` | `js` | schema.json + index.js + package.json | cloudbase / npm |
+| `hello-world-cloudbaseSCF` | `js` | schema.json + index.js + package.json | cloudbase / npm |
 | `hello-world-js` | `js` | schema.json + handler.js | textcli-core（声明式注册） |
 | `tc-mcp-github` | `mcp` | schema.json + service-descriptor.json | 未激活（需 mcporter 前置条件） |
 | `map-demo` | `path` | json | service-A4（map 正常迭代 3 元素） |

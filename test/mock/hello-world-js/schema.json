@@ -1,19 +1,16 @@
 {
   "id": "hello-world-js",
   "type": "native",
-  "version": "0.1.1",
-  "license": "MIT",
   "name": "hello-world-js",
   "name_zh": "你好世界-JS",
   "runtime": "js",
+  "version": "0.1.0",
+  "license": "MIT",
   "category": "test",
-  "locales": [
-    "en",
-    "zh"
-  ],
+  "locales": ["zh", "en"],
   "trust": "community",
-  "description": "Minimal node instruction package for cloudbase chain verification.",
-  "description_zh": "用于 cloudbase 链路验证的最小 node 指令包。",
+  "description": "Minimal standard text-cli node instruction package.",
+  "description_zh": "最小标准 text-cli node 指令包。",
   "directives": [
     {
       "domain": "hello",
@@ -24,15 +21,9 @@
       "usage_zh": "你好;世界,<名称>",
       "description": "Return a greeting via Node.js handler.",
       "description_zh": "通过 Node.js handler 返回一句问候。",
-      "params": [
-        "name"
-      ],
-      "params_desc": {
-        "name": "Name to greet / 要问候的名字"
-      },
-      "outputs": [
-        "text"
-      ],
+      "params": ["name"],
+      "params_desc": { "name": "Name to greet / 要问候的名字" },
+      "outputs": ["text"],
       "estimated_time": "10ms"
     }
   ]

@@ -1,0 +1,6 @@
+{
+  "name": "hello-world-cloudbaseSCF",
+  "version": "0.1.0",
+  "description": "Minimal text-cli node mock package for cloudbase SCF chain verification",
+  "main": "index.js"
+}

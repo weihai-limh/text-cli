@@ -1,0 +1,15 @@
+[package]
+name = "text-cli-core-rust"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "text-cli protocol core (parse/envelope/registry) -- Rust thin core, direct projection of SPEC clauses"
+
+[dependencies]
+serde_json = "1"
+
+[dev-dependencies]
+
+[profile.release]
+lto = true
+codegen-units = 1

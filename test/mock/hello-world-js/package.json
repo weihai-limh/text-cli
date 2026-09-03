@@ -1,6 +1,0 @@
-{
-  "name": "hello-world-js",
-  "version": "0.1.0",
-  "description": "Minimal text-cli node mock package for cloudbase chain verification",
-  "main": "index.js"
-}
