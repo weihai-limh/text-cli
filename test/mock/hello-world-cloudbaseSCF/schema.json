@@ -1,0 +1,39 @@
+{
+  "id": "hello-world-cloudbaseSCF",
+  "type": "native",
+  "version": "0.1.1",
+  "license": "MIT",
+  "name": "hello-world-cloudbaseSCF",
+  "name_zh": "你好世界-cloudbaseSCF",
+  "runtime": "js",
+  "category": "test",
+  "locales": [
+    "en",
+    "zh"
+  ],
+  "trust": "community",
+  "description": "Minimal node instruction package for cloudbase SCF chain verification.",
+  "description_zh": "用于 cloudbase SCF 链路验证的最小 node 指令包。",
+  "directives": [
+    {
+      "domain": "hello",
+      "domain_zh": "你好",
+      "action": "world",
+      "action_zh": "世界",
+      "usage": "hello;world,<name>",
+      "usage_zh": "你好;世界,<名称>",
+      "description": "Return a greeting via Node.js SCF handler (exports.main).",
+      "description_zh": "通过 Node.js SCF handler (exports.main) 返回一句问候。",
+      "params": [
+        "name"
+      ],
+      "params_desc": {
+        "name": "Name to greet / 要问候的名字"
+      },
+      "outputs": [
+        "text"
+      ],
+      "estimated_time": "10ms"
+    }
+  ]
+}

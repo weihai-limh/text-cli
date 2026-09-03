@@ -1,0 +1,27 @@
+{"id":"parse.basic.simple","in":"AI:tc-math;eval,2+3*4","expect":{"domain":"tc-math","action":"eval","params":["2+3*4"]},"mode":"baseline"}
+{"id":"parse.basic.multi","in":"AI:a;b,c,d","expect":{"domain":"a","action":"b","params":["c","d"]},"mode":"baseline"}
+{"id":"parse.basic.noparams","in":"AI:a;b","expect":{"domain":"a","action":"b","params":[]},"mode":"baseline"}
+{"id":"parse.basic.unicode","in":"AI:weather;query,北京,明天","expect":{"domain":"weather","action":"query","params":["北京","明天"]},"mode":"baseline"}
+{"id":"parse.basic.emptyparam.dropped","in":"AI:a;b,c,,d","expect":{"domain":"a","action":"b","params":["c","d"]},"mode":"baseline"}
+{"id":"parse.basic.trailcomma.dropped","in":"AI:a;b,c,","expect":{"domain":"a","action":"b","params":["c"]},"mode":"baseline"}
+{"id":"parse.basic.space.trim","in":"AI:a;b, c , d ","expect":{"domain":"a","action":"b","params":["c","d"]},"mode":"baseline"}
+{"id":"parse.basic.upper","in":"AI:Weather;Query,北京","expect":{"domain":"Weather","action":"Query","params":["北京"]},"mode":"baseline"}
+{"id":"parse.basic.pad","in":"  AI:a;b,c  ","expect":{"domain":"a","action":"b","params":["c"]},"mode":"baseline"}
+{"id":"parse.brace.flat","in":"AI:a;b,c,{x:1,y:2}","expect":{"domain":"a","action":"b","params":["c","{x:1,y:2}"]},"mode":"baseline"}
+{"id":"parse.brace.nested","in":"AI:a;b,{a:{b:1,c:[1,2]}},z","expect":{"domain":"a","action":"b","params":["{a:{b:1,c:[1,2]}}","z"]},"mode":"baseline"}
+{"id":"parse.brace.afterobj","in":"AI:a;b,{x:1},y","expect":{"domain":"a","action":"b","params":["{x:1}","y"]},"mode":"baseline"}
+{"id":"parse.brace.unclosed","in":"AI:a;b,{x:1,y:2","expect":{"domain":"a","action":"b","params":["{x:1,y:2"]},"mode":"baseline"}
+{"id":"parse.brace.objarr.mix","in":"AI:a;b,{x:1,[2,3]},tail","expect":{"domain":"a","action":"b","params":["{x:1,[2,3]}","tail"]},"mode":"baseline"}
+{"id":"parse.bracket.flat","in":"AI:a;b,[1,2,3],z","expect":{"domain":"a","action":"b","params":["[1,2,3]","z"]},"mode":"baseline"}
+{"id":"parse.bracket.objarr","in":"AI:a;b,[{a:1},{a:2}],z","expect":{"domain":"a","action":"b","params":["[{a:1},{a:2}]","z"]},"mode":"baseline"}
+{"id":"parse.quote.double","in":"AI:a;b,\"x,y\",z","expect":{"domain":"a","action":"b","params":["\"x,y\"","z"]},"mode":"baseline"}
+{"id":"parse.quote.inside.brace","in":"AI:a;b,{text: \"has, comma\"}","expect":{"domain":"a","action":"b","params":["{text: \"has, comma\"}"]},"mode":"baseline"}
+{"id":"parse.err.empty.domain","in":"AI:;b,c","expect":{"error":"INVALID_PARAMS"},"mode":"baseline"}
+{"id":"parse.err.empty.action","in":"AI:a;,c","expect":{"error":"INVALID_PARAMS"},"mode":"baseline"}
+{"id":"parse.err.no.sep","in":"AI:abc","expect":{"error":"INVALID_PARAMS"},"mode":"baseline"}
+{"id":"parse.err.blank","in":"","expect":{"error":"INVALID_PARAMS"},"mode":"baseline"}
+{"id":"parse.boundary.toomany","in":"AI:a;b,p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,p13,p14,p15,p16,p17,p18,p19,p20,p21,p22,p23,p24,p25,p26,p27,p28,p29,p30,p31,p32,p33,p34,p35,p36,p37,p38,p39,p40,p41,p42,p43,p44,p45,p46,p47,p48,p49,p50,p51,p52,p53,p54,p55","py":{"error":"INVALID_PARAMS"},"js":{"error":"INVALID_PARAMS"},"c":{"domain":"a","action":"b","params":["p1","p2","p3","p4","p5","p6","p7","p8","p9","p10","p11","p12","p13","p14","p15","p16"]},"rust":{"action":"b","domain":"a","params":["p1","p2","p3","p4","p5","p6","p7","p8","p9","p10","p11","p12","p13","p14","p15","p16"]},"mode":"observe","note":"实现常量分歧:Py/JS 上限 50 报错;C/Rust 上限 16 截断(tc-probe 约定基准用例 <=8 参数,远离此界)"}
+{"id":"parse.prefix.legacy","in":"指令:a;b,c","expect":{"domain":"a","action":"b","params":["c"]},"mode":"observe","note":"Py/JS 均支持;core-c/rust 仅 AI: → exclude"}
+{"id":"parse.drift.quote.single","in":"AI:a;b,'x,y',z","py":{"domain":"a","action":"b","params":["'x","y'","z"]},"js":{"domain":"a","action":"b","params":["'x,y'","z"]},"mode":"observe","note":"漂移:Py 不认单引号,JS 认 → 待裁决"}
+{"id":"parse.drift.escape.comma","in":"AI:a;b,c\\,d,e","py":{"domain":"a","action":"b","params":["c\\,d","e"]},"js":{"domain":"a","action":"b","params":["c,d","e"]},"mode":"observe","note":"漂移:Py 保留反斜杠,JS 吞反斜杠 → 待裁决"}
+{"id":"parse.drift.escape.bs","in":"AI:a;b,c\\\\d","py":{"domain":"a","action":"b","params":["c\\\\d"]},"js":{"domain":"a","action":"b","params":["c\\d"]},"mode":"observe","note":"漂移:Py 保留反斜杠,JS 吞反斜杠 → 待裁决"}

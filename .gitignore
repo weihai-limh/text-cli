@@ -39,3 +39,11 @@ nul
 
 # Build artifacts in deploy (stale copies)
 deploy/skeleton-linux/text-cli-v0.1.0/
+
+# Protocol cores (migrated: text-cli-core-rust / text-cli-core-c / text-cli-conformance)
+# Build artifacts must not be tracked.
+**/target/
+**/*.o
+**/*.d
+**/*.rmeta
+**/*.exe

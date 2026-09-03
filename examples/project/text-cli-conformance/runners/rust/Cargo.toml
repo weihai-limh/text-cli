@@ -1,0 +1,13 @@
+[package]
+name = "rust-runner"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Rust core parser runner for the conformance drift mirror"
+
+[dependencies]
+text-cli-core-rust = { path = "../../../../../src/skeleton/bypass-service/text-cli-core-rust" }
+serde_json = "1"
+
+[profile.release]
+lto = true
