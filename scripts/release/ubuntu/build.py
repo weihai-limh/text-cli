@@ -357,7 +357,9 @@ if curl -s http://localhost:28050/text-cli/health >/dev/null 2>&1; then
     echo "  copilot : http://127.0.0.1:20260"
     echo "  service : http://0.0.0.0:28050"
     echo ""
-    echo "  test: curl -X POST http://localhost:28050/text-cli/cli -H 'Content-Type: application/json' -d '{{\"directive\":\"AI:基础应用;天气查询,北京\"}}'"
+    TEST_BODY='{{\"directive\":\"AI:text-cli;query,compact\"}}'
+    echo ""
+    echo "  test: curl -X POST http://localhost:28050/text-cli/cli -H 'Content-Type: application/json' -d $TEST_BODY"
     echo ""
 else
     echo "[WARN] health check failed - check logs"
