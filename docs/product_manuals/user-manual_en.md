@@ -2,7 +2,7 @@
 
 > **Language note:** This English text is a translation of the normative Chinese manual (`../product_manuals/user-manual_zh.md`). Where this translation and the Chinese original differ or are ambiguous, the Chinese version is authoritative.
 
-> This manual is distributed with all packages (Windows / Linux / Docker). The four products can be deployed and used independently — when the artifact you receive contains only some of them, skip to the relevant sections. This artifact works on the text-cli (MIT) protocol specification. Manual revision: 2026-07-31
+> This manual is distributed with all packages (Windows / Linux / macOS / Docker). The four products can be deployed and used independently — when the artifact you receive contains only some of them, skip to the relevant sections. This artifact works on the text-cli (MIT) protocol specification. Manual revision: 2026-09-04
 
 ---
 
@@ -135,6 +135,8 @@ chmod +x start.sh
 ```
 
 Stop: `./end.sh` (`fuser -k` stops by port)
+
+> macOS: same as Linux (`.tar.gz`, `bash start.sh`).
 
 #### Docker
 
@@ -292,7 +294,7 @@ curl -X POST http://localhost:<port>/text-cli/cli \
 | `ACCESS_DENIED` | Access Token invalid | Endpoint auth failed |
 | `SERVICE_DENIED` | Service Token invalid or **explicitly denied** (not quota exhaustion) | Provider denial (quota exhaustion follows the `status:stop` degradation chain, see §3.11, and does not return this error code) |
 
-> **Example convention**: For reading brevity, all `→ {...}` directive-call examples in this manual show **only the contents of the `rst_data` field** (the JSON object returned by the handler, carried directly in `rst_data`); the real HTTP response is always the envelope format above (this section, L211). Caller rule: **read `rst_data` directly**; only when `rst_types="text"` and the data happens to be of the `{"text": ...}` shape (some handlers' business returns include a `text` field) should you take `.text`; in all other cases, use `rst_data` directly per the content-type mapping (e.g. `.url` for `picture`/`video`/`audio`/`file`). For example, the `→ {"status":"ok","result":7}` at L251 is `rst_data` itself.
+> **Example convention**: For reading brevity, all `→ {...}` directive-call examples in this manual show **only the contents of the `rst_data` field** (the JSON object returned by the handler, carried directly in `rst_data`); the real HTTP response is always the **response envelope** above. Caller rule: **read `rst_data` directly**; only when `rst_types="text"` and the data happens to be of the `{"text": ...}` shape (some handlers' business returns include a `text` field) should you take `.text`; in all other cases, use `rst_data` directly per the content-type mapping (e.g. `.url` for `picture`/`video`/`audio`/`file`). For example, the tc-math example in the end-to-end verification `→ {"status":"ok","result":7}` is `rst_data` itself.
 
 **End-to-end verification** (Service port):
 
@@ -309,6 +311,13 @@ curl -s -X POST http://localhost:28050/text-cli/cli \
 curl -s -X POST http://localhost:28050/text-cli/cli \
   -d '{"prompt":"AI:tc-math;eval,1+2*3"}'
 # → {"status":"ok","result":7}
+
+# Path orchestration — chain multiple directives into a pipeline (single JSON self-contained, no file/external input needed)
+curl -s -X POST http://localhost:28050/text-cli/cli \
+  -d '{"prompt":"AI:text-cli;path,{\"id\":\"pythagorean-fixed\",\"steps\":[{\"id\":\"sq_a\",\"instruction\":\"tc-math;eval,3**2\",\"output_as\":\"a2\"},{\"id\":\"sq_b\",\"instruction\":\"tc-math;eval,4**2\",\"output_as\":\"b2\"},{\"id\":\"sum\",\"instruction\":\"tc-math;eval,{a2.result}+{b2.result}\",\"output_as\":\"s\"},{\"id\":\"root\",\"instruction\":\"tc-math;eval,sqrt({s.result})\",\"output_as\":\"hyp\"}]"}'
+# → {"status":"ok","result":5.0}   # 3²+4²=25 → √25
+
+# Two launch forms (single/dual JSON) and input semantics: see §3.7
 ```
 
 ### 1.5 Configuration
@@ -325,9 +334,13 @@ server:
   instructions_language: auto  # Default language for directive queries: zh | en | auto
 
 auth:
-  allow_anonymous: true      # Intranet mode: allow anonymous access (product default)
-  service_token: ""          # Service Token shared secret (empty = no verification)
+  service_token: ""          # Service Token shared secret: non-empty = enforced mode (all requests must carry and match it; missing/mismatched are rejected)
+  allow_anonymous: true      # Anonymous access (effective only when service_token is empty): true = intranet mode allows anonymous (product default), false = identity-less requests are rejected
   count_calls: false          # Whether to record call audit logs
+
+live_config:
+  enabled: false             # Config hot-reload gate switch (AI:text-cli;config meta-directive, default off)
+  token: ""                  # live-config independent token (independent of auth.service_token)
 
 paths:
   # TEXT_CLI_HOME is injected by the startup script and cannot be configured here
@@ -351,8 +364,10 @@ mesh:
 | Config | Default | Description |
 |--------|---------|-------------|
 | `server.instructions_language` | `auto` | Query output language. `auto` = spec fields (English); `zh` / `en` = prefer the corresponding localized field. Caller can override with a trailing param: `AI:text-cli;query,zh` |
-| `auth.allow_anonymous` | `true` | Intranet mode allows anonymous access by default. `allow_anonymous: true` applies only to a **fully trusted intranet/local machine**; whenever Service listens on `0.0.0.0` and is routable from an untrusted network, you must set `allow_anonymous: false` and fill `service_token`. For public exposure, always front it with an Endpoint (§1.3 + Chapter 4). After setting `false`, all requests must carry a Service Token |
-| `auth.service_token` | `""` | Once set, requests with a Service-token header must match this secret. Combined with `allow_anonymous=false` for intranet auth |
+| `auth.service_token` | `""` | **Non-empty = enforced mode**: all requests must carry and match this secret; missing/mismatched are rejected (no anonymous fallback); after matching, registry admission runs on the token-tail / A5-injected identity |
+| `auth.allow_anonymous` | `true` | **Effective only when `service_token` is empty**. `true` = intranet mode (product default): identity-less requests pass as anonymous — applies only to a **fully trusted intranet/local machine**; whenever Service listens on `0.0.0.0` and is routable from an untrusted network, set `service_token` to enter enforced mode (or `allow_anonymous: false` to reject identity-less requests). For public exposure, always front it with an Endpoint (§1.3 + Chapter 4) |
+| `live_config.enabled` | `false` | Config hot-reload gate switch (`AI:text-cli;config` meta-directive, runtime feature, see §3.3 built-in domains). Default off — when off the directive replies with a disabled notice |
+| `live_config.token` | `""` | live-config independent token (independent of `auth.service_token`; a second line of defense for intranet anonymous mode). Empty = the directive is unusable |
 | `paths.packages` | `../packages` | Directory scanned by `text-cli;install` for directive packages |
 | `paths.map_enabled` | `false` | Controls whether `mode:"map"` takes effect. map is inbound; default off. Deployer sets `true` to enable. env: `MAP_ENABLED=true/false` |
 | `paths.map_max_iter` | `100` | Upper bound on elements per map iteration. Adjust as needed by the deployer (≤1000 code hard cap). LLM need not be aware of this config. env: `MAP_MAX_ITER=<n>` |
@@ -459,7 +474,7 @@ Service is the core orchestration platform for all directive packages. The capab
 AI:text-cli;install,<package-name>
 ```
 
-Install chain: validate schema → copy files → `import_module` loads the new module directly → handler is immediately available. **No Service restart needed after install.** (update/--force scenarios clear old registrations and module references first, then re-import, also effective immediately.)
+The install chain is **transactional**: validate schema → deploy files → install dependencies → handler import gate → register → hot-load. Any transactional step failing (dependency install failure, handler import failure) triggers a **full rollback** (no residue in `packages/`, schema, or manifest) and returns top-level `status: error` — there is no half-installed state where "the manifest shows installed but calls fail". **No Service restart needed after a successful install** (update/--force scenarios clear old registrations and module references first, then re-import, also effective immediately); after fixing the environment (e.g. installing dependencies online), reinstall directly — **no `--force` needed**.
 
 ```bash
 # Force overwrite
@@ -488,12 +503,32 @@ curl ... -d '{"prompt":"AI:text-cli;uninstall,tc-math"}'
 
 | Domain | Capability |
 |--------|-----------|
-| `text-cli` | install / uninstall / export / export-all / packages / query / path / pro / sync-copilot |
+| `text-cli` | install / uninstall / export / export-all / packages / query / path / pro / config / sync-copilot |
 | `key` | Key CRUD |
 | `quota` | Quota management |
 | `task` | Async task lifecycle |
 
-> Superficially consistent with SPEC §6.2.1 meta-directives (8): install / uninstall / export / export-all / packages / query / path / pro; `sync-copilot` is an additional meta-directive for Service→Copilot linkage (see §3.18).
+> Superficially consistent with SPEC §6.2.1 meta-directives (8): install / uninstall / export / export-all / packages / query / path / pro; `sync-copilot` (see §3.18) and `config` (see below) are runtime-added meta-directives (not yet in the SPEC).
+
+##### config meta-directive (config hot-reload · runtime feature)
+
+```
+AI:text-cli;config,<token>,<get|post>,<pkg>[,<json>]
+```
+
+Modify an installed package's config without restart. Gate order: check the switch first (`live_config.enabled`, default off; when off the directive replies with a disabled notice without exposing token details) → verify the independent token (unrelated to `auth.service_token`; a second line of defense for intranet anonymous mode) → verify the package is installed → forward to the package handler's `runtime_config` hook. If the package does not implement the hook it returns `does not support live-config` (fallback: restart after config changes, or reinstall with `install,<pkg>,--force`).
+
+```bash
+# Read current config (get)
+curl ... -d '{"prompt":"AI:text-cli;config,<token>,get,image"}'
+# → {"status":"ok","config":{...}}
+
+# Apply new config (post, write-then-read echo — confirm it took effect in the same step)
+curl ... -d '{"prompt":"AI:text-cli;config,<token>,post,image,{\"allowed_paths\":[\"/data/media\"]}"}'
+# → {"status":"ok","config":{"allowed_paths":["/data/media"]}}
+```
+
+> Runtime feature, not yet in the SPEC. Package-side hook contract (`runtime_config(action, payload)` fixed signature, get/post echo envelope) is in the package dev guide §2.4.1; at install time the runtime probes the hook and marks `live_config` in the manifest.
 
 ---
 
@@ -540,6 +575,28 @@ On step failure, automatically degrade per `degradation[]`. If all fail, returns
 #### 3.7 Inline JSON & Registration
 
 Send path JSON directly in the request body (auto-detected when starting with `{`). `--register` registers the path as a discoverable directive with `runtime=pipeline`.
+
+Ad-hoc orchestration supports **two launch forms**:
+
+| Form | Syntax | Suitable for |
+|------|------|---------|
+| **Dual JSON** (with external input) | `AI:text-cli;path,{...path...},{...input...}` | The path references `{input.xxx}`; the caller passes params (generic/reusable pipelines) |
+| **Single JSON** (self-contained, ⭐ lightweight) | `AI:text-cli;path,{...path...}` | The path **hardcodes the start + cross-step interpolation**, no external input needed (one-off verification/deterministic scenarios) |
+
+**Key points**:
+- If the path uses `{input.xxx}` it must carry the second JSON; otherwise interpolation is missing and the directive receives the raw template (e.g. tc-math reports `unsupported AST node: Set`)
+- When the path does not reference input (hardcoded + `{var.field}` internal data flow), single JSON suffices — no `input_schema` or params needed
+- **Recommended habit**: use single JSON for verification/deterministic scenarios (fast); dual JSON only for reuse/parametrization (with `--register` to settle it into a discoverable directive)
+
+**Single JSON example** (Pythagoras, hardcoded 3/4 + cross-step interpolation — the §1.4 end-to-end example):
+
+```bash
+curl -s -X POST http://localhost:28050/text-cli/cli \
+  -d '{"prompt":"AI:text-cli;path,{\"id\":\"pythagorean-fixed\",\"steps\":[{\"id\":\"sq_a\",\"instruction\":\"tc-math;eval,3**2\",\"output_as\":\"a2\"},{\"id\":\"sq_b\",\"instruction\":\"tc-math;eval,4**2\",\"output_as\":\"b2\"},{\"id\":\"sum\",\"instruction\":\"tc-math;eval,{a2.result}+{b2.result}\",\"output_as\":\"s\"},{\"id\":\"root\",\"instruction\":\"tc-math;eval,sqrt({s.result})\",\"output_as\":\"hyp\"}]"}'
+# → {"status":"ok","result":5.0}
+```
+
+**Dual JSON example** (same path parametrized; file version in §3.4): `AI:text-cli;path,{...path, with input_schema...},{...input...}` — inline or file both work; input is injected via `{input.xxx}` interpolation.
 
 #### 3.8 Cross-Node
 
@@ -1162,7 +1219,7 @@ curl -X POST http://localhost:29050/text-cli/cli \
 }
 ```
 
-Supports inline JSON (send `{...}` directly in the request body, no file needed).
+Supports inline JSON (send `{...}` directly in the request body, no file needed; single/dual launch forms see §3.7).
 
 ### C. MCP Configuration
 
@@ -1239,6 +1296,7 @@ text-cli's runtime state is spread across several JSON/YAML files. The table bel
 
 | File | Writer | Reader | Responsibility |
 |------|--------|--------|----------------|
+| `config/installed_packages.json` | `text-cli;install` / `uninstall` | install installed-check, `text-cli;config` gate, list/export | Installed package manifest (incl. `live_config` probe flag, see §3.3) |
 | `handlers/schema/` | `text-cli;install` | `text-cli;query` real-time scan | Directive package Schema (full-directory scan per query, see §3.2) |
 | `proxy_routes.json` | `sync-copilot` | Service proxy forward | Copilot directive routing |
 | `/text-cli/skills` endpoint | Service runtime | Endpoint aggregation | Exposed directive list (static pull, §Part E Supplement) |
@@ -1248,4 +1306,4 @@ text-cli's runtime state is spread across several JSON/YAML files. The table bel
 | `aggregate/map.json` | User config | Aggregate degradation | Multi-provider degradation order |
 | `key_routing.json` | Copilot config | `KeyRouter` | Key source declaration (deny by default, §3.19) |
 
-> This is a known implementation-layer characteristic (multiple JSON files each a source of truth); the document presents it faithfully; cross-file consistency is maintained by the deployer.
+

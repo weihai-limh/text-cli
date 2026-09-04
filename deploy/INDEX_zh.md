@@ -9,7 +9,7 @@ text-cli 采用渐进式部署——从零依赖的协议层到全量技能即�
 | 层级 | 目录 | 运行时 | 说明 |
 |:---:|------|------|------|
 | A0 | `A0-protocol/` | — | 协议规范 + 零依赖调用示例（shell/call.sh、call.ps1 + python/call.py + js/call.js） |
-| A1 | `A1-skill/` | — | Agent Skill 定义层（SKILL.md + skill.py + 示例 skills） |
+| A1 | `A1-skill/` | — | Agent Skill 定义层（SKILL + tc-web-chat + phase-kernel） |
 | A2 | `A2-copilot/` | copilot (:20260) | 本地 AI 调度——cmd engine + Skill Bridge + 包管理 |
 | A3 | `A3-service/` | service (:28050) | 平台管理核心——包安装/卸载 + 指令发现 + 技能暴露 + NoCode 引擎 |
 | A4 | `A4-paths/` | service (:28050) | 路径编排——指令链声明 + 委托调度 + 降级递补 + 循环迭代(map) |
@@ -24,7 +24,7 @@ text-cli 采用渐进式部署——从零依赖的协议层到全量技能即�
 
 ## 旁路服务
 
-非 Python 运行时，与层级导航平行但独立部署，不参与 A2→A9 累积链。`bypass-service/` 由 `build-all.py` 直通模式同步，覆盖五种形态：本地包加载器（pypi / npm）、云函数网关（cloudbase）、边缘计算网关（cloudflare D1）、通用 JS 逻辑层（tc-js-skeleton）、dsh 承载（dsh-tc-runtime / dsh-tc-bridge）。
+非 Python 运行时，与层级导航平行但独立部署，不参与 A2→A9 累积链。`bypass-service/` 由 `build-all.py` 直通模式同步，覆盖五种形态：本地包执行器（pypi / npm）、边缘计算网关（cloudflare D1）、通用 JS 逻辑层（tc-js-skeleton）、dsh 承载（dsh-tc-runtime / dsh-tc-bridge）。
 
 | 层级 | 平台 | 目录 | 运行时 | 说明 |
 |:---:|------|------|------|------|
@@ -32,13 +32,15 @@ text-cli 采用渐进式部署——从零依赖的协议层到全量技能即�
 | BYPASS | cloudflare | `bypass-service/cloudflare/` | 边缘计算 | Cloudflare Workers D1 多功能版——可执行包存 D1 + 受限执行 + 单 Service-token 闭环 |
 | BYPASS | dsh | `bypass-service/dsh/` | dsh 承载 | dsh-tc-runtime（Cordis 插件集）/ dsh-tc-bridge（tc 指令消费能力缝） |
 | BYPASS | tc-js | `bypass-service/tc-js-skeleton/` | 通用 JS | 通用 JS 逻辑层真源（12 个 textcli-core-* 组件，洋葱分层） |
-| BYPASS | pypi / npm | `bypass-service/pypi/` `bypass-service/npm/` | 包加载器 | pip / npm 零依赖指令包加载器——任意 Python / Node.js 环境直接加载执行 |
+| BYPASS | pypi / npm / core-c / core-rust | `bypass-service/pypi/` `bypass-service/npm/` `bypass-service/text-cli-core-c/` `bypass-service/text-cli-core-rust/`  | 包执行器 | 多语言指令包加载器—— Python / js / c / rust 环境直接加载执行 |
 
-> AWS Lambda / 阿里云函数计算等云函数平台按需追加；Cloudflare 已以 D1 多功能版落地。详见 `bypass-service/docs/INDEX_zh.md`。
+
+
+> 详见 `bypass-service/docs/INDEX_zh.md`。
 
 ## 标准运行时(基于python)典型分发目录
 
-A2、A3、A9 是三个典型直接部署的运行时目标。项目提供它们的'container','win','linux'形式的快速部署包。
+A2、A3、A9 是三个典型直接部署的运行时目标。项目提供它们的'container','win','linux','mac'形式的快速部署包。
 
 A2 是独立 copilot，A3 累积了 copilot(A2) +基础 service，
 A4、A6、A7、A8、A9 每层的新增内容都是对 service 的更新逐层累积层，
@@ -119,8 +121,9 @@ python3 main.py
 | `skeleton-container/A3-service/` | A3 Docker 部署 |
 | `skeleton-container/A5-endpoint/` | A5 Docker 部署（:29050，网关面） |
 | `skeleton-container/A9-advanced/` | A9 Docker 部署（:28050 + :9020） |
-| `skeleton-win/` | Windows 封装（构建产物输出目录——由 `scripts/release/win/build.py` 生成，详见目录内 `README_zh.md`） |
-| `skeleton-linux/` | Linux 封装（构建产物输出目录——由 `scripts/release/ubuntu/build.py` 生成，详见目录内 `README_zh.md`） |
+| `skeleton-win/` | Windows 封装（构建产物输出目录——由 `scripts/release/win/build.py` 生成） |
+| `skeleton-linux/` | Linux 封装（构建产物输出目录——由 `scripts/release/ubuntu/build.py` 生成） |
+| `skeleton-mac/` | macOS 封装（构建产物输出目录——由 `scripts/release/mac-arm/build.py` 生成） |
 
 ## A5 子产品
 

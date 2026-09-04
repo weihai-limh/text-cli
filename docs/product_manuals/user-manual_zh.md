@@ -1,9 +1,9 @@
 # text-cli 使用手册
 
-> 本手册随所有分发包（Windows / Linux / Docker）一同分发。  
+> 本手册随所有分发包（Windows / Linux / macOS / Docker）一同分发。  
 > 四个产品可独立部署、独立使用——你拿到的制品只含其中部分时，跳读对应章节即可。  
 > 本制品基于 text-cli (MIT) 的协议规范工作。  
-> 手册修订：2026-07-31
+> 手册修订：2026-09-04
 
 ---
 
@@ -137,6 +137,8 @@ chmod +x start.sh
 ```
 
 停止：`./end.sh`（`fuser -k` 按端口停止）
+
+> macOS：部署同 Linux（`.tar.gz`，`bash start.sh`）。
 
 #### Docker
 
@@ -296,7 +298,7 @@ curl -X POST http://localhost:<port>/text-cli/cli \
 | `ACCESS_DENIED` | Access Token 无效 | Endpoint 鉴权失败 |
 | `SERVICE_DENIED` | Service Token 无效或**明确拒止**（非配额耗尽） | 提供方拒止（配额耗尽走 `status:stop` 降级链，见 §3.11，不返回此错误码） |
 
-> **示例约定**：为阅读简洁，本手册所有 `→ {...}` 指令调用示例**仅展示 `rst_data` 字段的内容**（handler 返回的 JSON 对象，骨架直接承载于 `rst_data`）；真实 HTTP 响应一律为上方信封格式（本节约 L211）。调用方规则：**直接读取 `rst_data`**；仅当 `rst_types="text"` 且数据恰为 `{"text": ...}` 形态（个别 handler 的业务返回含 `text` 字段）时才取 `.text`，其余情况按内容类型映射直接使用 `rst_data`（如 `picture`/`video`/`audio`/`file` 取 `.url`）。例如 L251 的 `→ {"status":"ok","result":7}` 即 `rst_data` 本身。
+> **示例约定**：为阅读简洁，本手册所有 `→ {...}` 指令调用示例**仅展示 `rst_data` 字段的内容**（handler 返回的 JSON 对象，骨架直接承载于 `rst_data`）；真实 HTTP 响应一律为上方**响应信封**格式。调用方规则：**直接读取 `rst_data`**；仅当 `rst_types="text"` 且数据恰为 `{"text": ...}` 形态（个别 handler 的业务返回含 `text` 字段）时才取 `.text`，其余情况按内容类型映射直接使用 `rst_data`（如 `picture`/`video`/`audio`/`file` 取 `.url`）。例如端到端验证中的 tc-math 示例 `→ {"status":"ok","result":7}` 即 `rst_data` 本身。
 
 **端到端验证**（Service 端口）：
 
@@ -313,6 +315,13 @@ curl -s -X POST http://localhost:28050/text-cli/cli \
 curl -s -X POST http://localhost:28050/text-cli/cli \
   -d '{"prompt":"AI:tc-math;eval,1+2*3"}'
 # → {"status":"ok","result":7}
+
+# 路径编排——多条指令串成管道（单 JSON 自包含，无需文件/外部输入）
+curl -s -X POST http://localhost:28050/text-cli/cli \
+  -d '{"prompt":"AI:text-cli;path,{\"id\":\"pythagorean-fixed\",\"steps\":[{\"id\":\"sq_a\",\"instruction\":\"tc-math;eval,3**2\",\"output_as\":\"a2\"},{\"id\":\"sq_b\",\"instruction\":\"tc-math;eval,4**2\",\"output_as\":\"b2\"},{\"id\":\"sum\",\"instruction\":\"tc-math;eval,{a2.result}+{b2.result}\",\"output_as\":\"s\"},{\"id\":\"root\",\"instruction\":\"tc-math;eval,sqrt({s.result})\",\"output_as\":\"hyp\"}]"}'
+# → {"status":"ok","result":5.0}   # 3²+4²=25 → √25
+
+# 两种发射形态（单/双 JSON）与 input 语义见 §3.7
 ```
 
 ### 1.5 配置
@@ -329,9 +338,13 @@ server:
   instructions_language: auto  # 指令查询默认语言: zh | en | auto
 
 auth:
-  allow_anonymous: true      # 内网模式：允许匿名访问（产品默认）
-  service_token: ""          # Service Token 共享密钥（空=不校验）
+  service_token: ""          # Service Token 共享密钥：非空=强制模式（所有请求必须携带且匹配，缺失/不匹配一律拒绝）
+  allow_anonymous: true      # 匿名访问（仅在 service_token 为空时生效）：true=内网模式允许匿名（产品默认），false=无身份码请求一律拒绝
   count_calls: false          # 是否记录调用审计日志
+
+live_config:
+  enabled: false             # 配置热更新闸门开关（AI:text-cli;config 元指令，默认关闭）
+  token: ""                  # live-config 独立 token（独立于 auth.service_token）
 
 paths:
   # TEXT_CLI_HOME 由启动脚本注入，不可在此配置
@@ -355,8 +368,10 @@ mesh:
 | 配置 | 默认值 | 说明 |
 |------|--------|------|
 | `server.instructions_language` | `auto` | query 输出语言。`auto` = 规范字段（英文）；`zh` / `en` = 优先对应本地化字段。调用方可尾参覆盖：`AI:text-cli;query,zh` |
-| `auth.allow_anonymous` | `true` | 内网模式默认允许匿名访问。`allow_anonymous: true` 仅适用于**完全受信的内网/本机**；只要 Service 监听 `0.0.0.0` 且可被非受信网络路由到，必须设 `allow_anonymous: false` 并填 `service_token`。对公网暴露务必前置 Endpoint（§1.3 + §四）。设为 `false` 后所有请求须携带 Service Token |
-| `auth.service_token` | `""` | 设值后，带 Service-token 头的请求须匹配此密钥。配合 `allow_anonymous=false` 实现内网鉴权 |
+| `auth.service_token` | `""` | **非空 = 强制模式**：所有请求必须携带且匹配此密钥，缺失/不匹配一律拒绝（不落匿名分支）；匹配后按 token 尾码 / A5 注入身份做 registry 准入 |
+| `auth.allow_anonymous` | `true` | **仅在 `service_token` 为空时生效**。`true` = 内网模式（产品默认）：无身份码请求以匿名放行，仅适用于**完全受信的内网/本机**；只要 Service 监听 `0.0.0.0` 且可被非受信网络路由到，应设 `service_token` 进入强制模式（或 `allow_anonymous: false` 拒绝无身份请求）。对公网暴露务必前置 Endpoint（§1.3 + §四） |
+| `live_config.enabled` | `false` | 配置热更新闸门开关（`AI:text-cli;config` 元指令，运行时特性，见 §3.3 内置域）。默认关闭——关闭时指令返回 disabled 提示 |
+| `live_config.token` | `""` | live-config 独立 token（独立于 `auth.service_token`，为内网匿名模式的二次防线）。为空时指令不可用 |
 | `paths.packages` | `../packages` | `text-cli;install` 扫描指令包的目录 |
 | `paths.map_enabled` | `false` | 控制 `mode:"map"` 是否生效。map 是入站能力，默认关闭。部署者设 `true` 开启。env：`MAP_ENABLED=true/false` |
 | `paths.map_max_iter` | `100` | map 单次迭代元素上限。部署者按需调整（≤1000 代码硬上限）。LLM 无需感知此配置。env：`MAP_MAX_ITER=<n>` |
@@ -463,7 +478,7 @@ Service 是所有指令包的核心调度平台。以下能力按累积层级组
 AI:text-cli;install,<package-name>
 ```
 
-install 链：校验 schema → 复制文件 → `import_module` 直接加载新模块 → handler 即时可用。**安装后无需重启 Service。**（update/--force 场景先清理旧注册和模块引用再重新 import，同样即时生效。）
+install 链为**事务化**：校验 schema → 复制文件 → 安装依赖 → handler 试导入门禁 → 登记 → 热加载。任一事务步失败（依赖装不上、handler 导入失败）即**整体回滚**（`packages/`、schema、manifest 均无残留），返回顶层 `status: error`——不存在"manifest 显示已装、调用却报错"的半装状态。**安装成功后无需重启 Service**（update/--force 场景先清理旧注册和模块引用再重新 import，同样即时生效）；失败修复环境（如联网补依赖）后直接重装即可，**无需 `--force`**。
 
 ```bash
 # 强制覆盖
@@ -492,12 +507,32 @@ curl ... -d '{"prompt":"AI:text-cli;uninstall,tc-math"}'
 
 | 域 | 能力 |
 |------|------|
-| `text-cli` | install / uninstall / export / export-all / packages / query / path / pro / sync-copilot |
+| `text-cli` | install / uninstall / export / export-all / packages / query / path / pro / config / sync-copilot |
 | `key` | 密钥 CRUD |
 | `quota` | 配额管理 |
 | `task` | 异步任务生命周期 |
 
-> 与 SPEC §6.2.1 元指令表面一致（8 条）：install / uninstall / export / export-all / packages / query / path / pro；`sync-copilot` 为 Service→Copilot 联动的附加元指令（见 §3.18）。
+> 与 SPEC §6.2.1 元指令表面一致（8 条）：install / uninstall / export / export-all / packages / query / path / pro；`sync-copilot`（见 §3.18）与 `config`（见下）为运行时附加元指令（暂未纳入 SPEC）。
+
+##### config 元指令（配置热更新 · 运行时特性）
+
+```
+AI:text-cli;config,<token>,<get|post>,<pkg>[,<json>]
+```
+
+免重启修改已装指令包的配置。闸门顺序：先查开关（`live_config.enabled`，默认关闭，关闭时返回 disabled 提示、不暴露 token 细节）→ 验独立 token（与 `auth.service_token` 无关，为内网匿名模式的二次防线）→ 校验包已安装 → 转发给该包 handler 的 `runtime_config` 钩子。包未实现钩子时返回 `does not support live-config`（此时按传统方式：改配置后重启，或 `install,<pkg>,--force` 重装）。
+
+```bash
+# 读当前配置（get）
+curl ... -d '{"prompt":"AI:text-cli;config,<token>,get,image"}'
+# → {"status":"ok","config":{...}}
+
+# 应用新配置（post，写后读回显——同一步结果即可确认生效）
+curl ... -d '{"prompt":"AI:text-cli;config,<token>,post,image,{\"allowed_paths\":[\"/data/media\"]}"}'
+# → {"status":"ok","config":{"allowed_paths":["/data/media"]}}
+```
+
+> 运行时特性，暂未纳入 SPEC。包侧钩子契约（`runtime_config(action, payload)` 固定签名、get/post 同构回显）见包开发指南 §2.4.1；install 时运行时探测钩子并在 manifest 标记 `live_config`。
 
 ---
 
@@ -544,6 +579,28 @@ curl ... -d '{"prompt":"AI:text-cli;path,pythagorean,{\"a\":3,\"b\":4}"}'
 #### 3.7 Inline JSON 与注册
 
 直接在请求体发路径 JSON（`{` 开头自动识别）。`--register` 将路径注册为 `runtime=pipeline` 可发现指令。
+
+临时编排支持**两种发射形态**：
+
+| 形态 | 语法 | 适用场景 |
+|------|------|---------|
+| **双 JSON**（带外部输入） | `AI:text-cli;path,{...路径...},{...输入参数...}` | 路径引用 `{input.xxx}`，需要调用方传参（通用/可复用管道） |
+| **单 JSON**（自包含，⭐ 轻量） | `AI:text-cli;path,{...路径...}` | 路径**硬编码起点 + 跨步插值**，不需要外部输入（一次性验证/确定场景） |
+
+**要点**：
+- 路径里用了 `{input.xxx}` 就必须带第二段 JSON，否则插值缺失、指令收到原样模板（如 tc-math 报 `unsupported AST node: Set`）
+- 路径不引用 input（硬编码 + `{变量.field}` 内部数据流）时，单 JSON 即可，省掉 `input_schema` 和参数
+- **推荐习惯**：验证/确定场景用单 JSON（快）；要复用/传参才用双 JSON（配合 `--register` 沉淀为可发现指令）
+
+**单 JSON 示例**（勾股定理，硬编码 3/4 + 跨步插值，即 §1.4 端到端示例）：
+
+```bash
+curl -s -X POST http://localhost:28050/text-cli/cli \
+  -d '{"prompt":"AI:text-cli;path,{\"id\":\"pythagorean-fixed\",\"steps\":[{\"id\":\"sq_a\",\"instruction\":\"tc-math;eval,3**2\",\"output_as\":\"a2\"},{\"id\":\"sq_b\",\"instruction\":\"tc-math;eval,4**2\",\"output_as\":\"b2\"},{\"id\":\"sum\",\"instruction\":\"tc-math;eval,{a2.result}+{b2.result}\",\"output_as\":\"s\"},{\"id\":\"root\",\"instruction\":\"tc-math;eval,sqrt({s.result})\",\"output_as\":\"hyp\"}]"}'
+# → {"status":"ok","result":5.0}
+```
+
+**双 JSON 示例**（同一路径参数化，文件版见 §3.4）：`AI:text-cli;path,{...路径, 含 input_schema...},{...input...}`——inline 或文件均可，input 经 `{input.xxx}` 插值注入。
 
 #### 3.8 跨节点
 
@@ -1039,7 +1096,9 @@ if r.is_async:
 r = call("AI:nonexistent;action")
 if not r.ok:
     print(f"[{r.err_code}] {r.data}")  # → [ERR_NOT_FOUND] ...
-```---
+```
+
+---
 
 ## 五、Endpoint
 
@@ -1167,7 +1226,7 @@ curl -X POST http://localhost:29050/text-cli/cli \
 }
 ```
 
-支持 inline JSON（请求体直接发 `{...}`，无需文件）。
+支持 inline JSON（请求体直接发 `{...}`，无需文件；单/双发射形态见 §3.7）。
 
 ### C. MCP 配置
 
@@ -1244,6 +1303,7 @@ text-cli 的运行时状态分散在若干 JSON/YAML 文件中，下表逐条标
 
 | 文件 | 写入方 | 读取方 | 职责 |
 |------|--------|--------|------|
+| `config/installed_packages.json` | `text-cli;install` / `uninstall` | install 已装校验、`text-cli;config` 闸门、list/export | 已装包清单（含 `live_config` 探测标记，见 §3.3） |
 | `handlers/schema/` | `text-cli;install` | `text-cli;query` 实时扫描 | 指令包 Schema（每次 query 全目录扫描，见 §3.2） |
 | `proxy_routes.json` | `sync-copilot` | Service 代理转发 | Copilot 指令路由 |
 | `/text-cli/skills` 端点 | Service 运行时 | Endpoint 聚合 | 对外暴露的指令清单（静态拉取，§Part E 补充） |
@@ -1253,4 +1313,4 @@ text-cli 的运行时状态分散在若干 JSON/YAML 文件中，下表逐条标
 | `aggregate/map.json` | 用户配置 | 聚合降级 | 多提供方降级顺序 |
 | `key_routing.json` | Copilot 配置 | `KeyRouter` | 密钥来源声明（默认拒绝，§3.19） |
 
-> 这是实现层的已知特征（多套 JSON 各自为真相源），文档如实呈现；跨文件一致性由部署者维护。
+
