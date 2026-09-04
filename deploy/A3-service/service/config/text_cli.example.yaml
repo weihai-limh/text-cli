@@ -24,15 +24,30 @@ server:
   instructions_language: auto  # 指令查询默认语言
 
 auth:
-  # Anonymous access (匿名访问): allow requests without a Service Token.
-  # true = internal-network mode (内网模式, A3 default by product design).
-  # false = require Service Token for all requests (所有请求须携带 Service Token).
-  allow_anonymous: true  # 是否允许匿名访问
   # Shared secret (共享密钥) for Service Token verification (SPEC §3.1).
-  # Empty = no verification (不校验). Set a value when callers must present a matching Service-token header.
+  # NON-EMPTY = enforced mode (强制模式): ALL requests must carry a matching
+  #   Service-token header; missing/mismatched → rejected, no anonymous fallback
+  #   (service_token 非空 = 强制模式：所有请求必须携带且匹配，缺失/不匹配一律拒绝).
+  # Empty = not enforced (不校验) — anonymous policy below then decides access.
   service_token: ""  # Service Token 共享密钥
+  # Anonymous access (匿名访问): ONLY effective when service_token is empty
+  # (仅在 service_token 为空时生效).
+  # true = internal-network mode (内网模式, A3 default by product design) —
+  #   requests without an identity are allowed as anonymous (identity_code = "").
+  # false = requests without an identity are rejected (无身份码的请求一律拒绝).
+  allow_anonymous: true  # 是否允许匿名访问（仅 service_token 为空时生效）
   # Call audit (调用审计): write call logs to token_call_logs table (requires SQLite / A6+).
   count_calls: false  # 是否记录调用审计日志
+
+live_config:
+  # Package live-config gate (配置热更新闸门) — runtime-local meta directive
+  #   AI:text-cli;config,<token>,<get|post>,<pkg>[,<json>]
+  # enabled (默认 false): gate closed → directive answers
+  #   "live-config is disabled, please contact the administrator to enable it".
+  # token: independent second-line credential (独立于 auth.service_token；
+  #   内网匿名模式下的二次防线). Empty token = never matches (gate unusable).
+  enabled: false  # 是否开启配置热更新
+  token: ""  # live-config 独立 token
 
 paths:
   # TEXT_CLI_HOME is set by start.bat / start.sh at launch (环境变量由启动脚本注入).
