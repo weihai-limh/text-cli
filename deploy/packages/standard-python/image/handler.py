@@ -30,6 +30,7 @@ logger = logging.getLogger("text-cli.image")
 
 _CONFIG: dict = {}
 _PATH_WHITELIST: list[str] = []
+_PROJECT_ROOT: pathlib.Path | None = None
 _CACHE: dict[str, dict] = {}
 _CACHE_TTL = 300  # seconds
 
@@ -43,8 +44,9 @@ def init_image_handler(project_root: str = None):
     Config defines allowed file paths.  No config = no paths allowed.
     User must create/edit service/config/image.json before using directives.
     """
-    global _CONFIG, _PATH_WHITELIST
+    global _CONFIG, _PATH_WHITELIST, _PROJECT_ROOT
     if project_root:
+        _PROJECT_ROOT = pathlib.Path(project_root)
         config_path = pathlib.Path(project_root) / "config" / "image.json"
         if config_path.exists():
             try:
@@ -55,6 +57,44 @@ def init_image_handler(project_root: str = None):
                 logger.warning("Failed to load image config: %s", e)
     if not _PATH_WHITELIST:
         logger.warning("image: no allowed_paths configured in service/config/image.json")
+
+
+def runtime_config(action: str, payload: dict | None = None) -> dict | None:
+    """live-config hook（可选钩子契约，issues ISS-02）。
+
+    get  → {"status": "ok", "config": <当前配置>}（包自行脱敏）
+    post → merge 校验 + 落盘 service/config/image.json + 更新模块态，
+           返回应用后配置回显（写后读语义，LLM 可在同一步确认生效）。
+    返回 None = 不支持该 action。错误走 reason。
+    """
+    global _CONFIG
+    if action == "get":
+        return {"status": "ok", "config": dict(_CONFIG)}
+
+    if action == "post":
+        if not isinstance(payload, dict):
+            return {"status": "error", "reason": "post payload must be a JSON object"}
+        new_config = dict(_CONFIG)
+        new_config.update(payload)
+        allowed = new_config.get("allowed_paths")
+        if not isinstance(allowed, list) or not all(isinstance(p, str) for p in allowed):
+            return {"status": "error", "reason": "allowed_paths must be a list of strings"}
+        if _PROJECT_ROOT is None:
+            return {"status": "error", "reason": "handler not initialised, cannot persist config"}
+        config_path = _PROJECT_ROOT / "config" / "image.json"
+        try:
+            config_path.parent.mkdir(parents=True, exist_ok=True)
+            config_path.write_text(
+                json.dumps(new_config, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+        except Exception as e:
+            return {"status": "error", "reason": f"failed to persist config: {e}"}
+        _CONFIG = new_config
+        _PATH_WHITELIST[:] = allowed  # 就地更新模块态，承担"重载"
+        logger.info("image config updated via live-config, allowed_paths: %s", allowed)
+        return {"status": "ok", "config": dict(_CONFIG)}
+
+    return None
 
 
 def _check_path(path_str: str) -> tuple[pathlib.Path | None, str | None]:
@@ -71,9 +111,10 @@ def _check_path(path_str: str) -> tuple[pathlib.Path | None, str | None]:
         return None, f"Invalid path: {path_str}"
     for entry in _PATH_WHITELIST:
         try:
-            p.relative_to(entry)
+            base = pathlib.Path(entry).resolve()  # 相对条目按 cwd 解析（runtime 根），与 resolve 后的 p 同基比较
+            p.relative_to(base)
             return p, None
-        except ValueError:
+        except (ValueError, OSError):
             continue
     return None, f"Path not in allowed_paths: {path_str}"
 

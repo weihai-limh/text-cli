@@ -29,6 +29,10 @@ _DEFAULTS: dict = {
         "service_token": "",
         "count_calls": False,
     },
+    "live_config": {
+        "enabled": False,
+        "token": "",
+    },
     "paths": {
         "packages": "",
         "service_db": "",

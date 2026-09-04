@@ -68,6 +68,20 @@ def remove(package_id: str) -> bool:
     return existed
 
 
+def mark_fields(package_id: str, **fields) -> bool:
+    """Merge extra fields into an existing manifest entry (no-op if absent).
+
+    Used for install-time capability probes (e.g. live_config flag, ISS-02).
+    """
+    packages = _load()
+    entry = packages.get(package_id)
+    if not entry:
+        return False
+    entry.update(fields)
+    _save(packages)
+    return True
+
+
 def list_all() -> list[dict]:
     """List all installed packages."""
     return list(_load().values())

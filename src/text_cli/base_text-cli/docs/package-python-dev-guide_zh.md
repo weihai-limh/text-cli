@@ -121,6 +121,35 @@ def add(params: list[str]) -> dict:
 | `init_<name>_handler()` 初始化钩子（可选） | 包可定义模块级初始化函数，运行时装载包时调用并注入运行环境（如 `db_path` / `project_root`） |
 | 错误消息本地化 | 错误文案与正常输出一样进包内 i18n 表、按 `lang` 返回（默认语言 `zh`）；不要硬编码单一语言 |
 | 不存密钥 | 密钥走框架的 key registry，不硬编码在 handler 中 |
+| `runtime_config(action, payload)` 配置钩子（可选，运行时特性） | 包可定义模块级配置热更新钩子，配合运行时 `text-cli;config` 元指令实现免重启 get/post 包配置（见 §2.4.1） |
+
+### 2.4.1 可选钩子：runtime_config（配置热更新 · 运行时特性）
+
+> 说明：本钩子是**运行时特性**，暂未纳入 SPEC 协议规范；运行时稳定运行一段时间后另行评估是否升级为协议。
+
+运行时提供平台自管理元指令 `AI:text-cli;config,<token>,<get|post>,<pkg>[,<json>]`（默认关闭，需在 `text_cli.yaml` 的 `live_config` 段开启并设置独立 token）。包若希望支持配置热更新（免重启 / 免 `--force` 重装），在 handler.py 定义模块级固定签名函数：
+
+```python
+def runtime_config(action: str, payload: dict | None) -> dict | None:
+    ...
+```
+
+契约要点：
+
+| 项 | 约定 |
+|----|------|
+| 固定签名 | `runtime_config(action: str, payload: dict \| None) -> dict \| None`；模块级函数（非 `init_` 命名推断，运行时探测只需一次 `getattr`） |
+| `action` | `"get"` 读当前配置；`"post"` 应用新配置 |
+| `payload` | `get` 时为 `None`；`post` 时为调用方传入的 JSON 对象 |
+| 返回 `None` | = 不支持（该 action 或整体），运行时回 `does not support live-config` |
+| 回显外壳 | `get` / `post` 同构返回 `{"status": "ok", "config": <配置>}`；`post` 为**写后读回显**（应用后配置），调用方可在同一步结果确认生效 |
+| `config` 键 | 回显规范键；包自行脱敏（如密钥类字段）。个别无法回显的包允许省略（契约明示降级，调用方自行确认） |
+| 错误 | 走 `{"status": "error", "reason": "..."}`（§2.4 信封惯例），不得把错误塞进业务字段 |
+| post 语义 | 包自定全量替换或 merge、自行校验与落盘；`post` 直接更新模块态（承担"重载"），不必回调 `init_*` |
+| 模块态更新 | `post` 更新模块级变量时**必须 `global` 声明**——Python 函数内赋值即局部变量，缺声明则整个函数（含 get 分支）抛 `UnboundLocalError` |
+| 路径类配置 | 配置含路径时，**落盘校验与消费检查须同基解析**——明确相对路径的解析基准（相对哪个目录）并两侧一致，避免"post 成功、消费失效" |
+| 前置约定 | 包的 `init_*_handler()` 应可重复调用且幂等（框架可能在配置重载后重新 init） |
+| 探测标记 | install 时运行时探测一次钩子是否存在，并在 manifest 标记 `live_config: true/false` |
 
 ### 2.5 多语言
 
