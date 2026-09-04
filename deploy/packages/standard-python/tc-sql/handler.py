@@ -7,9 +7,9 @@ Four actions: query / tables / schema / count.
 import json
 import logging
 import sqlite3
-import threading
 from pathlib import Path
 
+from core.identity_context import get_identity
 from core.registry import directive
 
 logger = logging.getLogger(__name__)
@@ -39,8 +39,12 @@ def _load_permissions() -> dict:
         return json.load(f)
 
 
-def _get_auth_name() -> str | None:
-    return getattr(threading.current_thread(), "_ai_im_auth_name", None)
+def _get_identity() -> str:
+    """运行时注入的身份码（main.py 经 core.identity_context 注入 ContextVar）。
+
+    "" = 运行时处于内网匿名模式（鉴权未开启）——跟随运行时姿态，而非包自设。
+    """
+    return get_identity()
 
 
 def _parse_json_params(params: list[str], start_idx: int = 1) -> dict:
@@ -62,26 +66,37 @@ def _parse_json_params(params: list[str], start_idx: int = 1) -> dict:
     return json.loads(joined)
 
 
-def _resolve_db(auth_name: str, db_alias: str) -> dict:
+def _resolve_access(db_alias: str) -> dict:
+    """身份 → 权限解析，跟随运行时鉴权姿态（issues ISS-06 重拍板语义）。
+
+    - 身份为空 = 运行时内网匿名模式（鉴权未开启）→ 使用 sql_permissions.json
+      声明的 "anonymous" 作用域（管理面显式授权给匿名姿态的权限集）；
+    - 身份非空 = 按身份作用域校验；身份未登记时回退到声明的 "authenticated"
+      共享作用域（未声明则拒绝）。
+    """
     if not _permissions:
         raise RuntimeError("sql_permissions not loaded")
 
-    auth_perms = _permissions.get(auth_name)
-    if not auth_perms:
-        raise PermissionError(f"auth '{auth_name}' not found in sql_permissions")
+    identity = _get_identity()
+    if not identity:
+        scope = "anonymous"
+        auth_perms = _permissions.get(scope)
+        if not auth_perms:
+            raise PermissionError(
+                f"runtime is in anonymous mode but no '{scope}' scope exists in sql_permissions"
+            )
+    else:
+        scope = identity
+        auth_perms = _permissions.get(scope)
+        if not auth_perms:
+            scope = "authenticated"
+            auth_perms = _permissions.get(scope)
+        if not auth_perms:
+            raise PermissionError(f"auth '{identity}' not found in sql_permissions")
 
     db_perm = auth_perms.get(db_alias)
     if not db_perm:
-        raise PermissionError(f"database '{db_alias}' not found for auth '{auth_name}'")
-
-    driver = db_perm.get("driver", "sqlite")
-    if driver != "sqlite":
-        raise ValueError(f"driver '{driver}' not yet supported")
-
-    raw_path = db_perm.get("path")
-    if not raw_path:
-        raise ValueError(f"no path defined for database '{db_alias}'")
-
+        raise PermissionError(f"database '{db_alias}' not found for auth '{scope}'")
     return db_perm
 
 
@@ -117,11 +132,7 @@ def tc_sql_query(params: list[str]) -> dict:
         return {"status": "error", "reason": f"invalid JSON: {e}"}
 
     try:
-        auth_name = _get_auth_name()
-        if not auth_name:
-            return {"status": "error", "reason": "not authenticated"}
-
-        db_perm = _resolve_db(auth_name, db_alias)
+        db_perm = _resolve_access(db_alias)
 
         table = query.get("table")
         if not table:
@@ -179,11 +190,7 @@ def tc_sql_tables(params: list[str]) -> dict:
 
     db_alias = params[0]
     try:
-        auth_name = _get_auth_name()
-        if not auth_name:
-            return {"status": "error", "reason": "not authenticated"}
-
-        db_perm = _resolve_db(auth_name, db_alias)
+        db_perm = _resolve_access(db_alias)
         db_path = _resolve_db_path(db_perm)
         conn = _get_conn(db_path)
         cursor = conn.cursor()
@@ -220,11 +227,7 @@ def tc_sql_schema(params: list[str]) -> dict:
         return {"status": "error", "reason": f"invalid JSON: {e}"}
 
     try:
-        auth_name = _get_auth_name()
-        if not auth_name:
-            return {"status": "error", "reason": "not authenticated"}
-
-        db_perm = _resolve_db(auth_name, db_alias)
+        db_perm = _resolve_access(db_alias)
 
         table = query.get("table")
         if not table:
@@ -264,11 +267,7 @@ def tc_sql_count(params: list[str]) -> dict:
         return {"status": "error", "reason": f"invalid JSON: {e}"}
 
     try:
-        auth_name = _get_auth_name()
-        if not auth_name:
-            return {"status": "error", "reason": "not authenticated"}
-
-        db_perm = _resolve_db(auth_name, db_alias)
+        db_perm = _resolve_access(db_alias)
 
         table = query.get("table")
         if not table:
