@@ -124,6 +124,35 @@ def add(params: list[str]) -> dict:
 | `init_<name>_handler()` init hook (optional) | A package may define a module-level init function, called by the runtime when loading the package and injected with the runtime environment (e.g. `db_path` / `project_root`) |
 | Localized error messages | Error text and normal output alike go into the package's i18n table and are returned by `lang` (default language `zh`); do not hard-code a single language |
 | Do not store keys | Keys go through the framework's key registry, not hard-coded in the handler |
+| `runtime_config(action, payload)` config hook (optional, runtime feature) | A package may define a module-level config hot-reload hook that works with the runtime's `text-cli;config` meta directive for restart-free get/post of package config (see §2.4.1) |
+
+### 2.4.1 Optional hook: runtime_config (config hot-reload · runtime feature)
+
+> Note: this hook is a **runtime feature**, not yet part of the SPEC protocol; whether to promote it into the protocol will be evaluated after the runtime has proven stable for some time.
+
+The runtime provides the platform self-managed meta directive `AI:text-cli;config,<token>,<get|post>,<pkg>[,<json>]` (disabled by default; enable it in the `live_config` section of `text_cli.yaml` and set an independent token). To support config hot-reload (no restart / no `--force` reinstall), a package defines a module-level fixed-signature function in handler.py:
+
+```python
+def runtime_config(action: str, payload: dict | None) -> dict | None:
+    ...
+```
+
+Contract points:
+
+| Item | Convention |
+|------|------|
+| Fixed signature | `runtime_config(action: str, payload: dict \| None) -> dict \| None`; module-level function (no `init_` name inference — the runtime probe needs a single `getattr`) |
+| `action` | `"get"` reads the current config; `"post"` applies new config |
+| `payload` | `None` for `get`; the JSON object passed by the caller for `post` |
+| Return `None` | = not supported (this action or overall); the runtime replies `does not support live-config` |
+| Echo envelope | `get` / `post` both return `{"status": "ok", "config": <config>}`; `post` is a **write-then-read echo** (the applied config), so the caller can confirm it took effect in the same step |
+| `config` key | The canonical echo key; the package does its own redaction (e.g. secret-like fields). Packages that cannot echo may omit it (contract explicitly degrades; the caller must confirm on its own) |
+| Errors | Via `{"status": "error", "reason": "..."}` (§2.4 envelope convention); do not stuff errors into business fields |
+| post semantics | The package decides full replace or merge, does its own validation and persistence; `post` updates the module state directly (serving as the "reload"), no need to call back `init_*` |
+| Module-state updates | When `post` updates module-level variables, a **`global` declaration is mandatory** — in Python, assignment inside a function makes the name local; a missing declaration raises `UnboundLocalError` for the whole function (including the get branch) |
+| Path-like config | When config contains paths, **validation and consumption must resolve on the same base** — make the relative-path base (relative to which directory) explicit and consistent on both sides, avoiding "post succeeds, consumption fails" |
+| Precondition | The package's `init_*_handler()` should be repeatable and idempotent (the framework may re-init after a config reload) |
+| Probe marking | At install time the runtime probes once whether the hook exists and marks `live_config: true/false` in the manifest |
 
 ### 2.5 Multilingual
 

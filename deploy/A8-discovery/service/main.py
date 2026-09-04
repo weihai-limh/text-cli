@@ -350,7 +350,8 @@ async def health(request: Request):
 
     # Check if authenticated (for extended capabilities view)
     service_token = request.headers.get("Service-token")
-    auth = verify_service_token(service_token)
+    _identity_header = request.headers.get("X-Text-CLI-Identity")
+    auth = verify_service_token(service_token, _identity_header)
 
     if auth.allowed:
         # Authenticated: full capabilities snapshot
@@ -416,7 +417,7 @@ async def handle_directive(request: Request):
     _identity_header = request.headers.get("X-Text-CLI-Identity")
     import time
     _req_start = time.time()
-    auth = verify_service_token(service_token)
+    auth = verify_service_token(service_token, _identity_header)
     if not auth.allowed:
         return JSONResponse(
             status_code=403,

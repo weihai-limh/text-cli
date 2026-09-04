@@ -60,6 +60,19 @@
       "params": ["path_file", "initial_input"],
       "params_desc": "Path JSON file path, optional initial input",
       "category": "meta"
+    },
+    {
+      "domain": "text-cli",
+      "domain_zh": "文本指令",
+      "action": "config",
+      "action_zh": "配置",
+      "usage": "text-cli;config,<token>,<get|post>,<pkg>[,<json>]",
+      "usage_zh": "文本指令;配置,<token>,<get|post>,<包名>[,<json>]",
+      "description": "Live-config gate: get/post a package's config via its runtime_config hook (disabled by default, independent token, runtime-local)",
+      "description_zh": "配置热更新闸门：经包 runtime_config 钩子 get/post 包配置（默认关闭、独立 token、仅对实现钩子的包生效）",
+      "params": ["token", "get|post", "pkg", "json"],
+      "params_desc": "live-config token; action get/post; installed package id; JSON payload (post only). Common output keys: status/pkg/action/config/reason",
+      "category": "admin"
     }
   ]
 }

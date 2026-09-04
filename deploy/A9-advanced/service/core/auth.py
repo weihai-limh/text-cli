@@ -7,9 +7,35 @@ from datetime import datetime, timezone
 logger = logging.getLogger(__name__)
 
 # ── 配置 ────────────────────────────────────────
+# 唯一配置入口：text_cli.yaml auth 段（经 core.config.load_config() 统一读取，
+# env 覆盖（SERVICE_TOKEN / A3_ALLOW_ANONYMOUS / A3_COUNT_CALLS）由 config.py
+# 的 _ENV_OVERRIDES 提供，优先级 env > yaml > 默认）。下方模块级常量仅为
+# load_config() 不可用时的兜底缺省。
+# 生效时机：启动快照——首次调用 _auth_snapshot() 时加载并缓存，进程内不热更
+# （框架配置热更归 live-config 范畴，见 issues ISS-02）。
 SERVICE_TOKEN = os.getenv("SERVICE_TOKEN", "")
 A3_ALLOW_ANONYMOUS = os.getenv("A3_ALLOW_ANONYMOUS", "true").lower() == "true"
 A3_COUNT_CALLS = os.getenv("A3_COUNT_CALLS", "false").lower() == "true"
+
+_AUTH_SNAPSHOT: dict | None = None
+
+
+def _auth_snapshot() -> dict:
+    """Startup snapshot of the auth config section (loaded once, no hot reload)."""
+    global _AUTH_SNAPSHOT
+    if _AUTH_SNAPSHOT is None:
+        cfg: dict = {}
+        try:
+            from core.config import load_config
+            cfg = load_config().get("auth") or {}
+        except Exception as e:  # defensive: config loader unavailable → env defaults
+            logger.warning("load_config() unavailable, auth falls back to env defaults: %s", e)
+        _AUTH_SNAPSHOT = {
+            "service_token": str(cfg.get("service_token", SERVICE_TOKEN) or ""),
+            "allow_anonymous": bool(cfg.get("allow_anonymous", A3_ALLOW_ANONYMOUS)),
+            "count_calls": bool(cfg.get("count_calls", A3_COUNT_CALLS)),
+        }
+    return _AUTH_SNAPSHOT
 
 # SQLite DB 路径（与 main.py 的 SQLITE_DB_FILE 一致，通过环境变量传入）
 import pathlib as _pl
@@ -92,24 +118,66 @@ def verify_service_token(token: str | None, identity_header: str | None = None) 
     """
     验证 Service Token 并提取身份码。
 
+    配置语义（text_cli.yaml auth 段，启动快照）:
+      - service_token 非空 → 强制模式：所有请求必须携带且匹配 Service-token，
+        缺失/不匹配一律拒绝（不落 allow_anonymous 匿名分支）；匹配后先取身份码
+        （A5 header 优先，其次 token 尾 6 位），再做 registry 准入。
+      - service_token 为空 → 原流程：提取身份码；无身份码时由 allow_anonymous
+        决定匿名放行 / 拒绝；有身份码则做 registry 准入。
+
     参数:
         token: Service-token header（完整 token）
-        identity_header: X-Text-CLI-Identity header（A5 注入，当前未部署时为空）
+        identity_header: X-Text-CLI-Identity header（A5 注入，优先于 token 尾码）
 
     返回 AuthResult。
       - allowed=False → 中断请求
       - identity_code 非空 → handler 可用此身份查应用自建表
     """
+    cfg = _auth_snapshot()
+    service_token = cfg["service_token"]
 
-    # ── ① 提取身份码 ──
-    if identity_header:
-        identity_code = identity_header
-    else:
-        identity_code = _resolve_identity(token)
+    # ── 强制模式：service_token 非空 → 所有请求必须携带且匹配（先匹配、后准入）──
+    if service_token:
+        if not token or token.strip() != service_token:
+            logger.warning("Service-token verification failed: prefix=%s",
+                           token[:8] if token else "<none>")
+            return AuthResult(
+                allowed=False,
+                client_name="",
+                identity_code="",
+                message="Unauthorized: Service-token invalid",
+            )
+        identity_code = identity_header or _resolve_identity(token)
+        if not identity_code:
+            # 匹配 token 但取不到身份码（如 token 长度 <15 且无 A5 header）：
+            # 强制模式下不存在匿名分支 → 拒绝
+            return AuthResult(
+                allowed=False,
+                client_name="",
+                identity_code="",
+                message="Unauthorized: Service-token missing",
+            )
+        allowed, reason = _check_token_registry(identity_code)
+        if not allowed:
+            return AuthResult(
+                allowed=False,
+                client_name="",
+                identity_code=identity_code,
+                message=f"Unauthorized: {reason}",
+            )
+        return AuthResult(
+            allowed=True,
+            client_name=identity_code,
+            identity_code=identity_code,
+            message="",
+        )
 
-    # ── ② 无 token 分支 ──
+    # ── 原流程：service_token 为空 → 提取身份码 → registry 准入 → 匿名策略 ──
+    identity_code = identity_header or _resolve_identity(token)
+
+    # ── 无身份码分支 ──
     if not identity_code:
-        if A3_ALLOW_ANONYMOUS:
+        if cfg["allow_anonymous"]:
             return AuthResult(
                 allowed=True,
                 client_name="anonymous",
@@ -124,7 +192,7 @@ def verify_service_token(token: str | None, identity_header: str | None = None) 
                 message="Unauthorized: Service-token missing",
             )
 
-    # ── ③ 准入检查 ──
+    # ── 准入检查 ──
     allowed, reason = _check_token_registry(identity_code)
     if not allowed:
         return AuthResult(
@@ -133,18 +201,6 @@ def verify_service_token(token: str | None, identity_header: str | None = None) 
             identity_code=identity_code,
             message=f"Unauthorized: {reason}",
         )
-
-    # ── ④ 兼容旧 SERVICE_TOKEN 模式 ──
-    # 如果配置了 SERVICE_TOKEN 环境变量，额外做 token 匹配校验
-    if SERVICE_TOKEN and (not token or token.strip() != SERVICE_TOKEN):
-            logger.warning("Service-token verification failed: prefix=%s",
-                           token[:8] if token else "<none>")
-            return AuthResult(
-                allowed=False,
-                client_name="",
-                identity_code=identity_code,
-                message="Unauthorized: Service-token invalid",
-            )
 
     return AuthResult(
         allowed=True,
@@ -156,8 +212,8 @@ def verify_service_token(token: str | None, identity_header: str | None = None) 
 
 def write_call_log(identity_code: str, domain: str, action: str,
                    status: str, error_msg: str = "", duration_ms: int = 0) -> None:
-    """写入调用审计日志。仅在 A3_COUNT_CALLS=true 时写入。"""
-    if not A3_COUNT_CALLS or not A6_DB_FILE:
+    """写入调用审计日志。仅在 auth.count_calls=true 时写入（启动快照）。"""
+    if not _auth_snapshot()["count_calls"] or not A6_DB_FILE:
         return
 
     log_token = identity_code if identity_code else "__anon__"
