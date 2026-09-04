@@ -1,7 +1,9 @@
 """
-text-cli;install — 平台自管理：安装指令包。
+text-cli;install — 平台自管理：安装指令包（事务化）。
 
-从注册源搜索包 → 验证结构 → 部署文件 → 安装依赖 → 审计记录。
+事务顺序：校验 → 部署文件 → 安装依赖 → handler 试导入门禁 → 登记 → 热加载 → ok。
+任一事务步失败即整体回滚（复用 uninstall 侧 remove_files），返回顶层 status: error，
+不做半装（杜绝"manifest 已登记、指令不可用"的假安装）。
 包来源限定为本地 text-cliV1/ 目录，不接受任意 URL。
 
 Directives:
@@ -24,9 +26,10 @@ from core.registry import directive
 
 from .installer.audit import log_install
 from .installer.dependencies import install_deps, install_npm_deps
-from .installer.filesystem import _resolve_project_root, install_files
+from .installer.filesystem import _resolve_project_root, install_files, remove_files
 from .installer.validate import validate_package
 from .package_manifest import register as manifest_register
+from .package_manifest import mark_fields as manifest_mark_fields
 
 _INITS_PATH = Path(__file__).resolve().parent.parent / "config" / "handler_inits.py"
 
@@ -93,6 +96,21 @@ def _invalidate_package(name: str):
         if mod_name == f"packages.{name}" or mod_name.startswith(pkg_prefix):
             del sys.modules[mod_name]
             logger.debug("Purged module from sys.modules: %s", mod_name)
+
+
+def _rollback_files(name: str, stage: str) -> list[str]:
+    """事务回滚：复用 uninstall 侧 remove_files() 清理已部署文件。
+
+    覆盖 packages/<name>/、schema、handlers/<safe>.py、text_cli_modules/ 声明模块。
+    回滚后即"干净未装"——用户修复环境（如联网补依赖）后直接重装成功，无需 --force。
+    返回回滚异常信息列表（空 = 回滚干净）。
+    """
+    ok, msg = remove_files(name)
+    if not ok:
+        logger.warning("Rollback after %s failed for '%s': %s", stage, name, msg)
+        return [msg]
+    logger.info("Rolled back '%s' after %s: %s", name, stage, msg)
+    return []
 
 
 def _load_and_wire(name: str, safe: str, init_fn_name: str, arg_key: str | None):
@@ -206,6 +224,44 @@ def text_cli_install(params: list[str]) -> dict:
         elif not ok_deps:
             dep_msg = "no package.json, skip npm"
 
+    # ── 事务步：依赖安装失败 → 回滚已部署文件 → error（统一 error，不做半装）──
+    if not ok_deps:
+        rollback_msgs = _rollback_files(name, "dependency install failure")
+        log_install(name, meta, False, f"dependency install failed: {dep_msg}")
+        err: dict = {
+            "status": "error",
+            "reason": f"dependency install failed: {dep_msg}",
+            "package": name,
+            "deps_failed": True,
+            "files_deployed": False,
+        }
+        if rollback_msgs:
+            err["rollback"] = "; ".join(rollback_msgs)
+        return err
+
+    # ── 事务步：handler 模块试导入门禁（import 失败 → 回滚 → error）──
+    # 登记前验证 handler 可导入，杜绝"manifest 已登记、指令不可用"的假安装。
+    if runtime == "python":
+        if force:
+            _invalidate_package(name)
+        try:
+            import importlib as _importlib
+            _importlib.import_module(f"packages.{name}.handler")
+        except Exception as import_err:
+            _invalidate_package(name)  # 清除半导入残留（registry / sys.modules）
+            rollback_msgs = _rollback_files(name, "handler import failure")
+            log_install(name, meta, False, f"handler import failed: {import_err}")
+            err = {
+                "status": "error",
+                "reason": f"handler import failed: {import_err}",
+                "package": name,
+                "import_failed": True,
+                "files_deployed": False,
+            }
+            if rollback_msgs:
+                err["rollback"] = "; ".join(rollback_msgs)
+            return err
+
     # 4. Format result
     directives = schema.get("directives", [])
     mcp_server = schema.get("mcp_server", "")
@@ -227,11 +283,6 @@ def text_cli_install(params: list[str]) -> dict:
         if usage_en and usage_en != usage:
             lines.append(f"      {usage_en}")
 
-    if not ok_deps:
-        lines.append("")
-        lines.append(f"  [WARN] dependency install failed: {dep_msg}")
-        lines.append("    directive deployed, but may fail to execute due to missing dependencies.")
-
     # Build result dict
     result_data = {
         "status": "ok",
@@ -241,8 +292,6 @@ def text_cli_install(params: list[str]) -> dict:
         "directives": directives,
         "mcp_server": mcp_server,
     }
-    if not ok_deps:
-        result_data["dep_warning"] = dep_msg
 
     if msg and "\n" in msg:
         extra = "\n".join(msg.split("\n")[1:])
@@ -285,9 +334,18 @@ def text_cli_install(params: list[str]) -> dict:
         # New install: direct import_module (no reload needed).
         # Update (--force): invalidate old registrations first, then fresh import.
         if runtime == "python":
-            if force:
-                _invalidate_package(name)
+            # 试导入门禁已通过（模块已缓存），此处仅接线 init + dispatch
             _load_and_wire(name, safe, init_fn, arg_key)
+            # live-config 探测标记（issues ISS-02）：记录包是否实现 runtime_config 钩子
+            try:
+                import sys as _sys
+                _mod = _sys.modules.get(f"packages.{name}.handler")
+                manifest_mark_fields(
+                    name,
+                    live_config=bool(callable(getattr(_mod, "runtime_config", None))),
+                )
+            except Exception as probe_err:
+                logger.debug("live-config probe skipped for '%s': %s", name, probe_err)
     except Exception as e:
         logger.debug("Manifest/init optional for '%s': %s", name, e)
         pass  # manifest/init optional, don't block install
